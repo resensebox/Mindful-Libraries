@@ -102,17 +102,19 @@ if st.button("Get Recommendations"):
             for item in unique_matches:
                 st.markdown(f"- **{item['Title']}** ({item['Type']})")
                 st.markdown(f"  - {item['Summary']}")
-                if 'Image' in item and item['Image']:
+
+                if 'Image' in item and item['Image'] and item['Image'].startswith("http"):
                     st.image(item['Image'], width=300)
+                elif 'URL' in item and "amazon." in item['URL'] and "/dp/" in item['URL']:
+                    try:
+                        asin = item['URL'].split('/dp/')[-1].split('/')[0]
+                        image_url = f"https://images-na.ssl-images-amazon.com/images/P/{asin}.01._SL250_.jpg"
+                        st.image(image_url, width=200)
+                    except Exception as e:
+                        st.warning("Couldn't load book preview image.")
+
                 if 'URL' in item and item['URL']:
-                    st.markdown(f"[Buy The Book!]({item['URL']})")
-                    if "amazon." in item['URL'] and "/dp/" in item['URL']:
-                        try:
-                            asin = item['URL'].split('/dp/')[-1].split('/')[0]
-                            image_url = f"https://images-na.ssl-images-amazon.com/images/P/{asin}.01._SL250_.jpg"
-                            st.image(image_url, width=200)
-                        except Exception as e:
-                            st.warning("Couldn't load book preview image.")
+                    st.markdown(f"[Read More]({item['URL']})")
 
             book_titles = [item['Title'] for item in unique_matches if item['Type'].lower() == 'book']
             st.session_state['book_counter'].update(book_titles)
