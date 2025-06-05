@@ -561,7 +561,7 @@ if st.session_state['active_tags_for_filter']:
                         item_type = item.get('Type', '').lower()
                         if item_type == 'newspaper':
                             # New placeholder for newspapers
-                            st.image("https://ibb.co/S4Pn8bqZ", width=180, caption=item.get('Title', 'N/A'))
+                            st.image("https://placehold.co/180x250/007bff/ffffff?text=Newspaper", width=180, caption=item.get('Title', 'N/A'))
                         else:
                             st.image(f"https://placehold.co/180x250/cccccc/333333?text=No+Image", width=180)
                 with cols[1]:
@@ -653,7 +653,7 @@ if st.session_state['active_tags_for_filter']:
                     item_type = item.get('Type', '').lower()
                     if item_type == 'newspaper':
                         # New placeholder for newspapers
-                        st.image("https://ibb.co/S4Pn8bqZ", width=180, caption=item.get('Title', 'N/A'))
+                        st.image("https://placehold.co/180x250/007bff/ffffff?text=Newspaper", width=180, caption=item.get('Title', 'N/A'))
                     else:
                         st.image(f"https://placehold.co/180x250/cccccc/333333?text=No+Image", width=180)
             with cols[1]:
