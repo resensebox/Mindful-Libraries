@@ -164,8 +164,7 @@ if st.button("Generate My Topics") or reroll:
             penalty = st.session_state['book_counter'].get(row['Title'], 0)
             total_score = base_score - penalty
 
-            if total_score > 0:
-                scored.append((row, total_score))
+            scored.append((row, total_score))  # Don't filter out anything
 
         sorted_items = sorted(scored, key=lambda x: -x[1])
         top_matches = [item[0] for item in sorted_items]
@@ -183,7 +182,7 @@ if st.button("Generate My Topics") or reroll:
 
             if any(name in normalized_topics for name in ['betty white', 'lucille ball', 'doris day', 'judy garland']):
                 if any(tag in tags for tag in ['famous women', 'hollywood', 'tv shows', 'actresses']):
-                    pass  # Prioritized due to tag overlap
+                    pass
 
             if type_lower == 'book' and len(books) < 2:
                 books.append(item)
@@ -192,6 +191,20 @@ if st.button("Generate My Topics") or reroll:
                 newspapers.append(item)
                 seen_titles.add(item['Title'])
 
+            if len(books) >= 2 and len(newspapers) >= 3:
+                break
+
+        # Fallback: fill if under target
+        for item in top_matches:
+            if item['Title'] in seen_titles:
+                continue
+            type_lower = item['Type'].lower()
+            if type_lower == 'book' and len(books) < 2:
+                books.append(item)
+                seen_titles.add(item['Title'])
+            elif type_lower == 'newspaper' and len(newspapers) < 3:
+                newspapers.append(item)
+                seen_titles.add(item['Title'])
             if len(books) >= 2 and len(newspapers) >= 3:
                 break
 
