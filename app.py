@@ -171,7 +171,7 @@ if selected_tags:
 
     if books or magazines:
         st.subheader(f"📚 Recommendations for {name}")
-    for item in books[:3] + magazines[:3]:
+        for item in books[:3] + magazines[:3]:
         cols = st.columns([1, 2])
         with cols[0]:
             img_url = None
