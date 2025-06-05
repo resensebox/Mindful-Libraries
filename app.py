@@ -2,11 +2,10 @@ import streamlit as st
 import pandas as pd
 import gspread
 import json
-import openai
-
 from io import StringIO
 from oauth2client.service_account import ServiceAccountCredentials
 from collections import Counter
+from openai import OpenAI # Import the OpenAI class from the library
 from fpdf import FPDF
 from datetime import datetime
 
@@ -50,23 +49,27 @@ try:
         st.error("❌ OPENAI_API_KEY is missing from secrets.")
         st.stop()
 
-    openai.api_key = st.secrets["OPENAI_API_KEY"]
+    # FIX: Initialize the OpenAI client correctly for the new library
+    client_ai = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
     st.write("✅ Successfully initialized Google Sheets and OpenAI clients")
 
 except Exception as e:
     st.error(f"Failed to initialize Google Sheets or OpenAI client. Please check your `st.secrets` configuration. Error: {e}")
     st.stop()
 
-def generate_tags_with_openai(prompt):
-    try:
-        response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
-            messages=[{"role": "user", "content": prompt}]
-        )
-        return response['choices'][0]['message']['content']
-    except Exception as e:
-        st.error(f"Failed to generate tags using OpenAI. Error: {e}")
-        return ""
+# You no longer need this `generate_tags_with_openai` function since you're calling the client directly
+# However, if you wanted to keep it, you'd pass `client_ai` into it.
+# For simplicity, I'm removing it here and using the direct call where it's currently implemented.
+# def generate_tags_with_openai(prompt):
+#     try:
+#         response = client_ai.chat.completions.create(
+#             model="gpt-3.5-turbo",
+#             messages=[{"role": "user", "content": prompt}]
+#         )
+#         return response.choices[0].message.content # Corrected access
+#     except Exception as e:
+#         st.error(f"Failed to generate tags using OpenAI. Error: {e}")
+#         return ""
 
 
 @st.cache_data(ttl=3600)
@@ -117,8 +120,6 @@ def generate_pdf(name, topics, recs):
     return pdf
 
 # The rest of your code remains unchanged (Streamlit UI, tag generation, recommendations, etc.)
-# Just make sure your OpenAI call uses:
-# response = openai.ChatCompletion.create(...)
 
 # --- Streamlit UI ---
 st.image("https://i.postimg.cc/0yVG4bhN/mindfullibrarieswhite-01.png", width=300)
@@ -202,11 +203,13 @@ if st.button("Generate My Tags"):
                     Only return 10 comma-separated tags from the list above. Do not include any additional text or formatting.
                 """
                 try:
+                    # FIX: Use the 'client_ai' object initialized earlier
                     response = client_ai.chat.completions.create(
                         model="gpt-3.5-turbo",
                         messages=[{"role": "user", "content": prompt}]
                     )
-                    topic_output = response.choices[0].message['content'].strip
+                    # FIX: Correctly access the content and call .strip()
+                    topic_output = response.choices[0].message.content.strip()
                     st.session_state['selected_tags'] = [t.strip().lower() for t in topic_output.split(',') if t.strip()]
                     st.success("Here are your personalized tags:")
                     st.write(", ".join(selected_tags))
@@ -223,7 +226,6 @@ if selected_tags:
     search_term = st.text_input("Or, type a topic or interest you'd like us to search for")
     if search_term:
         st.markdown(f"### 🔍 Search Results for '{search_term}'")
-        # Fix: Ensure the string for 'Summary' is properly closed
         results = [
             item for item in content_df.to_dict('records')
             if (item.get('Title', '').lower() and search_term.lower() in item.get('Title', '').lower()) or \
@@ -246,7 +248,6 @@ if selected_tags:
     newspapers_candidates = []
 
     for item in content_df.itertuples(index=False):
-        # Ensure 'tags' attribute exists for the item
         item_tags = getattr(item, 'tags', set())
         item_type = getattr(item, 'Type', '').lower()
 
@@ -259,21 +260,17 @@ if selected_tags:
         elif item_type == 'book' and num_matches >= 1 and tag_weight >= 0:
             books_candidates.append((num_matches, tag_weight, item._asdict()))
 
-    # Sort candidates: primary by number of tag matches (desc), then by tag weight (desc)
     books_candidates.sort(key=lambda x: (x[0], x[1]), reverse=True)
     newspapers_candidates.sort(key=lambda x: (x[0], x[1]), reverse=True)
 
-    # Extract the top recommendations
     books = [item_dict for _, _, item_dict in books_candidates[:3]]
     newspapers = [item_dict for _, _, item_dict in newspapers_candidates[:3]]
 
     primary_recommended_titles = {item.get('Title') for item in books + newspapers if item.get('Title')}
 
-    # "You Might Also Like" logic
     related_books = []
-    all_relevant_tags = set(selected_tags) # Start with the core tags
+    all_relevant_tags = set(selected_tags)
 
-    # Add tags from all primary recommendations to broaden the "You Might Also Like" search
     for item in books + newspapers:
         all_relevant_tags.update(item.get('tags', set()))
 
@@ -284,7 +281,6 @@ if selected_tags:
             if len(common_tags) > 0:
                 temp_related_books_candidates.append((len(common_tags), item))
 
-    # Sort related book candidates by number of matching tags, then pick top N
     temp_related_books_candidates.sort(key=lambda x: x[0], reverse=True)
     related_books = [book_dict for _, book_dict in temp_related_books_candidates][:10]
 
@@ -300,7 +296,7 @@ if selected_tags:
                     try:
                         asin = item['URL'].split('/dp/')[-1].split('/')[0].split('?')[0]
                         img_url = f"https://images-na.ssl-images-amazon.com/images/P/{asin}.01._SL250_.jpg"
-                    except IndexError: # Catch potential IndexError if URL format is unexpected
+                    except IndexError:
                         pass
                 if img_url:
                     st.image(img_url, width=180)
@@ -311,9 +307,8 @@ if selected_tags:
                 if original_tag_matches:
                     st.markdown(f"_Why this was recommended: matched tags — {', '.join(original_tag_matches)}_")
                 else:
-                    st.markdown("_No direct tag matches found for this recommendation._") # Fallback text
-                
-                # Unique key for radio buttons
+                    st.markdown("_No direct tag matches found for this recommendation._")
+
                 feedback_key = f"feedback_{item.get('Title', 'NoTitle')}_{item.get('Type', 'NoType')}"
                 feedback = st.radio(
                     f"Was this recommendation helpful?",
@@ -339,19 +334,18 @@ if selected_tags:
                         st.warning(f"⚠️ Failed to save feedback. Error: {e}")
                 if 'URL' in item and item['URL']:
                     st.markdown(f"<a class='buy-button' href='{item['URL']}' target='_blank'>Buy Now</a>", unsafe_allow_html=True)
-        if not (books or newspapers): # If after processing, no primary recommendations are found
+        if not (books or newspapers):
             st.markdown("_No primary recommendations found based on your current tags. Please try adjusting your input or generating new tags._")
     else:
         st.markdown("_No primary recommendations found based on your current tags. Please try adjusting your input or generating new tags._")
 
     if related_books:
-        st.markdown("---") # Horizontal line for separation
+        st.markdown("---")
         st.markdown("### 📖 You Might Also Like")
-        # Display related books in a more responsive grid
-        num_cols = min(5, len(related_books)) # Max 5 columns
+        num_cols = min(5, len(related_books))
         cols = st.columns(num_cols)
         for i, book in enumerate(related_books):
-            with cols[i % num_cols]: # Use modulo to wrap around columns
+            with cols[i % num_cols]:
                 img_url = None
                 if book.get('Image', '').startswith("http"):
                     img_url = book['Image']
@@ -367,9 +361,7 @@ if selected_tags:
     else:
         st.markdown("_No other related books found with your current tags. Try generating new tags or searching for a specific topic!_")
         st.markdown("---")
-        # Fallback to show some random books if no related books are found after all attempts
         st.markdown("### ✨ Or, explore some popular titles:")
-        # Ensure content_df is not empty and 'Type' column exists before sampling
         if not content_df.empty and 'Type' in content_df.columns:
             fallback_books_df = content_df[content_df['Type'].str.lower() == 'book']
             if not fallback_books_df.empty:
