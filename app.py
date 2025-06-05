@@ -51,11 +51,11 @@ content_df = load_content()
 if 'book_counter' not in st.session_state:
     st.session_state['book_counter'] = Counter()
 
-def save_user_input(name, jobs, hobbies, faith, decade, selected_topics):
+def save_user_input(name, jobs, hobbies, decade, selected_topics):
     try:
         sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXJRXcfmxjoj5s')
         log_ws = sheet.worksheet('Logs')
-        log_ws.append_row([datetime.now().strftime("%Y-%m-%d %H:%M:%S"), name, jobs, hobbies, faith, decade, ", ".join(selected_topics)])
+        log_ws.append_row([datetime.now().strftime("%Y-%m-%d %H:%M:%S"), name, jobs, hobbies, decade, ", ".join(selected_topics)])
     except Exception:
         st.warning("Failed to save user data.")
 
@@ -87,7 +87,6 @@ st.write("Answer a few fun questions to get personalized tag suggestions for nos
 name = st.text_input("Your Name")
 jobs = st.text_input("What did you used to do for a living?")
 hobbies = st.text_input("What are your hobbies or favorite activities?")
-faith = st.text_input("Do you have a faith background (e.g. Christian, Jewish, None)?")
 decade = st.text_input("What is your favorite decade or era?")
 reroll = st.button("🎲 Reroll My Tags")
 
@@ -102,7 +101,7 @@ if st.button("Generate My Tags") or reroll:
 
             You are given a list of available tags from real books and newspapers. Your job is to recommend 10 highly relevant and personalized tags based on the user's background. These tags will be used to score and select reading recommendations.
 
-            DO NOT return book titles. DO NOT return topics that aren't in the list. Use only the provided tags.
+            DO NOT return book titles. Only use the provided tags.
 
             Available tags:
             {content_preview}
@@ -110,10 +109,9 @@ if st.button("Generate My Tags") or reroll:
             User Background:
             - Job: {jobs}
             - Hobbies: {hobbies}
-            - Faith: {faith}
             - Favorite decade: {decade}
 
-            Return only a comma-separated list of 10 existing tags (from above) that best match this user. Do not invent new tags.
+            Return only a comma-separated list of 10 existing tags (from above) that best match this user.
             """
 
             try:
@@ -135,7 +133,7 @@ if st.button("Generate My Tags") or reroll:
 
         st.success("Here are your personalized tags:")
         st.write(", ".join(selected_tags))
-        save_user_input(name, jobs, hobbies, faith, decade, selected_tags)
+        save_user_input(name, jobs, hobbies, decade, selected_tags)
 
         normalized_tags = set(selected_tags)
 
@@ -144,11 +142,6 @@ if st.button("Generate My Tags") or reroll:
             tags = row['tags']
             match_count = len(tags & normalized_tags)
             base_score = match_count * 2
-
-            if 'christian' in faith.lower() and 'faith' in tags:
-                base_score += 2
-            if 'jewish' in faith.lower() and 'jewish' in tags:
-                base_score += 2
 
             penalty = st.session_state['book_counter'].get(row['Title'], 0)
             total_score = base_score - penalty
