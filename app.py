@@ -6,6 +6,7 @@ from io import StringIO
 from oauth2client.service_account import ServiceAccountCredentials
 import requests
 from collections import Counter
+import random
 
 # Google Sheets Setup (using secrets)
 scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
@@ -28,8 +29,6 @@ content_df = load_content()
 # Track book recommendation counts
 if 'book_counter' not in st.session_state:
     st.session_state['book_counter'] = Counter()
-if 'selected_topics' not in st.session_state:
-    st.session_state['selected_topics'] = []
 
 # Logging function using Google Apps Script
 def log_to_google_sheet(name, college, topics, recommendations):
@@ -47,37 +46,53 @@ def log_to_google_sheet(name, college, topics, recommendations):
     except Exception as e:
         st.error(f"Logging failed: {e}")
 
-# Streamlit UI
+# Expanded topic categories with full list
+categories = {
+    "Nature & Outdoors": ["Animals", "Animal Watching", "Birdwatching", "Gardening", "Hiking", "Nature", "Outdoors", "Seasons & Holidays", "Wildlife", "Turtles", "Hummingbirds", "Parrots", "Penguins", "Orcas"],
+    "Crafts & Hobbies": ["Crocheting", "Painting", "Calligraphy", "Model Kits", "Crafts", "Plate Painting", "Terrarium", "Paper Fish", "Paper Flowers", "Wreath Craft", "Chair Exercises"],
+    "Food & Cooking": ["Baking", "Candy Nostalgia", "Chocolate Chip Cookies", "Mac And Cheese", "Cupcakes", "Garlic Bread", "Brownies", "Salted Brownies", "Blueberry Muffins", "Brownie Kiss Cupcakes", "Oatmeal Raisin Cookies"],
+    "Faith & Reflection": ["Faith", "Bible", "Spirituality", "Prayer", "Meditation", "Devotion", "Worship", "Reflection", "Quiet Time", "Psalms", "Proverbs", "Shabbat"],
+    "History & Culture": ["Native American", "Egyptian Bread", "Roman Empire", "Founding Fathers", "George Washington", "Lewis And Clark", "Cleopatra", "Jfk", "Fdr", "Gandhi", "Stanton", "Women"],
+    "Family & Community": ["Family", "Friendships", "Motherhood", "Community", "Togetherness", "Relationships", "Bond", "Care And Support", "Belonging"],
+    "Nostalgia & Reminiscence": ["Drive-In Movies", "Childhood", "Retro Games", "Penny Candy", "Nostalgia", "Simpler Times", "Reminiscence & Nostalgia", "Life Before Tv", "Good Times"],
+    "Seasons & Holidays": ["Christmas", "Thanksgiving", "Halloween", "Easter", "Valentine’S Day", "Winter", "Autumn", "Spring"],
+    "Science & Learning": ["Aviation", "Space Race", "John Muir", "Museums", "Law", "Language", "Literature", "Education", "Nature & Outdoors", "Evolution Of Movies"],
+    "Entertainment: Performing Arts & Music": ["Dancing", "Elvis Presley", "Jazzercise", "Singing", "Lawrence Welk", "Sound Of Music", "Music", "Instruments", "Spirituals", "Joyful Sounds"],
+    "Entertainment: Games & Sports": ["Board Games", "Baseball", "Basketball", "Trivia", "Wheel Of Fortune", "Sports", "Super Bowl", "Dog Olympics", "Games"]
+}
+
+# Streamlit App UI
 st.title("📰 Personalized Reading Recommendations")
-st.write("Select **at least 4 topics** to receive custom reading material suggestions!")
+st.write("Select categories and choose **at least 4 topics** total to receive custom reading material suggestions!")
 
-with st.form("recommendation_form"):
-    name = st.text_input("Your Name")
-    college = st.text_input("College Chapter (Optional)")
-    selected_topics = st.multiselect(
-        "Choose at least 4 topics:",
-        sorted(list(set(tag for tags in content_df['tags'] for tag in tags))),
-        default=st.session_state['selected_topics']
-    )
+name = st.text_input("Your Name")
+college = st.text_input("College Chapter (Optional)")
+selected_categories = st.multiselect("Choose 1 or more Categories", list(categories.keys()))
 
-    submitted = st.form_submit_button("Get Recommendations")
+# Gather and shuffle all topics from selected categories
+selected_topics_pool = [topic for cat in selected_categories for topic in categories[cat]]
+random.shuffle(selected_topics_pool)
+selected_topics = st.multiselect("Now choose at least 4 topics from your selected categories:", selected_topics_pool)
 
-if submitted:
-    st.session_state['selected_topics'] = selected_topics
-
+if st.button("Get Recommendations"):
     if name and len(selected_topics) >= 4:
         interest_set = set(tag.strip().lower() for tag in selected_topics)
-        scored = [(row, len(interest_set.intersection(row['tags']))) for _, row in content_df.iterrows()]
+        scored = []
+        for _, row in content_df.iterrows():
+            score = len(interest_set.intersection(row['tags']))
+            scored.append((row, score))
+
         sorted_items = sorted(scored, key=lambda x: -x[1])
         top_matches = [item[0] for item in sorted_items if item[1] > 0]
 
+        # Guarantee at least one Book and one Newspaper
         book = next((item for item in top_matches if item['Type'].lower() == 'book'), None)
         newspaper = next((item for item in top_matches if item['Type'].lower() == 'newspaper'), None)
 
         unique_matches = []
-        if book:
+        if book is not None:
             unique_matches.append(book)
-        if newspaper and (not book or newspaper['Title'] != book['Title']):
+        if newspaper is not None and (book is None or newspaper['Title'] != book['Title']):
             unique_matches.append(newspaper)
 
         for item in top_matches:
@@ -85,18 +100,21 @@ if submitted:
                 unique_matches.append(item)
 
         st.subheader(f"📚 Recommendations for {name}")
-        for item in unique_matches:
-            st.markdown(f"- **{item['Title']}** ({item['Type']})")
-            st.markdown(f"  - {item['Summary']}")
+        if unique_matches:
+            for item in unique_matches:
+                st.markdown(f"- **{item['Title']}** ({item['Type']})")
+                st.markdown(f"  - {item['Summary']}")
 
-        book_titles = [item['Title'] for item in unique_matches if item['Type'].lower() == 'book']
-        st.session_state['book_counter'].update(book_titles)
+            book_titles = [item['Title'] for item in unique_matches if item['Type'].lower() == 'book']
+            st.session_state['book_counter'].update(book_titles)
 
-        st.markdown("### 📈 Book Recommendation Count")
-        for title, count in st.session_state['book_counter'].items():
-            st.markdown(f"- {title}: {count} times")
+            st.markdown("### 📈 Book Recommendation Count")
+            for title, count in st.session_state['book_counter'].items():
+                st.markdown(f"- {title}: {count} times")
 
-        log_to_google_sheet(name, college, selected_topics, [item['Title'] for item in unique_matches])
+            log_to_google_sheet(name, college, selected_topics, [item['Title'] for item in unique_matches])
+        else:
+            st.info("We didn't find any strong matches, but stay tuned for future updates!")
     elif len(selected_topics) < 4:
         st.warning("Please select at least 4 interests from the list.")
     else:
