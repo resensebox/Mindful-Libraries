@@ -2,12 +2,17 @@ import streamlit as st
 import pandas as pd
 import gspread
 import json
+
+
 from io import StringIO
 from oauth2client.service_account import ServiceAccountCredentials
 from collections import Counter
 from openai import OpenAI
 from fpdf import FPDF
 from datetime import datetime
+
+import streamlit as st
+st.set_option('client.showErrorDetails', True)
 
 st.set_page_config(page_title="Mindful Libraries", layout="centered")
 st.markdown("""
@@ -27,9 +32,15 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
+st.write("✅ App is running")
+st.write("🔍 Secrets found:", list(st.secrets.keys()))
+
+
 # --- Google Sheets and OpenAI Initialization ---
 try:
     scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
+    st.write("🔁 Initializing services...")
+
 
     if "GOOGLE_SERVICE_JSON" not in st.secrets:
         st.error("❌ GOOGLE_SERVICE_JSON is missing from secrets.")
