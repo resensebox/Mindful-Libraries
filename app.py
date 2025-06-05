@@ -4,6 +4,7 @@ import gspread
 import json
 from io import StringIO
 from oauth2client.service_account import ServiceAccountCredentials
+import requests
 
 # Google Sheets Setup (using secrets)
 scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
@@ -19,16 +20,26 @@ def load_content():
     content_ws = sheet.worksheet('ContentDB')
     df = pd.DataFrame(content_ws.get_all_records())
     df['tags'] = df['Tags'].apply(lambda x: set(tag.strip().lower() for tag in str(x).split(',')))
-    return df, sheet
+    return df
 
-content_df, sheet = load_content()
+content_df = load_content()
 
-# Ensure Logs worksheet exists
-try:
-    log_ws = sheet.worksheet('Logs')
-except gspread.WorksheetNotFound:
-    log_ws = sheet.add_worksheet(title='Logs', rows="1000", cols="20")
-    log_ws.append_row(["Name", "Selected Topics", "Recommendations"])
+# Logging function
+def log_to_google_sheet(name, topics, recommendations):
+    url = "YOUR_WEB_APP_URL"  # Replace with your Web App URL from Apps Script
+    payload = {
+        "name": name,
+        "topics": topics,
+        "recommendations": recommendations
+    }
+    try:
+        response = requests.post(url, json=payload)
+        if response.status_code == 200:
+            print("Logged successfully.")
+        else:
+            print("Logging failed:", response.text)
+    except Exception as e:
+        print("Error logging to sheet:", e)
 
 # Expanded topic categories with full list
 categories = {
@@ -83,15 +94,10 @@ if st.button("Get Recommendations"):
 
         st.subheader(f"📚 Recommendations for {name}")
         if unique_matches:
-            rec_titles = []
             for item in unique_matches:
                 st.markdown(f"- **{item['Title']}** ({item['Type']})")
                 st.markdown(f"  - {item['Summary']}")
-                rec_titles.append(item['Title'])
-
-            # Log the interaction (no timestamp)
-            log_ws.append_row([name, ", ".join(selected_topics), ", ".join(rec_titles)])
-
+            log_to_google_sheet(name, selected_topics, [item['Title'] for item in unique_matches])
         else:
             st.info("We didn't find any strong matches, but stay tuned for future updates!")
     elif len(selected_topics) < 4:
