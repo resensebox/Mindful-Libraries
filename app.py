@@ -164,7 +164,7 @@ if selected_tags:
         tag_weight = sum(feedback_tag_scores.get(tag, 0) for tag in tag_matches)
         if item.Type.lower() == 'newspaper' and len(tag_matches) >= 3 and tag_weight >= -1:
             newspapers.append(item._asdict())
-                used_tags.update(tag_matches)
+            used_tags.update(tag_matches)
         elif item.Type.lower() == 'book' and len(tag_matches) >= 3 and tag_weight >= 0:
             books.append(item._asdict())
             used_tags.update(tag_matches)
@@ -180,9 +180,9 @@ if selected_tags:
 ]
 
     if books or newspapers:
-        st.subheader(f"📚 Recommendations for {name}")
-        for item in books[:3] + newspapers[:3]:
-        cols = st.columns([1, 2])
+            st.subheader(f"📚 Recommendations for {name}")
+                    for item in books[:3] + newspapers[:3]:
+                                cols = st.columns([1, 2])
         with cols[0]:
             img_url = None
             if item.get('Image', '').startswith("http"):
