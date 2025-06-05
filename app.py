@@ -123,7 +123,12 @@ if selected_tags:
             matched_items.append(item._asdict())
 
     matched_titles = [item['Title'] for item in matched_items]
-    related_books = [item for item in content_df.to_dict('records') if item['Title'] not in matched_titles and item['Type'].lower() == 'book' and set(item['tags']) & set(selected_tags)] not in matched_titles and item['Type'].lower() == 'book' and set(item['tags']) & set(selected_tags)]
+    related_books = [
+    item for item in content_df.to_dict('records')
+    if item['Title'] not in matched_titles and
+       item['Type'].lower() == 'book' and
+       set(item['tags']) & set(selected_tags)
+] not in matched_titles and item['Type'].lower() == 'book' and set(item['tags']) & set(selected_tags)]
 
     if matched_items:
         st.subheader(f"📚 Recommendations for {name}")
@@ -148,7 +153,7 @@ if selected_tags:
                     st.markdown(f"<a class='buy-button' href='{item['URL']}' target='_blank'>Buy Now</a>", unsafe_allow_html=True)
 
         if related_books:
-        st.markdown("### 📖 You Might Also Like")
+            st.markdown("### 📖 You Might Also Like")
         cols = st.columns(min(5, len(related_books)))
         for i, book in enumerate(related_books[:10]):
             with cols[i % len(cols)]:
