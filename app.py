@@ -115,10 +115,16 @@ if st.button("Generate My Topics") or reroll:
             {all_topics}
             Just return the list of 10 topics, comma-separated.
             """
-            response = client_ai.chat.completions.create(
-                model="gpt-3.5-turbo",
-                messages=[{"role": "user", "content": prompt}]
-            )
+            try:
+                response = client_ai.chat.completions.create(
+                    model="gpt-3.5-turbo",
+                    messages=[{"role": "user", "content": prompt}]
+                )
+                topic_output = response.choices[0].message.content
+                selected_topics = [t.strip() for t in topic_output.split(',') if t.strip()]
+            except Exception as e:
+                st.error("⚠️ Oops! We hit a limit with our AI provider or encountered an error. Please try again later.")
+                st.stop()
             topic_output = response.choices[0].message.content
             selected_topics = [t.strip() for t in topic_output.split(',') if t.strip()]
 
