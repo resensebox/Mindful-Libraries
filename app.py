@@ -29,6 +29,8 @@ content_df = load_content()
 # Track book recommendation counts
 if 'book_counter' not in st.session_state:
     st.session_state['book_counter'] = Counter()
+if 'selected_topics' not in st.session_state:
+    st.session_state['selected_topics'] = []
 
 # Logging function using Google Apps Script
 def log_to_google_sheet(name, college, topics, recommendations):
@@ -46,7 +48,7 @@ def log_to_google_sheet(name, college, topics, recommendations):
     except Exception as e:
         st.error(f"Logging failed: {e}")
 
-# Expanded topic categories with full list
+# Topic Categories
 categories = {
     "Nature & Outdoors": ["Animals", "Animal Watching", "Birdwatching", "Gardening", "Hiking", "Nature", "Outdoors", "Seasons & Holidays", "Wildlife", "Turtles", "Hummingbirds", "Parrots", "Penguins", "Orcas"],
     "Crafts & Hobbies": ["Crocheting", "Painting", "Calligraphy", "Model Kits", "Crafts", "Plate Painting", "Terrarium", "Paper Fish", "Paper Flowers", "Wreath Craft", "Chair Exercises"],
@@ -61,48 +63,45 @@ categories = {
     "Entertainment: Games & Sports": ["Board Games", "Baseball", "Basketball", "Trivia", "Wheel Of Fortune", "Sports", "Super Bowl", "Dog Olympics", "Games"]
 }
 
-# Streamlit App UI
+# Streamlit UI
 st.title("📰 Personalized Reading Recommendations")
 st.write("Select categories and choose **at least 4 topics** total to receive custom reading material suggestions!")
 
-name = st.text_input("Your Name")
-college = st.text_input("College Chapter (Optional)")
-selected_categories = st.multiselect("Choose 1 or more Categories", list(categories.keys()))
+with st.form("recommendation_form"):
+    name = st.text_input("Your Name")
+    college = st.text_input("College Chapter (Optional)")
+    selected_categories = st.multiselect("Choose 1 or more Categories", list(categories.keys()))
 
-# Preserve already-selected topics
-previously_selected = st.session_state.get("selected_topics", [])
+    available_topics = []
+    for cat in selected_categories:
+        available_topics.extend(categories[cat])
 
-# Gather topics from selected categories
-all_topics = [topic for cat in selected_categories for topic in categories[cat]]
+    random.shuffle(available_topics)
 
-# Shuffle new topics (excluding previously selected)
-new_topics = [topic for topic in all_topics if topic not in previously_selected]
-random.shuffle(new_topics)
+    selected_topics = st.multiselect(
+        "Now choose at least 4 topics from your selected categories:",
+        options=available_topics,
+        default=st.session_state['selected_topics']
+    )
 
-# Combine preserved + shuffled
-selected_topics_pool = list(dict.fromkeys(previously_selected + new_topics))
-selected_topics = st.multiselect("Now choose at least 4 topics from your selected categories:", selected_topics_pool, default=previously_selected)
-st.session_state["selected_topics"] = selected_topics
+    submitted = st.form_submit_button("Get Recommendations")
 
-if st.button("Get Recommendations"):
+if submitted:
+    st.session_state['selected_topics'] = selected_topics
+
     if name and len(selected_topics) >= 4:
         interest_set = set(tag.strip().lower() for tag in selected_topics)
-        scored = []
-        for _, row in content_df.iterrows():
-            score = len(interest_set.intersection(row['tags']))
-            scored.append((row, score))
-
+        scored = [(row, len(interest_set.intersection(row['tags']))) for _, row in content_df.iterrows()]
         sorted_items = sorted(scored, key=lambda x: -x[1])
         top_matches = [item[0] for item in sorted_items if item[1] > 0]
 
-        # Guarantee at least one Book and one Newspaper
         book = next((item for item in top_matches if item['Type'].lower() == 'book'), None)
         newspaper = next((item for item in top_matches if item['Type'].lower() == 'newspaper'), None)
 
         unique_matches = []
-        if book is not None:
+        if book:
             unique_matches.append(book)
-        if newspaper is not None and (book is None or newspaper['Title'] != book['Title']):
+        if newspaper and (not book or newspaper['Title'] != book['Title']):
             unique_matches.append(newspaper)
 
         for item in top_matches:
@@ -110,21 +109,18 @@ if st.button("Get Recommendations"):
                 unique_matches.append(item)
 
         st.subheader(f"📚 Recommendations for {name}")
-        if unique_matches:
-            for item in unique_matches:
-                st.markdown(f"- **{item['Title']}** ({item['Type']})")
-                st.markdown(f"  - {item['Summary']}")
+        for item in unique_matches:
+            st.markdown(f"- **{item['Title']}** ({item['Type']})")
+            st.markdown(f"  - {item['Summary']}")
 
-            book_titles = [item['Title'] for item in unique_matches if item['Type'].lower() == 'book']
-            st.session_state['book_counter'].update(book_titles)
+        book_titles = [item['Title'] for item in unique_matches if item['Type'].lower() == 'book']
+        st.session_state['book_counter'].update(book_titles)
 
-            st.markdown("### 📈 Book Recommendation Count")
-            for title, count in st.session_state['book_counter'].items():
-                st.markdown(f"- {title}: {count} times")
+        st.markdown("### 📈 Book Recommendation Count")
+        for title, count in st.session_state['book_counter'].items():
+            st.markdown(f"- {title}: {count} times")
 
-            log_to_google_sheet(name, college, selected_topics, [item['Title'] for item in unique_matches])
-        else:
-            st.info("We didn't find any strong matches, but stay tuned for future updates!")
+        log_to_google_sheet(name, college, selected_topics, [item['Title'] for item in unique_matches])
     elif len(selected_topics) < 4:
         st.warning("Please select at least 4 interests from the list.")
     else:
