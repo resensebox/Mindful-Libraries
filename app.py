@@ -81,6 +81,10 @@ def generate_pdf(name, topics, recs):
 # Topics List
 all_topics = sorted(set(topic.strip() for sublist in content_df['tags'] for topic in sublist))
 
+# Add curated themes to all_topics
+all_curated = sorted(set(content_df['curated'].dropna().unique()))
+all_topics = sorted(set(all_topics).union(all_curated))
+
 # Streamlit UI
 st.image("https://i.postimg.cc/0yVG4bhN/mindfullibrarieswhite-01.png", width=300)
 st.title("Personalized Reading Recommendations")
