@@ -27,7 +27,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
+scope = ['https://sheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
 service_account_info = json.load(StringIO(st.secrets["GOOGLE_SERVICE_JSON"]))
 creds = ServiceAccountCredentials.from_json_keyfile_dict(service_account_info, scope)
 client = gspread.authorize(creds)
@@ -144,6 +144,8 @@ if st.button("Generate My Tags"):
             save_user_input(name, jobs, hobbies, decade, selected_tags)
 
 if selected_tags:
+    st.write(f"**DEBUG (Primary Recs): Selected Tags: {selected_tags}**") # DEBUGGING LINE 1
+
     search_term = st.text_input("Or, type a topic or interest you'd like us to search for")
     if search_term:
         st.markdown(f"### 🔍 Search Results for '{search_term}'")
@@ -155,58 +157,71 @@ if selected_tags:
             if 'URL' in item and item['URL']:
                 st.markdown(f"<a class='buy-button' href='{item['URL']}' target='_blank'>Buy Now</a>", unsafe_allow_html=True)
 
-    used_tags = set()
-    books = []
-    newspapers = []
-    matched_items = []
-    shuffled_df = content_df.sample(frac=1, random_state=42)
+    books_candidates = []
+    newspapers_candidates = []
+    
+    st.write(f"**DEBUG (Primary Recs): Total items in content_df: {len(content_df)}**") # DEBUGGING LINE 2
+    st.write(f"**DEBUG (Primary Recs): Sample of ContentDB tags (first 5):**") # DEBUGGING LINE 3
+    st.write(content_df['tags'].head().tolist()) # DEBUGGING LINE 4
 
-    for item in shuffled_df.itertuples(index=False):
+    for item in content_df.itertuples(index=False): # Iterate through content_df directly, no need to shuffle yet
         tag_matches = set(item.tags) & set(selected_tags)
+        num_matches = len(tag_matches)
         tag_weight = sum(feedback_tag_scores.get(tag, 0) for tag in tag_matches)
 
-        if item.Type.lower() == 'newspaper' and len(tag_matches) >= 3 and tag_weight >= -1:
-            newspapers.append(item._asdict())
-            used_tags.update(tag_matches)
-        elif item.Type.lower() == 'book' and len(tag_matches) >= 3 and tag_weight >= 0:
-            books.append(item._asdict())
-            used_tags.update(tag_matches)
-        elif tag_matches:
-            matched_items.append(item._asdict())
+        # Store candidates with their match quality
+        if item.Type.lower() == 'newspaper' and num_matches >= 1 and tag_weight >= -1: # Relaxed to 1 match
+            newspapers_candidates.append((num_matches, tag_weight, item._asdict()))
+        elif item.Type.lower() == 'book' and num_matches >= 1 and tag_weight >= 0: # Relaxed to 1 match
+            books_candidates.append((num_matches, tag_weight, item._asdict()))
+            
+    st.write(f"**DEBUG (Primary Recs): Books candidates before sorting: {len(books_candidates)}**") # DEBUGGING LINE 5
+    st.write(f"**DEBUG (Primary Recs): Newspapers candidates before sorting: {len(newspapers_candidates)}**") # DEBUGGING LINE 6
 
-    # Titles already recommended in the primary "books" and "newspapers" lists
-    recommended_titles = {item['Title'] for item in books + newspapers}
 
-    # First attempt for related books: books that match selected_tags but weren't in primary recommendations
-    related_books = [
-        item for item in content_df.to_dict('records')
-        if item['Title'] not in recommended_titles and
-           item['Type'].lower() == 'book' and
-           set(item['tags']) & set(selected_tags)
-    ]
+    # Sort candidates: primary by number of tag matches (desc), then by tag weight (desc)
+    books_candidates.sort(key=lambda x: (x[0], x[1]), reverse=True)
+    newspapers_candidates.sort(key=lambda x: (x[0], x[1]), reverse=True)
 
-    # If not enough related books, try broadening the search to include tags from *all* matched items
-    if len(related_books) < 10 and matched_items: # Limit the display to 10
-        all_matched_tags = set()
-        for item in matched_items:
-            all_matched_tags.update(item['tags'])
-        
-        # Add a few more items based on `all_matched_tags` if `related_books` is still small
-        temp_related_books = [
-            item for item in content_df.to_dict('records')
-            if item['Title'] not in recommended_titles and
-               item['Type'].lower() == 'book' and
-               set(item['tags']) & all_matched_tags and
-               item not in related_books # Avoid duplicates
-        ]
-        related_books.extend(temp_related_books)
-        # Remove duplicates while preserving order (approx) and limit to 10
-        related_books = list(dict.fromkeys(related_books))[:10]
+    # Extract the top recommendations
+    books = [item_dict for _, _, item_dict in books_candidates[:3]]
+    newspapers = [item_dict for _, _, item_dict in newspapers_candidates[:3]]
+    
+    st.write(f"**DEBUG (Primary Recs): Final books for display (len): {len(books)}**") # DEBUGGING LINE 7
+    st.write(f"**DEBUG (Primary Recs): Final newspapers for display (len): {len(newspapers)}**") # DEBUGGING LINE 8
+
+
+    # This part now needs to gather *all* items that were considered for primary recommendations
+    # to avoid recommending them again in "You Might Also Like"
+    primary_recommended_titles = {item['Title'] for item in books + newspapers}
+
+    # "You Might Also Like" logic (keeping the previous improvements)
+    # We now look for related books that *weren't* picked in the primary recommendations.
+    related_books = []
+    all_relevant_tags = set(selected_tags) # Start with the core tags
+
+    # Add tags from all primary recommendations to broaden the "You Might Also Like" search
+    for item in books + newspapers:
+        all_relevant_tags.update(item['tags'])
+
+    temp_related_books_candidates = []
+    for item in content_df.to_dict('records'):
+        if item['Title'] not in primary_recommended_titles and item['Type'].lower() == 'book':
+            common_tags = set(item['tags']) & all_relevant_tags
+            if len(common_tags) > 0: # At least one tag from the broader set
+                temp_related_books_candidates.append((len(common_tags), item))
+
+    # Sort related book candidates by number of matching tags, then pick top N
+    temp_related_books_candidates.sort(key=lambda x: x[0], reverse=True)
+    related_books = [book_dict for _, book_dict in temp_related_books_candidates][:10]
+
+    st.write(f"**DEBUG (Related Books): Final related books (len): {len(related_books)}**") # DEBUGGING LINE 9
 
 
     if books or newspapers:
         st.subheader(f"📚 Recommendations for {name}")
-        for item in books[:3] + newspapers[:3]:
+        # Display primary recommendations
+        for item in books + newspapers: # Display all collected primary recs
             cols = st.columns([1, 2])
             with cols[0]:
                 img_url = None
@@ -223,7 +238,9 @@ if selected_tags:
             with cols[1]:
                 st.markdown(f"### {item['Title']} ({item['Type']})")
                 st.markdown(item['Summary'])
-                st.markdown(f"_Why this was recommended: matched tags — {', '.join(set(item['tags']) & set(selected_tags))}_")
+                # Find the original tag matches for the "Why this was recommended" text
+                original_tag_matches = set(item['tags']) & set(selected_tags)
+                st.markdown(f"_Why this was recommended: matched tags — {', '.join(original_tag_matches)}_")
                 feedback = st.radio(f"Was this recommendation helpful?", ["Select an option", "✅ Yes", "❌ No"], index=0, key=f"feedback_{item['Title']}")
                 if feedback != "Select an option" and not st.session_state.get(f"feedback_submitted_{item['Title']}", False):
                     try:
@@ -243,8 +260,10 @@ if selected_tags:
                         st.warning("⚠️ Failed to save feedback.")
                 if 'URL' in item and item['URL']:
                     st.markdown(f"<a class='buy-button' href='{item['URL']}' target='_blank'>Buy Now</a>", unsafe_allow_html=True)
+    else:
+        st.markdown("_No primary recommendations found based on your current tags. Please try adjusting your input or generating new tags._")
 
-    # Display related books (now with a broader search if needed)
+
     if related_books:
         st.markdown("### 📖 You Might Also Like")
         cols = st.columns(min(5, len(related_books)))
@@ -263,17 +282,26 @@ if selected_tags:
                     st.image(img_url, width=120)
                 st.caption(book['Title'])
     else:
-        # Fallback if no related books are found even after broadening the search
         st.markdown("_No other related books found with your current tags. Try generating new tags or searching for a specific topic!_")
-        # Optional: Display some generally popular books here if you have a way to determine "popularity"
-        # For example, you could show the top 5 books from content_df if you have a 'views' or 'rating' column.
-        # As a placeholder, let's just show some random books if related_books is empty:
-        # if not related_books:
-        #     st.markdown("### ✨ Here are some other popular reads:")
-        #     random_books = content_df[content_df['Type'].str.lower() == 'book'].sample(min(5, len(content_df))).to_dict('records')
-        #     cols = st.columns(min(5, len(random_books)))
-        #     for i, book in enumerate(random_books):
-        #         with cols[i % len(cols)]:
-        #             if book.get('Image', '').startswith("http"):
-        #                 st.image(book['Image'], width=120)
-        #             st.caption(book['Title'])
+        # Fallback to show some random books if no related books are found after all attempts
+        st.markdown("### ✨ Or, explore some popular titles:")
+        fallback_books = content_df[content_df['Type'].str.lower() == 'book'].sample(min(5, len(content_df)), random_state=1).to_dict('records') # Added random_state for consistent fallback
+        
+        if fallback_books:
+            cols = st.columns(min(5, len(fallback_books)))
+            for i, book in enumerate(fallback_books):
+                with cols[i % len(cols)]:
+                    img_url = None
+                    if book.get('Image', '').startswith("http"):
+                        img_url = book['Image']
+                    elif 'URL' in book and "amazon." in book['URL'] and "/dp/" in book['URL']:
+                        try:
+                            asin = book['URL'].split('/dp/')[-1].split('/')[0].split('?')[0]
+                            img_url = f"https://images-na.ssl-images-amazon.com/images/P/{asin}.01._SL250_.jpg"
+                        except:
+                            pass
+                    if img_url:
+                        st.image(img_url, width=120)
+                    st.caption(book['Title'])
+        else:
+            st.markdown("_No books available in the database to recommend._")
