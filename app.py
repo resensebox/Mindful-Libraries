@@ -81,13 +81,6 @@ jobs = st.text_input("What did you used to do for a living?")
 hobbies = st.text_input("What are your hobbies or favorite activities?")
 decade = st.text_input("What is your favorite decade or era?")
 
-st.markdown("**Are there any of these topics from that era that you remember fondly?**")
-memory_options = [
-    "Old TV Shows", "Classic Cars", "Famous Actors", "Music", "School Days",
-    "Local Landmarks", "Popular Foods", "Family Traditions", "Church Events", "Dances or Proms"
-]
-selected_memories = [option for option in memory_options if st.checkbox(option)]
-
 selected_tags = []
 
 if st.button("Generate My Tags"):
@@ -104,7 +97,6 @@ if st.button("Generate My Tags"):
                 Job: {jobs}
                 Hobbies: {hobbies}
                 Favorite Decade: {decade}
-                Fond Memories or Topics from that Era: {", ".join(selected_memories)}
 
                 Only return 10 comma-separated tags from the list above.
             """
