@@ -44,7 +44,7 @@ st.markdown("""
         border-radius: 8px;
         font-weight: bold;
         transition: background-color 0.3s ease, transform 0.2s ease;
-        box-shadow: 3px 3px 8px rgba(0,0,0,0.3);
+        box-shadow: 3px 33px 8px rgba(0,0,0,0.3);
     }
     .stButton>button:hover {
         background-color: #45a049;
@@ -89,6 +89,16 @@ st.markdown("""
     .nav-button-link:hover {
         background-color: #0056b3; /* Darker blue on hover */
         transform: translateY(-1px);
+    }
+    /* New style for sticky navigation */
+    .sticky-navbar {
+        position: sticky;
+        top: 0;
+        z-index: 1000; /* Ensures it stays on top of other content */
+        background-color: #f0f2f6; /* Match body background or choose a contrasting one */
+        padding: 10px 0; /* Add some padding around the buttons */
+        border-bottom: 1px solid #e0e0e0; /* Optional: a subtle line at the bottom */
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1); /* Optional: subtle shadow */
     }
     </style>
 """, unsafe_allow_html=True)
@@ -294,8 +304,8 @@ st.markdown("""
     Let's find the perfect book or newspaper to transport them back in time and create a shared experience!
 """)
 
-# --- Navigation Buttons ---
-st.markdown("---")
+# --- Navigation Buttons (Sticky) ---
+st.markdown('<div class="sticky-navbar">', unsafe_allow_html=True)
 st.subheader("Quick Navigation:")
 nav_cols = st.columns(4) # One column for each button
 
@@ -310,6 +320,7 @@ with nav_cols[3]:
         st.markdown('<a href="#decade_summary" class="nav-button-link">Decade Summary</a>', unsafe_allow_html=True)
     else:
         st.markdown('<div class="nav-button-link" style="opacity: 0.5; cursor: not-allowed;">Decade Summary</div>', unsafe_allow_html=True) # Greyed out
+st.markdown("</div>", unsafe_allow_html=True) # Close sticky-navbar div
 st.markdown("---")
 
 
@@ -580,7 +591,6 @@ if st.session_state['active_tags_for_filter']:
                 if img_url:
                     st.image(img_url, width=180) # Display image
                 else:
-                    # Fallback if no image URL is found
                     st.image(f"https://placehold.co/180x250/cccccc/333333?text=No+Image", width=180)
             with cols[1]:
                 st.markdown(f"### {item.get('Title', 'N/A')} ({item.get('Type', 'N/A')})")
