@@ -5,6 +5,7 @@ import json
 from io import StringIO
 from oauth2client.service_account import ServiceAccountCredentials
 import requests
+from collections import Counter
 
 # Google Sheets Setup (using secrets)
 scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
@@ -23,6 +24,10 @@ def load_content():
     return df
 
 content_df = load_content()
+
+# Track book recommendation counts
+if 'book_counter' not in st.session_state:
+    st.session_state['book_counter'] = Counter()
 
 # Logging function using Google Apps Script
 def log_to_google_sheet(name, topics, recommendations):
@@ -95,6 +100,14 @@ if st.button("Get Recommendations"):
             for item in unique_matches:
                 st.markdown(f"- **{item['Title']}** ({item['Type']})")
                 st.markdown(f"  - {item['Summary']}")
+
+            book_titles = [item['Title'] for item in unique_matches if item['Type'].lower() == 'book']
+            st.session_state['book_counter'].update(book_titles)
+
+            st.markdown("### 📈 Book Recommendation Count")
+            for title, count in st.session_state['book_counter'].items():
+                st.markdown(f"- {title}: {count} times")
+
             log_to_google_sheet(name, selected_topics, [item['Title'] for item in unique_matches])
         else:
             st.info("We didn't find any strong matches, but stay tuned for future updates!")
