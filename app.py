@@ -163,7 +163,7 @@ if selected_tags:
         tag_matches = set(item.tags) & set(selected_tags)
         tag_weight = sum(feedback_tag_scores.get(tag, 0) for tag in tag_matches)
         if item.Type.lower() == 'newspaper' and len(tag_matches) >= 3 and tag_weight >= -1:
-        newspapers.append(item._asdict())
+            newspapers.append(item._asdict())
                 used_tags.update(tag_matches)
         elif item.Type.lower() == 'book' and len(tag_matches) >= 3 and tag_weight >= 0:
             books.append(item._asdict())
