@@ -75,6 +75,16 @@ def generate_pdf(name, topics, recs):
 
 st.image("https://i.postimg.cc/0yVG4bhN/mindfullibrarieswhite-01.png", width=300)
 st.title("Personalized Reading Recommendations")
+search_term = st.text_input("🔍 Or, type a topic or interest you'd like us to search for")
+if search_term:
+    st.markdown(f"### 🔍 Search Results for '{search_term}'")
+    results = [item for item in content_df.to_dict('records') if search_term.lower() in item['Title'].lower() or search_term.lower() in item['Summary'].lower() or search_term.lower() in ', '.join(item['tags'])]
+    for item in results[:5]:
+        st.markdown(f"**{item['Title']}** ({item['Type']})  ")
+        st.markdown(item['Summary'])
+        st.markdown(f"_Tags: {', '.join(item['tags'])}_")
+        if 'URL' in item and item['URL']:
+            st.markdown(f"<a class='buy-button' href='{item['URL']}' target='_blank'>Buy Now</a>", unsafe_allow_html=True)
 
 admin_mode = st.sidebar.checkbox("🔍 Show Tag Feedback Summary (Admin)")
 if admin_mode:
@@ -127,9 +137,7 @@ if st.button("Generate My Tags"):
                 {", ".join(content_tags_list)}
 
                 Person's background:
-                Job: {jobs}
-                Hobbies: {hobbies}
-                Favorite Decade: {decade}
+                The person used to work as a {jobs}, which likely involved related interests and skills. They enjoy hobbies like {hobbies}, and their favorite decade is the {decade}.
 
                 Only return 10 comma-separated tags from the list above.
             """
@@ -180,44 +188,44 @@ if selected_tags:
 ]
 
     if books or newspapers:
-        st.subheader(f"📚 Recommendations for {name}")
-        for item in books[:3] + newspapers[:3]:
-            cols = st.columns([1, 2])
-            with cols[0]:
-                img_url = None
-                if item.get('Image', '').startswith("http"):
-                    img_url = item['Image']
-                elif 'URL' in item and "amazon." in item['URL'] and "/dp/" in item['URL']:
-                    try:
-                        asin = item['URL'].split('/dp/')[-1].split('/')[0].split('?')[0]
-                        img_url = f"https://images-na.ssl-images-amazon.com/images/P/{asin}.01._SL250_.jpg"
-                    except:
-                        pass
-                if img_url:
-                    st.image(img_url, width=180)
-            with cols[1]:
-                st.markdown(f"### {item['Title']} ({item['Type']})")
-                st.markdown(item['Summary'])
-                st.markdown(f"_Why this was recommended: matched tags — {', '.join(set(item['tags']) & set(selected_tags))}_")
-                feedback = st.radio(f"Was this recommendation helpful?", ["Select an option", "✅ Yes", "❌ No"], index=0, key=f"feedback_{item['Title']}")
-                if feedback != "Select an option" and not st.session_state.get(f"feedback_submitted_{item['Title']}", False):
-                    try:
-                        sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXJRXcfmxjoj5s')
-                        feedback_ws = sheet.worksheet('Feedback')
-                        feedback_ws.append_row([
-                            datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                            name,
-                            item['Title'],
-                            item['Type'],
-                            feedback,
-                            ", ".join(item['tags'])
-                        ])
-                        st.session_state[f"feedback_submitted_{item['Title']}"] = True
-                        st.success("✅ Feedback submitted!")
-                    except Exception as e:
-                        st.warning("⚠️ Failed to save feedback.")
-                if 'URL' in item and item['URL']:
-                    st.markdown(f"<a class='buy-button' href='{item['URL']}' target='_blank'>Buy Now</a>", unsafe_allow_html=True)
+            st.subheader(f"📚 Recommendations for {name}")
+                    for item in books[:3] + newspapers[:3]:
+                                cols = st.columns([1, 2])
+        with cols[0]:
+            img_url = None
+            if item.get('Image', '').startswith("http"):
+                img_url = item['Image']
+            elif 'URL' in item and "amazon." in item['URL'] and "/dp/" in item['URL']:
+                try:
+                    asin = item['URL'].split('/dp/')[-1].split('/')[0].split('?')[0]
+                    img_url = f"https://images-na.ssl-images-amazon.com/images/P/{asin}.01._SL250_.jpg"
+                except:
+                    pass
+            if img_url:
+                st.image(img_url, width=180)
+        with cols[1]:
+            st.markdown(f"### {item['Title']} ({item['Type']})")
+            st.markdown(item['Summary'])
+            st.markdown(f"_Why this was recommended: matched tags — {', '.join(set(item['tags']) & set(selected_tags))}_")
+            feedback = st.radio(f"Was this recommendation helpful?", ["Select an option", "✅ Yes", "❌ No"], index=0, key=f"feedback_{item['Title']}")
+            if feedback != "Select an option" and not st.session_state.get(f"feedback_submitted_{item['Title']}", False):
+                try:
+                    sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXJRXcfmxjoj5s')
+                    feedback_ws = sheet.worksheet('Feedback')
+                    feedback_ws.append_row([
+                        datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        name,
+                        item['Title'],
+                        item['Type'],
+                        feedback,
+                        ", ".join(item['tags'])
+                    ])
+                    st.session_state[f"feedback_submitted_{item['Title']}"] = True
+                    st.success("✅ Feedback submitted!")
+                except Exception as e:
+                    st.warning("⚠️ Failed to save feedback.")
+            if 'URL' in item and item['URL']:
+                st.markdown(f"<a class='buy-button' href='{item['URL']}' target='_blank'>Buy Now</a>", unsafe_allow_html=True)
 
     if related_books:
         st.markdown("### 📖 You Might Also Like")
