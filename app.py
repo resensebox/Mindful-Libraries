@@ -71,6 +71,25 @@ st.markdown("""
         font-size: 1.1em;
         margin-left: 5px;
     }
+    .nav-button-link {
+        background-color: #007bff; /* A nice blue for navigation */
+        color: white !important; /* !important to override default link color */
+        padding: 0.6em 1.2em;
+        border: none;
+        border-radius: 8px;
+        text-decoration: none; /* Remove underline */
+        font-weight: bold;
+        transition: background-color 0.3s ease, transform 0.2s ease;
+        box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+        display: inline-block; /* Allows padding and margins */
+        margin: 5px; /* Spacing between buttons */
+        text-align: center;
+        min-width: 120px; /* Ensure consistent width */
+    }
+    .nav-button-link:hover {
+        background-color: #0056b3; /* Darker blue on hover */
+        transform: translateY(-1px);
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -169,8 +188,8 @@ def save_user_input(name, jobs, hobbies, decade, selected_topics):
     except Exception as e:
         st.warning(f"Failed to save user data. Error: {e}")
 
-# Function to generate AI explanation for a recommendation
-def generate_recommendation_explanation(item, user_info, selected_tags_from_session):
+@st.cache_data(ttl=3600) # Cache the explanation for an hour
+def generate_recommendation_explanation(item, user_info, selected_tags_from_session, ai_client):
     """Generates an AI-powered explanation for a specific recommendation."""
     prompt = f"""
     You are a helpful assistant for a student volunteer working with an individual living with dementia.
@@ -193,7 +212,7 @@ def generate_recommendation_explanation(item, user_info, selected_tags_from_sess
     Explain in 2-3 sentences.
     """
     try:
-        response = client_ai.chat.completions.create(
+        response = ai_client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[{"role": "user", "content": prompt}]
         )
@@ -201,15 +220,15 @@ def generate_recommendation_explanation(item, user_info, selected_tags_from_sess
     except Exception as e:
         return f"Could not generate explanation at this time. Error: {e}"
 
-# Function to generate historical context
-def generate_historical_context(decade):
+@st.cache_data(ttl=3600) # Cache the historical context for an hour
+def generate_historical_context(decade, ai_client):
     """Generates a brief, positive historical overview for a given decade."""
     prompt = f"""
     You are a helpful assistant for a student volunteer working with an individual living with dementia.
     Given the decade "{decade}", provide a brief (2-3 sentences), positive, and gentle overview of what made that era special. Focus on aspects that could evoke pleasant memories, such as common pastimes, cultural trends, or general positive feelings associated with the period. This information will help the student volunteer understand the context for their pair. Avoid any potentially sensitive or negative historical events.
     """
     try:
-        response = client_ai.chat.completions.create(
+        response = ai_client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[{"role": "user", "content": prompt}]
         )
@@ -217,6 +236,54 @@ def generate_historical_context(decade):
     except Exception as e:
         return f"Could not retrieve historical context for {decade}. Error: {e}"
 
+@st.cache_data(ttl=3600) # Cache the expanded search tags for an hour
+def get_ai_expanded_search_tags(search_term, content_tags_list, ai_client):
+    """Uses AI to expand a search term into relevant content tags."""
+    if not search_term:
+        return set()
+
+    search_prompt = f"""
+        Given the user's search query, provide up to 10 relevant and specific tags from the following list that would help find related reading content.
+        Ensure the tags you return are exactly from the 'Available tags' list.
+        Available tags:
+        {", ".join(content_tags_list)}
+
+        User search query: "{search_term}"
+
+        Only return comma-separated tags from the list above. Do not include any additional text or formatting.
+    """
+    try:
+        response = ai_client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": search_prompt}]
+        )
+        ai_tags_output = response.choices[0].message.content.strip()
+        ai_tags_from_response = {t.strip().lower() for t in ai_tags_output.split(',') if t.strip()}
+        return ai_tags_from_response.intersection(set(content_tags_list))
+    except Exception as e:
+        st.warning(f"Could not expand search with AI. Error: {e}")
+        return set() # Return empty set on error
+
+@st.cache_data(ttl=600) # Cache feedback scores for 10 minutes, can be adjusted based on update frequency
+def load_feedback_tag_scores():
+    """Loads tag scores from the 'Feedback' Google Sheet for reweighting."""
+    feedback_scores = {}
+    try:
+        sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXJRXcfmxjoj5s')
+        fb_ws = sheet.worksheet('Feedback')
+        fb_data = pd.DataFrame(fb_ws.get_all_records())
+        for _, row in fb_data.iterrows():
+            tags_str = str(row.get('Tags', '')).strip()
+            feedback_str = str(row.get('Feedback', '')).strip().lower()
+
+            if tags_str and feedback_str:
+                for tag in tags_str.split(','):
+                    tag = tag.strip().lower()
+                    if tag:
+                        feedback_scores[tag] = feedback_scores.get(tag, 0) + (1 if 'yes' in feedback_str else -1)
+    except Exception as e:
+        st.info(f"Could not load feedback tag scores. Recommendations will not be reweighted by feedback. Error: {e}")
+    return feedback_scores
 
 # --- Streamlit UI ---
 st.image("https://i.postimg.cc/0yVG4bhN/mindfullibrarieswhite-01.png", width=300)
@@ -227,32 +294,24 @@ st.markdown("""
     Let's find the perfect book or newspaper to transport them back in time and create a shared experience!
 """)
 
-# Admin mode for tag feedback summary
-admin_mode = st.sidebar.checkbox("🔍 Show Tag Feedback Summary (Admin)")
-if admin_mode:
-    try:
-        sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXJRXcfmxjoj5s')
-        fb_ws = sheet.worksheet('Feedback')
-        fb_data = pd.DataFrame(fb_ws.get_all_records())
-        tag_scores = {}
-        for _, row in fb_data.iterrows():
-            tags_str = str(row.get('Tags', '')).strip()
-            feedback_str = str(row.get('Feedback', '')).strip().lower()
+# --- Navigation Buttons ---
+st.markdown("---")
+st.subheader("Quick Navigation:")
+nav_cols = st.columns(4) # One column for each button
 
-            if tags_str and feedback_str:
-                for tag in tags_str.split(','):
-                    tag = tag.strip().lower()
-                    if tag:
-                        tag_scores[tag] = tag_scores.get(tag, 0) + (1 if 'yes' in feedback_str else -1)
-        sorted_scores = sorted(tag_scores.items(), key=lambda x: -x[1])
-        st.sidebar.markdown("### 📊 Tag Effectiveness Scores")
-        if sorted_scores:
-            for tag, score in sorted_scores:
-                st.sidebar.write(f"**{tag}**: {score:+d}")
-        else:
-            st.sidebar.info("No tag feedback data available yet.")
-    except Exception as e:
-        st.sidebar.warning(f"⚠️ Could not load feedback summary. Error: {e}")
+with nav_cols[0]:
+    st.markdown('<a href="#search_section" class="nav-button-link">Search</a>', unsafe_allow_html=True)
+with nav_cols[1]:
+    st.markdown('<a href="#personalized_recommendations" class="nav-button-link">My Recommendations</a>', unsafe_allow_html=True)
+with nav_cols[2]:
+    st.markdown('<a href="#you_might_also_like" class="nav-button-link">Related Books</a>', unsafe_allow_html=True)
+with nav_cols[3]:
+    if st.session_state['current_user_decade']: # Only show if decade is provided
+        st.markdown('<a href="#decade_summary" class="nav-button-link">Decade Summary</a>', unsafe_allow_html=True)
+    else:
+        st.markdown('<div class="nav-button-link" style="opacity: 0.5; cursor: not-allowed;">Decade Summary</div>', unsafe_allow_html=True) # Greyed out
+st.markdown("---")
+
 
 st.header("Tell Us About Your Pair:")
 # Use session state to preserve input across reruns
@@ -275,23 +334,9 @@ user_info = {
     'decade': decade
 }
 
-# Load tag scores for reweighting (from feedback sheet)
-feedback_tag_scores = {}
-try:
-    sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXJRXcfmxjoj5s')
-    fb_ws = sheet.worksheet('Feedback')
-    fb_data = pd.DataFrame(fb_ws.get_all_records())
-    for _, row in fb_data.iterrows():
-        tags_str = str(row.get('Tags', '')).strip()
-        feedback_str = str(row.get('Feedback', '')).strip().lower()
+# Load tag scores for reweighting (from feedback sheet) using cached function
+feedback_tag_scores = load_feedback_tag_scores()
 
-        if tags_str and feedback_str:
-            for tag in tags_str.split(','):
-                tag = tag.strip().lower()
-                if tag:
-                    feedback_tag_scores[tag] = feedback_tag_scores.get(tag, 0) + (1 if 'yes' in feedback_str else -1)
-except Exception as e:
-    st.info(f"Could not load feedback tag scores. Recommendations will not be reweighted by feedback. Error: {e}")
 
 if st.button("Generate Personalized Tags & Recommendations"):
     if (jobs or hobbies or decade): # Name is optional now
@@ -380,16 +425,19 @@ if st.session_state['selected_tags']:
 
 # --- Display Historical Context (if decade provided) ---
 if st.session_state['current_user_decade']:
+    st.markdown('<a name="decade_summary"></a>', unsafe_allow_html=True) # Anchor for navigation
     st.markdown("---")
     st.subheader(f"🕰️ A Glimpse into the {st.session_state['current_user_decade']}:")
     with st.spinner(f"Generating context for the {st.session_state['current_user_decade']}..."):
-        historical_context = generate_historical_context(st.session_state['current_user_decade'])
+        # Pass client_ai to the cached function
+        historical_context = generate_historical_context(st.session_state['current_user_decade'], client_ai)
         st.info(historical_context)
 
 
 # --- Display Recommendations ---
 # Recommendations only display if there are active tags to filter by
 if st.session_state['active_tags_for_filter']:
+    st.markdown('<a name="search_section"></a>', unsafe_allow_html=True) # Anchor for navigation
     st.markdown("---") # Visual separator
     st.subheader("🔍 Search for a Specific Topic:")
     search_term = st.text_input("Enter a keyword (e.g., 'adventure', 'history', 'science fiction', 'actor')", key="search_input")
@@ -397,35 +445,16 @@ if st.session_state['active_tags_for_filter']:
     if search_term:
         st.markdown(f"### Results for '{search_term}'")
         generated_search_tags = set()
-        if search_term:
-            with st.spinner(f"Expanding search for '{search_term}' with AI..."):
-                content_tags_list = sorted(list(set(tag for tags_set in content_df['tags'] for tag in tags_set)))
-                search_prompt = f"""
-                    Given the user's search query, provide up to 10 relevant and specific tags from the following list that would help find related reading content.
-                    Ensure the tags you return are exactly from the 'Available tags' list.
-                    Available tags:
-                    {", ".join(content_tags_list)}
+        with st.spinner(f"Expanding search for '{search_term}' with AI..."):
+            content_tags_list = sorted(list(set(tag for tags_set in content_df['tags'] for tag in tags_set)))
+            # Use cached function for AI search tag expansion
+            generated_search_tags = get_ai_expanded_search_tags(search_term, content_tags_list, client_ai)
 
-                    User search query: "{search_term}"
+            if generated_search_tags:
+                st.info(f"AI-expanded your search to include tags: **{', '.join(generated_search_tags)}**")
+            else:
+                st.info("AI did not find specific tags for your search. Searching for direct keyword matches.")
 
-                    Only return comma-separated tags from the list above. Do not include any additional text or formatting.
-                """
-                try:
-                    response = client_ai.chat.completions.create(
-                        model="gpt-3.5-turbo",
-                        messages=[{"role": "user", "content": search_prompt}]
-                    )
-                    ai_tags_output = response.choices[0].message.content.strip()
-                    # Filter AI-generated tags to ensure they are actually in content_tags_list
-                    ai_tags_from_response = {t.strip().lower() for t in ai_tags_output.split(',') if t.strip()}
-                    generated_search_tags = ai_tags_from_response.intersection(set(content_tags_list))
-
-                    if generated_search_tags:
-                        st.info(f"AI-expanded your search to include tags: **{', '.join(generated_search_tags)}**")
-                    else:
-                        st.info("AI did not find specific tags for your search. Searching for direct keyword matches.")
-                except Exception as e:
-                    st.warning(f"Could not expand search with AI. Searching only for direct matches. Error: {e}")
 
         results = []
         search_term_lower = search_term.lower()
@@ -483,6 +512,7 @@ if st.session_state['active_tags_for_filter']:
         else:
             st.info(f"No results found for '{search_term}' or its related tags. Try a different keyword or explore the personalized recommendations below.")
 
+    st.markdown('<a name="personalized_recommendations"></a>', unsafe_allow_html=True) # Anchor for navigation
     st.markdown("---") # Visual separator
     st.subheader(f"📚 Personalized Recommendations for You!")
 
@@ -564,7 +594,8 @@ if st.session_state['active_tags_for_filter']:
                 # "Why This Book?" explanation
                 with st.expander("Why this recommendation is great for your pair:"):
                     with st.spinner("Generating personalized insights..."):
-                        explanation = generate_recommendation_explanation(item, user_info, st.session_state['active_tags_for_filter'])
+                        # Pass client_ai to the cached function
+                        explanation = generate_recommendation_explanation(item, user_info, st.session_state['active_tags_for_filter'], client_ai)
                         st.markdown(explanation)
 
                 # Unique key for each feedback radio button
@@ -601,6 +632,7 @@ if st.session_state['active_tags_for_filter']:
     else:
         st.markdown("_No primary recommendations found based on your current tags. Please try adjusting your input or generating new tags._")
 
+    st.markdown('<a name="you_might_also_like"></a>', unsafe_allow_html=True) # Anchor for navigation
     # --- "You Might Also Like" Section ---
     if related_books:
         st.markdown("---")
@@ -628,7 +660,8 @@ if st.session_state['active_tags_for_filter']:
                 # "Why This Book?" explanation for related books
                 with st.expander("Why this recommendation is great for your pair:"):
                     with st.spinner("Generating personalized insights..."):
-                        explanation = generate_recommendation_explanation(book, user_info, st.session_state['active_tags_for_filter'])
+                        # Pass client_ai to the cached function
+                        explanation = generate_recommendation_explanation(book, user_info, st.session_state['active_tags_for_filter'], client_ai)
                         st.markdown(explanation)
 
                 # Add the "Buy Now" link for related books
