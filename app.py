@@ -112,19 +112,43 @@ if st.button("Generate My Tags"):
 
 if selected_tags:
     used_tags = set()
-    matched_titles = []
+    matched_items = []
     for item in content_df.itertuples(index=False):
         tag_matches = set(item.tags) & set(selected_tags)
-        if item.Type.lower() == 'newspaper' and len(tag_matches) >= 3 and not tag_matches & used_tags:
-            matched_titles.append(item.Title)
-            used_tags.update(tag_matches)
-        elif item.Type.lower() != 'newspaper' and tag_matches:
-            matched_titles.append(item.Title)
+        if item.Type.lower() == 'newspaper':
+            if len(tag_matches) >= 3 and not tag_matches & used_tags:
+                matched_items.append(item._asdict())
+                used_tags.update(tag_matches)
+        elif tag_matches:
+            matched_items.append(item._asdict())
 
-    related_books = [item for item in content_df.to_dict('records') if item['Title'] not in matched_titles and item['Type'].lower() == 'book' and set(item['tags']) & set(selected_tags)]
+    matched_titles = [item['Title'] for item in matched_items]
+    related_books = [item for item in content_df.to_dict('records') if item['Title'] not in matched_titles and item['Type'].lower() == 'book' and set(item['tags']) & set(selected_tags)] not in matched_titles and item['Type'].lower() == 'book' and set(item['tags']) & set(selected_tags)]
 
-    if related_books:
-        st.markdown("### \U0001F4D6 You Might Also Like")
+    if matched_items:
+        st.subheader(f"📚 Recommendations for {name}")
+        for item in matched_items:
+            cols = st.columns([1, 2])
+            with cols[0]:
+                img_url = None
+                if item.get('Image', '').startswith("http"):
+                    img_url = item['Image']
+                elif 'URL' in item and "amazon." in item['URL'] and "/dp/" in item['URL']:
+                    try:
+                        asin = item['URL'].split('/dp/')[-1].split('/')[0].split('?')[0]
+                        img_url = f"https://images-na.ssl-images-amazon.com/images/P/{asin}.01._SL250_.jpg"
+                    except:
+                        pass
+                if img_url:
+                    st.image(img_url, width=180)
+            with cols[1]:
+                st.markdown(f"### {item['Title']} ({item['Type']})")
+                st.markdown(item['Summary'])
+                if 'URL' in item and item['URL']:
+                    st.markdown(f"<a class='buy-button' href='{item['URL']}' target='_blank'>Buy Now</a>", unsafe_allow_html=True)
+
+        if related_books:
+        st.markdown("### 📖 You Might Also Like")
         cols = st.columns(min(5, len(related_books)))
         for i, book in enumerate(related_books[:10]):
             with cols[i % len(cols)]:
@@ -140,3 +164,5 @@ if selected_tags:
                 if img_url:
                     st.image(img_url, width=120)
                 st.caption(book['Title'])
+    else:
+        st.markdown("_No other related books found._")
