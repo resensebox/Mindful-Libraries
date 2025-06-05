@@ -33,7 +33,6 @@ st.markdown("""
 # --- Google Sheets and OpenAI Initialization ---
 try:
     scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
-    st.write("🔁 Initializing services...")
 
     if "GOOGLE_SERVICE_JSON" not in st.secrets:
         st.error("❌ GOOGLE_SERVICE_JSON is missing from secrets.")
