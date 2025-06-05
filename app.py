@@ -178,7 +178,7 @@ try:
 except Exception as e:
     st.info(f"Could not load feedback tag scores. Recommendations will not be reweighted by feedback. Error: {e}")
 
-if st.button("Generate My Tags"):
+if st.button("Generate My Recommendations"):
     if name and (jobs or hobbies or decade):
         with st.spinner("Thinking deeply..."):
             # Ensure content_df is not empty before proceeding
@@ -251,9 +251,9 @@ if selected_tags:
         num_matches = len(tag_matches)
         tag_weight = sum(feedback_tag_scores.get(tag, 0) for tag in tag_matches)
 
-        if item_type == 'newspaper' and num_matches >= 1 and tag_weight >= -1:
+        if item_type == 'newspaper' and num_matches >= 2 and tag_weight >= -2:
             newspapers_candidates.append((num_matches, tag_weight, item._asdict()))
-        elif item_type == 'book' and num_matches >= 1 and tag_weight >= 0:
+        elif item_type == 'book' and num_matches >= 2 and tag_weight >= 2:
             books_candidates.append((num_matches, tag_weight, item._asdict()))
 
     books_candidates.sort(key=lambda x: (x[0], x[1]), reverse=True)
