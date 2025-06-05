@@ -102,10 +102,47 @@ if st.button("Get Recommendations"):
         sorted_items = sorted(scored, key=lambda x: -x[1])
         top_matches = [item[0] for item in sorted_items if item[1] > 0]
 
-        # Guarantee at least one Book and one Newspaper
-        book = next((item for item in top_matches if item['Type'].lower() == 'book'), None)
-        newspaper = next((item for item in top_matches if item['Type'].lower() == 'newspaper'), None)
-
         unique_matches = []
-        if book is not None:
-            unique_matches.append(book)
+        seen_titles = set()
+        for item in top_matches:
+            if item['Title'] not in seen_titles:
+                unique_matches.append(item)
+                seen_titles.add(item['Title'])
+            if len(unique_matches) == 3:
+                break
+
+        st.subheader(f"📚 Recommendations for {name}")
+        if unique_matches:
+            for item in unique_matches:
+                cols = st.columns([1, 2])
+                with cols[0]:
+                    if 'Image' in item and item['Image'] and item['Image'].startswith("http"):
+                        st.image(item['Image'], width=180)
+                    elif 'URL' in item and "amazon." in item['URL'] and "/dp/" in item['URL']:
+                        try:
+                            asin = item['URL'].split('/dp/')[-1].split('/')[0].split('?')[0]
+                            image_url = f"https://images-na.ssl-images-amazon.com/images/P/{asin}.01._SL250_.jpg"
+                            st.image(image_url, width=180)
+                        except Exception:
+                            pass
+
+                with cols[1]:
+                    st.markdown(f"### {item['Title']} ({item['Type']})")
+                    st.markdown(f"{item['Summary']}")
+                    if 'URL' in item and item['URL']:
+                        st.markdown(f"<a class='buy-button' href='{item['URL']}' target='_blank'>Buy Now</a>", unsafe_allow_html=True)
+
+            book_titles = [item['Title'] for item in unique_matches if item['Type'].lower() == 'book']
+            st.session_state['book_counter'].update(book_titles)
+
+            st.markdown("### 📈 Book Recommendation Count")
+            for title, count in st.session_state['book_counter'].items():
+                st.markdown(f"- {title}: {count} times")
+
+            log_to_google_sheet(name, selected_topics, unique_matches)
+        else:
+            st.info("We didn't find any strong matches, but stay tuned for future updates!")
+    elif len(selected_topics) < 4:
+        st.warning("Please select at least 4 interests from the list.")
+    else:
+        st.warning("Please enter your name and select at least 4 interests.")
