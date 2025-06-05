@@ -26,7 +26,7 @@ content_df = load_content()
 
 # Logging function
 def log_to_google_sheet(name, topics, recommendations):
-    url = "YOUR_WEB_APP_URL"  # Replace with your Web App URL from Apps Script
+    url = "https://script.google.com/macros/s/AKfycbxYkKCPeWl3A9ooshG5-4jDm1lZBsZXn2kj1ParfbsT0V-QQwePMAeNaCvLzNSmMTRg/exec"  # Replace with your Web App URL from Apps Script
     payload = {
         "name": name,
         "topics": topics,
