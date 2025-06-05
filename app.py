@@ -100,7 +100,7 @@ if st.button("Generate My Tags"):
                 Favorite Decade: {decade}
 
                 Only return 10 comma-separated tags from the list above.
-            """
+            
             response = client_ai.chat.completions.create(
                 model="gpt-3.5-turbo",
                 messages=[{"role": "user", "content": prompt}]
