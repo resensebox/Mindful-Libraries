@@ -66,7 +66,7 @@ def generate_pdf(name, topics, recs):
     pdf.cell(200, 10, txt=f"Reading Recommendations for {name}", ln=True, align='C')
     pdf.ln(10)
     pdf.set_font("Arial", size=12)
-    pdf.cell(200, 10, txt="Top 10 Personalized Topics:", ln=True)
+    pdf.cell(200, 10, txt="Top 10 Personalized Tags:", ln=True)
     for topic in topics:
         pdf.cell(200, 10, txt=f"- {topic}", ln=True)
     pdf.ln(10)
@@ -82,43 +82,30 @@ all_tags = sorted(set(topic.strip() for sublist in content_df['tags'] for topic 
 # Streamlit UI
 st.image("https://i.postimg.cc/0yVG4bhN/mindfullibrarieswhite-01.png", width=300)
 st.title("Personalized Reading Recommendations")
-st.write("Answer a few fun questions to get personalized topic suggestions for nostalgic reading material!")
+st.write("Answer a few fun questions to get personalized tag suggestions for nostalgic reading material!")
 
 name = st.text_input("Your Name")
 jobs = st.text_input("What did you used to do for a living?")
 hobbies = st.text_input("What are your hobbies or favorite activities?")
 faith = st.text_input("Do you have a faith background (e.g. Christian, Jewish, None)?")
 decade = st.text_input("What is your favorite decade or era?")
-reroll = st.button("🎲 Reroll My Topics")
+reroll = st.button("🎲 Reroll My Tags")
 
-if st.button("Generate My Topics") or reroll:
+if st.button("Generate My Tags") or reroll:
     if name and (jobs or hobbies or decade):
         with st.spinner("Thinking deeply..."):
-            content_preview = "\n".join([
-                f"- {row['Type']} with tags: {', '.join(row['tags'])}"
-                for _, row in content_df.iterrows()
-            ])
+            content_tags_list = sorted(set(tag for tags in content_df['tags'] for tag in tags))
+            content_preview = ", ".join(content_tags_list)
 
             prompt = f"""
             You are an expert librarian and therapist focused on nostalgic reading materials for older adults, veterans, and those living with memory loss.
 
-            You are given a list of available books and newspapers with tags (topics they relate to), and a person's background. Your job is to choose 10 highly personalized, emotionally resonant topics—not just literal book or article titles.
+            You are given a list of available tags from real books and newspapers. Your job is to recommend 10 highly relevant and personalized tags based on the user's background. These tags will be used to score and select reading recommendations.
 
-            These topics should be:
-            - Broad enough to include multiple pieces of content (like “Classic Sitcoms” or “Patriotic Holidays”)
-            - Specific enough to feel meaningful and relevant
-            - NOT the actual book titles
-            - Based only on the available tags from the content list
-
-            IMPORTANT: These topics must match the tags found in the following list. Do not invent topics with no tag matches.
+            DO NOT return book titles. DO NOT return topics that aren't in the list. Use only the provided tags.
 
             Available tags:
             {content_preview}
-
-            Examples:
-            - If someone liked TV in the 1960s, you might recommend “Classic Sitcoms” (not a specific article name).
-            - If they were a nurse, try “Red Cross Memories” or “Nursing Through the Years.”
-            - If their faith is Christian, suggest “Church Potlucks” or “Gospel Hymns” — but only if those tags are found in the available content.
 
             User Background:
             - Job: {jobs}
@@ -126,7 +113,7 @@ if st.button("Generate My Topics") or reroll:
             - Faith: {faith}
             - Favorite decade: {decade}
 
-            Return a comma-separated list of 10 specific, personalized topics based on the tags above. These are for matching recommendations—not literal titles. If you're unsure, ask one clarifying question.
+            Return only a comma-separated list of 10 existing tags (from above) that best match this user. Do not invent new tags.
             """
 
             try:
@@ -136,26 +123,26 @@ if st.button("Generate My Topics") or reroll:
                 )
                 topic_output = response.choices[0].message.content.strip()
 
-                if "?" in topic_output and len(topic_output.split(',')) < 5:
-                    st.warning("The AI needs more information before it can generate accurate topics.")
+                if "?" in topic_output or len(topic_output.split(',')) < 5:
+                    st.warning("The AI needs more information before it can generate useful results.")
                     st.info(topic_output)
                     st.stop()
 
-                selected_topics = [t.strip().lower() for t in topic_output.split(',') if t.strip()]
-            except Exception:
-                st.error("⚠️ AI request failed. Please try again.")
+                selected_tags = [t.strip().lower() for t in topic_output.split(',') if t.strip()]
+            except Exception as e:
+                st.error("⚠️ AI error occurred.")
                 st.stop()
 
-        st.success("Here are your personalized topics:")
-        st.write(", ".join(selected_topics))
-        save_user_input(name, jobs, hobbies, faith, decade, selected_topics)
+        st.success("Here are your personalized tags:")
+        st.write(", ".join(selected_tags))
+        save_user_input(name, jobs, hobbies, faith, decade, selected_tags)
 
-        normalized_topics = set(selected_topics)
+        normalized_tags = set(selected_tags)
 
         scored = []
         for _, row in content_df.iterrows():
             tags = row['tags']
-            match_count = len(tags & normalized_topics)
+            match_count = len(tags & normalized_tags)
             base_score = match_count * 2
 
             if 'christian' in faith.lower() and 'faith' in tags:
@@ -190,7 +177,7 @@ if st.button("Generate My Topics") or reroll:
             if len(books) >= 2 and len(newspapers) >= 3:
                 break
 
-        # Fallback if not enough matches
+        # Fallback
         for item in sorted_items:
             if item[0]['Title'] in seen_titles:
                 continue
@@ -234,7 +221,7 @@ if st.button("Generate My Topics") or reroll:
             for title, count in st.session_state['book_counter'].items():
                 st.markdown(f"- {title}: {count} times")
 
-            if st.download_button("📄 Download My PDF", data=generate_pdf(name, selected_topics, unique_matches).output(dest='S').encode('latin-1'), file_name=f"{name}_recommendations.pdf"):
+            if st.download_button("📄 Download My PDF", data=generate_pdf(name, selected_tags, unique_matches).output(dest='S').encode('latin-1'), file_name=f"{name}_recommendations.pdf"):
                 st.success("PDF ready!")
         else:
             st.info("We didn't find any strong matches, but stay tuned for future updates!")
