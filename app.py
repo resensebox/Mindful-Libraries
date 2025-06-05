@@ -6,7 +6,6 @@ from io import StringIO
 from oauth2client.service_account import ServiceAccountCredentials
 import requests
 from collections import Counter
-import random
 
 # Google Sheets Setup (using secrets)
 scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
@@ -34,19 +33,14 @@ if 'book_counter' not in st.session_state:
 
 def log_to_google_sheet(name, topics, recommendations):
     url = "https://script.google.com/macros/s/AKfycbyEjfmz_ngHiw4nTQ08oWfa83EOln2-ZASqqggtVDln2s9PROkXR3-Ejh5m2_WUzQoU/exec"
+    rec_text = "\n".join([
+        f"{item['Title']} ({item['Type']}): {item['Summary']} - {item.get('URL', '')}"
+        for item in recommendations
+    ])
     payload = {
         "name": name,
-        "topics": topics,
-        "recommendations": [
-            {
-                "title": item["Title"],
-                "type": item["Type"],
-                "summary": item["Summary"],
-                "image": f'=IMAGE("{item["Image"]}")' if item.get("Image") else "",
-                "url": item.get("URL", "")
-            }
-            for item in recommendations
-        ]
+        "topics": ", ".join(topics),
+        "recommendations": rec_text
     }
     try:
         response = requests.post(url, json=payload)
