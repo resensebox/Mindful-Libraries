@@ -103,6 +103,8 @@ if st.button("Generate My Topics") or reroll:
             - If the person enjoyed TV in the 1960s, recommend topics like "Betty White", "Classic Sitcoms", or "I Love Lucy".
             - If the user was a teacher, topics like "One-Room Schoolhouse" or "Old-School Books" are more specific than just "Education".
 
+            Also, if any topic is a well-known person's name (e.g., "Betty White", "Lucille Ball"), assume they are interested in that individual and connect with tags like "Famous Women", "Hollywood", or "Classic TV Stars".
+
             If you're unsure what would match well, instead of guessing, ask the user a follow-up question like:
             "Can you tell me more about what you liked about the 1960s?"
 
@@ -168,15 +170,32 @@ if st.button("Generate My Topics") or reroll:
         sorted_items = sorted(scored, key=lambda x: -x[1])
         top_matches = [item[0] for item in sorted_items]
 
-        unique_matches = []
+        books = []
+        newspapers = []
         seen_titles = set()
 
         for item in top_matches:
-            if item['Title'] not in seen_titles:
-                unique_matches.append(item)
+            if item['Title'] in seen_titles:
+                continue
+
+            tags = item['tags']
+            type_lower = item['Type'].lower()
+
+            if any(name in normalized_topics for name in ['betty white', 'lucille ball', 'doris day', 'judy garland']):
+                if any(tag in tags for tag in ['famous women', 'hollywood', 'tv shows', 'actresses']):
+                    pass  # Prioritized due to tag overlap
+
+            if type_lower == 'book' and len(books) < 2:
+                books.append(item)
                 seen_titles.add(item['Title'])
-            if len(unique_matches) >= 5:
+            elif type_lower == 'newspaper' and len(newspapers) < 3:
+                newspapers.append(item)
+                seen_titles.add(item['Title'])
+
+            if len(books) >= 2 and len(newspapers) >= 3:
                 break
+
+        unique_matches = books + newspapers
 
         st.subheader(f"📚 Recommendations for {name}")
         if unique_matches:
