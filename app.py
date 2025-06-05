@@ -77,7 +77,7 @@ def generate_pdf(name, topics, recs):
     return pdf
 
 # Topics List
-all_topics = sorted(set(topic.strip() for sublist in content_df['tags'] for topic in sublist))
+all_tags = sorted(set(topic.strip() for sublist in content_df['tags'] for topic in sublist))
 
 # Streamlit UI
 st.image("https://i.postimg.cc/0yVG4bhN/mindfullibrarieswhite-01.png", width=300)
@@ -94,28 +94,31 @@ reroll = st.button("🎲 Reroll My Topics")
 if st.button("Generate My Topics") or reroll:
     if name and (jobs or hobbies or decade):
         with st.spinner("Thinking deeply..."):
-            # Prepare content summary for AI to scan
             content_preview = "\n".join([
-                f"- {row['Title']} ({row['Type']}): tags = {', '.join(row['tags'])}"
+                f"- {row['Type']} with tags: {', '.join(row['tags'])}"
                 for _, row in content_df.iterrows()
             ])
 
             prompt = f"""
             You are an expert librarian and therapist focused on nostalgic reading materials for older adults, veterans, and those living with memory loss.
 
-            Your goal is to recommend 10 highly specific and emotionally resonant topics that align with this user's life experiences — especially jobs, hobbies, faith, and favorite decade.
+            You are given a list of available books and newspapers with tags (topics they relate to), and a person's background. Your job is to choose 10 highly personalized, emotionally resonant topics—not just literal book or article titles.
 
-            IMPORTANT: Review the following content library first. These are the only books and newspapers available, and your topics MUST align with what is tagged there so they can be matched directly to real content.
+            These topics should be:
+            - Broad enough to include multiple pieces of content (like “Classic Sitcoms” or “Patriotic Holidays”)
+            - Specific enough to feel meaningful and relevant
+            - NOT the actual book titles
+            - Based only on the available tags from the content list
 
-            Content Library:
+            IMPORTANT: These topics must match the tags found in the following list. Do not invent topics with no tag matches.
+
+            Available tags:
             {content_preview}
 
             Examples:
-            - If they loved 1960s TV, suggest "Betty White" or "Classic Sitcoms"
-            - If they were a nurse, suggest "Healthcare History" or "Red Cross"
-            - If the user is Christian, suggest faith-based topics only if tagged
-
-            If you're unsure, ask a follow-up question instead of guessing.
+            - If someone liked TV in the 1960s, you might recommend “Classic Sitcoms” (not a specific article name).
+            - If they were a nurse, try “Red Cross Memories” or “Nursing Through the Years.”
+            - If their faith is Christian, suggest “Church Potlucks” or “Gospel Hymns” — but only if those tags are found in the available content.
 
             User Background:
             - Job: {jobs}
@@ -123,8 +126,9 @@ if st.button("Generate My Topics") or reroll:
             - Faith: {faith}
             - Favorite decade: {decade}
 
-            Return a comma-separated list of 10 topics (only from what can be matched above), OR ask a follow-up question.
+            Return a comma-separated list of 10 specific, personalized topics based on the tags above. These are for matching recommendations—not literal titles. If you're unsure, ask one clarifying question.
             """
+
             try:
                 response = client_ai.chat.completions.create(
                     model="gpt-3.5-turbo",
@@ -138,8 +142,8 @@ if st.button("Generate My Topics") or reroll:
                     st.stop()
 
                 selected_topics = [t.strip().lower() for t in topic_output.split(',') if t.strip()]
-            except Exception as e:
-                st.error("⚠️ Oops! We hit a limit with our AI provider or encountered an error. Please try again later.")
+            except Exception:
+                st.error("⚠️ AI request failed. Please try again.")
                 st.stop()
 
         st.success("Here are your personalized topics:")
@@ -147,14 +151,6 @@ if st.button("Generate My Topics") or reroll:
         save_user_input(name, jobs, hobbies, faith, decade, selected_topics)
 
         normalized_topics = set(selected_topics)
-        topic_aliases = {
-            "military": "patriotic",
-            "nature": "outdoors",
-            "school": "education"
-        }
-        for alias, actual in topic_aliases.items():
-            if alias in normalized_topics:
-                normalized_topics.add(actual)
 
         scored = []
         for _, row in content_df.iterrows():
@@ -173,7 +169,7 @@ if st.button("Generate My Topics") or reroll:
             scored.append((row, total_score))
 
         sorted_items = sorted(scored, key=lambda x: -x[1])
-        top_matches = [item[0] for item in sorted_items]
+        top_matches = [item[0] for item in sorted_items if item[1] > 0]
 
         books = []
         newspapers = []
@@ -183,13 +179,7 @@ if st.button("Generate My Topics") or reroll:
             if item['Title'] in seen_titles:
                 continue
 
-            tags = item['tags']
             type_lower = item['Type'].lower()
-
-            if any(name in normalized_topics for name in ['betty white', 'lucille ball', 'doris day', 'judy garland']):
-                if any(tag in tags for tag in ['famous women', 'hollywood', 'tv shows', 'actresses']):
-                    pass
-
             if type_lower == 'book' and len(books) < 2:
                 books.append(item)
                 seen_titles.add(item['Title'])
@@ -200,17 +190,17 @@ if st.button("Generate My Topics") or reroll:
             if len(books) >= 2 and len(newspapers) >= 3:
                 break
 
-        # Fallback: fill if under target
-        for item in top_matches:
-            if item['Title'] in seen_titles:
+        # Fallback if not enough matches
+        for item in sorted_items:
+            if item[0]['Title'] in seen_titles:
                 continue
-            type_lower = item['Type'].lower()
+            type_lower = item[0]['Type'].lower()
             if type_lower == 'book' and len(books) < 2:
-                books.append(item)
-                seen_titles.add(item['Title'])
+                books.append(item[0])
+                seen_titles.add(item[0]['Title'])
             elif type_lower == 'newspaper' and len(newspapers) < 3:
-                newspapers.append(item)
-                seen_titles.add(item['Title'])
+                newspapers.append(item[0])
+                seen_titles.add(item[0]['Title'])
             if len(books) >= 2 and len(newspapers) >= 3:
                 break
 
