@@ -143,7 +143,6 @@ if st.button("Generate My Topics") or reroll:
 
         unique_matches = []
         seen_titles = set()
-        book_found = False
         newspaper_found = False
 
         for item in top_matches:
@@ -152,14 +151,10 @@ if st.button("Generate My Topics") or reroll:
                     unique_matches.append(item)
                     seen_titles.add(item['Title'])
                     newspaper_found = True
-                elif not book_found and item['Type'].lower() == 'book':
+                elif len(unique_matches) < 4:
                     unique_matches.append(item)
                     seen_titles.add(item['Title'])
-                    book_found = True
-                elif len(unique_matches) < 3:
-                    unique_matches.append(item)
-                    seen_titles.add(item['Title'])
-            if len(unique_matches) >= 3:
+            if len(unique_matches) >= 5:
                 break
 
         st.subheader(f"📚 Recommendations for {name}")
