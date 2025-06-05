@@ -112,7 +112,7 @@ if st.button("Get Recommendations"):
                         pass
 
                 if 'URL' in item and item['URL']:
-                    st.markdown(f"[Read More]({item['URL']})")
+                    st.markdown(f"[Buy Now]({item['URL']})")
 
             book_titles = [item['Title'] for item in unique_matches if item['Type'].lower() == 'book']
             st.session_state['book_counter'].update(book_titles)
