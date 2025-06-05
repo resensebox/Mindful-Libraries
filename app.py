@@ -81,7 +81,13 @@ jobs = st.text_input("What did you used to do for a living?")
 hobbies = st.text_input("What are your hobbies or favorite activities?")
 decade = st.text_input("What is your favorite decade or era?")
 
-# Initialize selected_tags to avoid NameError
+st.markdown("**Are there any of these topics from that era that you remember fondly?**")
+memory_options = [
+    "Old TV Shows", "Classic Cars", "Famous Actors", "Music", "School Days",
+    "Local Landmarks", "Popular Foods", "Family Traditions", "Church Events", "Dances or Proms"
+]
+selected_memories = [option for option in memory_options if st.checkbox(option)]
+
 selected_tags = []
 
 if st.button("Generate My Tags"):
@@ -98,9 +104,10 @@ if st.button("Generate My Tags"):
                 Job: {jobs}
                 Hobbies: {hobbies}
                 Favorite Decade: {decade}
+                Fond Memories or Topics from that Era: {", ".join(selected_memories)}
 
                 Only return 10 comma-separated tags from the list above.
-            
+            """
             response = client_ai.chat.completions.create(
                 model="gpt-3.5-turbo",
                 messages=[{"role": "user", "content": prompt}]
@@ -111,12 +118,6 @@ if st.button("Generate My Tags"):
             st.write(", ".join(selected_tags))
             save_user_input(name, jobs, hobbies, decade, selected_tags)
 
-tone_preferences = st.multiselect(
-    "What kind of stories do you enjoy most?",
-    ["Heartwarming", "Funny", "Historical", "Adventurous", "Inspirational", "Surprising"]
-)
-
-# Define actor_keywords (was undefined in original code)
 actor_keywords = {
     "1940s": ["humphrey bogart", "ingrid bergman", "frank sinatra"],
     "1950s": ["marilyn monroe", "elvis presley", "james dean"],
@@ -138,7 +139,6 @@ for _, row in content_df.iterrows():
     title = row.get('Title', '').lower()
     row_type = row['Type'].lower()
 
-    # Generalize summary for scoring with AI assistance
     if row_type == 'newspaper':
         try:
             enhanced_prompt = f"Summarize and generalize this newspaper summary to highlight key themes and topics: {summary}"
@@ -150,7 +150,6 @@ for _, row in content_df.iterrows():
         except Exception:
             pass
 
-    tone_boost = sum(2 for tone in tone_preferences if tone.lower() in summary) if row_type == 'book' else 0
     decade_boost = 2 if row_type == 'newspaper' and decade.lower() in summary + title else 0
     historical_boost = sum(1 for kw in ["eisenhower", "fdr", "civil rights", "world war", "apollo", "nixon", "kennedy", "vietnam", "rosa parks"] if kw in summary) if row_type == 'newspaper' else 0
 
@@ -161,7 +160,7 @@ for _, row in content_df.iterrows():
                 actor_boost = 3
                 break
 
-    total_score = base_score + tone_boost + decade_boost + historical_boost + actor_boost
+    total_score = base_score + decade_boost + historical_boost + actor_boost
     scored.append((row, total_score))
 
 sorted_items = sorted(scored, key=lambda x: -x[1])
