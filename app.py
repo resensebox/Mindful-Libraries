@@ -39,7 +39,7 @@ def load_content():
     sheet = client.open_by_url(sheet_url)
     content_ws = sheet.worksheet('ContentDB')
     df = pd.DataFrame(content_ws.get_all_records())
-    df['tags'] = df['Tags'].apply(lambda x: set(tag.strip().lower() for tag in str(x).split(',')))
+    df['tags'] = df['Tags'].apply(lambda x: set(tag.strip().lower() for tag in str(x).split(',') if tag.strip().lower() != 'nostalgia'))
     return df
 
 content_df = load_content()
@@ -152,10 +152,10 @@ if selected_tags:
     for item in shuffled_df.itertuples(index=False):
         tag_matches = set(item.tags) & set(selected_tags)
         tag_weight = sum(feedback_tag_scores.get(tag, 0) for tag in tag_matches)
-        if item.Type.lower() == 'newspaper' and len(tag_matches) >= 2 and tag_weight >= -1:
+        if item.Type.lower() == 'newspaper' and len(tag_matches) >= 3 and tag_weight >= -1:
                 magazines.append(item._asdict())
                 used_tags.update(tag_matches)
-        elif item.Type.lower() == 'book' and tag_matches and tag_weight >= 0:
+        elif item.Type.lower() == 'book' and len(tag_matches) >= 3 and tag_weight >= 0:
             books.append(item._asdict())
             used_tags.update(tag_matches)
         elif tag_matches:
@@ -170,6 +170,8 @@ if selected_tags:
 ]
 
     if books or magazines:
+    else:
+        st.warning("We couldn't find strong matches. Try adding more interests or hobbies above.")
         st.subheader(f"📚 Recommendations for {name}")
         for item in books[:3] + magazines[:3]:
             cols = st.columns([1, 2])
