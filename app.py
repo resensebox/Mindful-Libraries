@@ -191,15 +191,17 @@ if st.button("Generate My Tags") or reroll:
             for item in unique_matches:
                 cols = st.columns([1, 2])
                 with cols[0]:
-                    if 'Image' in item and item['Image'] and item['Image'].startswith("http"):
-                        st.image(item['Image'], width=180)
+                    img_url = None
+                    if item.get('Image', '').startswith("http"):
+                        img_url = item['Image']
                     elif 'URL' in item and "amazon." in item['URL'] and "/dp/" in item['URL']:
                         try:
                             asin = item['URL'].split('/dp/')[-1].split('/')[0].split('?')[0]
-                            image_url = f"https://images-na.ssl-images-amazon.com/images/P/{asin}.01._SL250_.jpg"
-                            st.image(image_url, width=180)
+                            img_url = f"https://images-na.ssl-images-amazon.com/images/P/{asin}.01._SL250_.jpg"
                         except Exception:
                             pass
+                    if img_url:
+                        st.image(img_url, width=180)
 
                 with cols[1]:
                     st.markdown(f"### {item['Title']} ({item['Type']})")
@@ -232,8 +234,17 @@ if st.button("Generate My Tags") or reroll:
             cols = st.columns(min(5, len(related_books)))
             for i, book in enumerate(related_books[:10]):
                 with cols[i % len(cols)]:
+                    img_url = None
                     if book.get('Image', '').startswith("http"):
-                        st.image(book['Image'], width=120)
+                        img_url = book['Image']
+                    elif 'URL' in book and "amazon." in book['URL'] and "/dp/" in book['URL']:
+                        try:
+                            asin = book['URL'].split('/dp/')[-1].split('/')[0].split('?')[0]
+                            img_url = f"https://images-na.ssl-images-amazon.com/images/P/{asin}.01._SL250_.jpg"
+                        except Exception:
+                            pass
+                    if img_url:
+                        st.image(img_url, width=120)
                     st.caption(book['Title'])
         else:
             st.markdown("_No other related books found._")
