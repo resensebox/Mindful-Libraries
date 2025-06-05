@@ -84,8 +84,8 @@ decade = st.text_input("What is your favorite decade or era?")
 
 tone_preferences = st.multiselect(
     "What kind of stories do you enjoy most?",
-    ["Heartwarming", "Funny", "Historical", "Adventurous", "Inspirational", "Surprising"]
-)
+    ["Heartwarming", "Funny", "Historical", "Adventurous", "Inspirational", "Surprising"],
+    key="story_tone")
 
 
 if st.button("Generate My Tags"):
