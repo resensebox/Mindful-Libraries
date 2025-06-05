@@ -67,6 +67,10 @@ st.markdown("""
     .stAlert {
         border-radius: 8px;
     }
+    .stCheckbox span { /* Style for checkbox labels */
+        font-size: 1.1em;
+        margin-left: 5px;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -120,17 +124,14 @@ if 'book_counter' not in st.session_state:
     st.session_state['book_counter'] = Counter()
 if 'selected_tags' not in st.session_state:
     st.session_state['selected_tags'] = []
-# Ensure feedback submitted flags are reset on initial load if needed, or managed per item
-# For this fix, we'll keep the feedback_submitted flag per item title/type.
-
-def save_user_input(name, jobs, hobbies, decade, selected_topics):
-    """Saves user input to the 'Logs' Google Sheet."""
-    try:
-        sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXJRXcfmxjoj5s')
-        log_ws = sheet.worksheet('Logs')
-        log_ws.append_row([datetime.now().strftime("%Y-%m-%d %H:%M:%S"), name, jobs, hobbies, decade, ", ".join(selected_topics)])
-    except Exception as e:
-        st.warning(f"Failed to save user data. Error: {e}")
+if 'current_user_name' not in st.session_state:
+    st.session_state['current_user_name'] = ""
+if 'current_user_jobs' not in st.session_state:
+    st.session_state['current_user_jobs'] = ""
+if 'current_user_hobbies' not in st.session_state:
+    st.session_state['current_user_hobbies'] = ""
+if 'current_user_decade' not in st.session_state:
+    st.session_state['current_user_decade'] = ""
 
 # This function is not used in the current code, but kept for context if PDF generation is needed.
 def generate_pdf(name, topics, recs):
@@ -151,12 +152,72 @@ def generate_pdf(name, topics, recs):
         pdf.ln(2)
     return pdf
 
+# Function to save user input to Google Sheet
+def save_user_input(name, jobs, hobbies, decade, selected_topics):
+    """Saves user input to the 'Logs' Google Sheet."""
+    try:
+        sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXJRXcfmxjoj5s')
+        log_ws = sheet.worksheet('Logs')
+        log_ws.append_row([datetime.now().strftime("%Y-%m-%d %H:%M:%S"), name, jobs, hobbies, decade, ", ".join(selected_topics)])
+    except Exception as e:
+        st.warning(f"Failed to save user data. Error: {e}")
+
+# Function to generate AI explanation for a recommendation
+def generate_recommendation_explanation(item, user_info, selected_tags_from_session):
+    """Generates an AI-powered explanation for a specific recommendation."""
+    prompt = f"""
+    You are a helpful assistant for a student volunteer working with an individual living with dementia.
+    Explain why the following reading material is a good recommendation for a session with their pair, given the user's background and the item's details. Focus on how it could spark positive memories, facilitate conversation, or provide a calming activity. Frame it as if you are giving advice to the student volunteer.
+
+    User's Background:
+    Name: {user_info['name']}
+    Job: {user_info['jobs'] if user_info['jobs'] else 'Not provided'}
+    Hobbies: {user_info['hobbies'] if user_info['hobbies'] else 'Not provided'}
+    Favorite Decade: {user_info['decade'] if user_info['decade'] else 'Not provided'}
+
+    Recommended Item:
+    Title: {item.get('Title', 'N/A')}
+    Type: {item.get('Type', 'N/A')}
+    Summary: {item.get('Summary', 'N/A')}
+    Tags: {', '.join(item.get('tags', set()))}
+
+    The personalized tags for the user that led to this recommendation were: {', '.join(selected_tags_from_session)}
+
+    Explain in 2-3 sentences.
+    """
+    try:
+        response = client_ai.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": prompt}]
+        )
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        return f"Could not generate explanation at this time. Error: {e}"
+
+# Function to generate historical context
+def generate_historical_context(decade):
+    """Generates a brief, positive historical overview for a given decade."""
+    prompt = f"""
+    You are a helpful assistant for a student volunteer working with an individual living with dementia.
+    Given the decade "{decade}", provide a brief (2-3 sentences), positive, and gentle overview of what made that era special. Focus on aspects that could evoke pleasant memories, such as common pastimes, cultural trends, or general positive feelings associated with the period. This information will help the student volunteer understand the context for their pair. Avoid any potentially sensitive or negative historical events.
+    """
+    try:
+        response = client_ai.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": prompt}]
+        )
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        return f"Could not retrieve historical context for {decade}. Error: {e}"
+
+
 # --- Streamlit UI ---
 st.image("https://i.postimg.cc/0yVG4bhN/mindfullibrarieswhite-01.png", width=300)
 st.title("Discover Your Next Nostalgic Read!")
 st.markdown("""
-    Welcome to Mindful Libraries! Answer a few simple questions to get personalized tag suggestions and find reading material that resonates with your past.
-    Let's find the perfect book or newspaper to transport you back in time!
+    Welcome to Mindful Libraries! This tool helps student volunteers curate personalized reading materials to engage individuals living with dementia.
+    Answer a few simple questions about your "pair" to get tailored suggestions that can spark positive memories and facilitate meaningful interactions.
+    Let's find the perfect book or newspaper to transport them back in time and create a shared experience!
 """)
 
 # Admin mode for tag feedback summary
@@ -186,11 +247,26 @@ if admin_mode:
     except Exception as e:
         st.sidebar.warning(f"⚠️ Could not load feedback summary. Error: {e}")
 
-st.header("Tell Us About Yourself:")
-name = st.text_input("Your Name")
-jobs = st.text_input("What did you used to do for a living?")
-hobbies = st.text_input("What are your hobbies or favorite activities?")
-decade = st.text_input("What is your favorite decade or era?")
+st.header("Tell Us About Your Pair:")
+# Use session state to preserve input across reruns
+name = st.text_input("Their Name (optional, for your reference)", value=st.session_state['current_user_name'], key="user_name_input")
+jobs = st.text_input("What did they used to do for a living? (e.g., Teacher, Engineer, Homemaker)", value=st.session_state['current_user_jobs'], key="user_jobs_input")
+hobbies = st.text_input("What are their hobbies or favorite activities? (e.g., Gardening, Reading, Music, Sports)", value=st.session_state['current_user_hobbies'], key="user_hobbies_input")
+decade = st.text_input("What is their favorite decade or era? (e.g., 1950s, 1970s, Victorian era)", value=st.session_state['current_user_decade'], key="user_decade_input")
+
+# Update session state with current input values
+st.session_state['current_user_name'] = name
+st.session_state['current_user_jobs'] = jobs
+st.session_state['current_user_hobbies'] = hobbies
+st.session_state['current_user_decade'] = decade
+
+# User information dictionary to pass to AI functions
+user_info = {
+    'name': name,
+    'jobs': jobs,
+    'hobbies': hobbies,
+    'decade': decade
+}
 
 # Load tag scores for reweighting (from feedback sheet)
 feedback_tag_scores = {}
@@ -210,20 +286,24 @@ try:
 except Exception as e:
     st.info(f"Could not load feedback tag scores. Recommendations will not be reweighted by feedback. Error: {e}")
 
-if st.button("Generate My Personalized Tags & Recommendations"):
-    if name and (jobs or hobbies or decade):
+if st.button("Generate Personalized Tags & Recommendations"):
+    if (jobs or hobbies or decade): # Name is optional now
         with st.spinner("Our expert librarian AI is thinking deeply..."):
             if not content_df.empty and 'tags' in content_df.columns:
-                # Get unique available tags from your content database
                 content_tags_list = sorted(list(set(tag for tags_set in content_df['tags'] for tag in tags_set)))
                 prompt = f"""
-                    You are an expert librarian and therapist. Your job is to recommend 20 relevant and specific tags for reading content using the list below and this person's background. Make sure you really analyze each aspect of what they do, their hobbies, and come up with specific tags that match the list of tags in the google sheet. Be specific.
+                    You are an expert librarian and therapist assistant. Your job is to recommend 20 **extremely specific and granular** tags for reading content,
+                    using **only** the available tags list.
+                    These tags will help a student volunteer find appropriate materials for an individual living with dementia.
+                    Instead of vague tags like "wellness" or "spirituality", aim for tags like "mindfulness meditation guides", "cognitive behavioral therapy", "historical fiction - roman empire", "sci-fi - cyberpunk", "vintage fashion", "classic Hollywood", "WWII memoirs", "1950s rock and roll".
+                    Make sure you really analyze each aspect of what they do, their hobbies, and their favorite decade, and come up with specific tags that **exactly** match the list of tags in the google sheet.
+                    The goal is to spark positive memories and facilitate engagement for the individual with dementia.
 
                     Available tags:
                     {", ".join(content_tags_list)}
 
                     Person's background:
-                    Name: {name}
+                    Name: {name if name else 'Not provided'}
                     Job: {jobs if jobs else 'Not provided'}
                     Hobbies: {hobbies if hobbies else 'Not provided'}
                     Favorite Decade: {decade if decade else 'Not provided'}
@@ -236,28 +316,57 @@ if st.button("Generate My Personalized Tags & Recommendations"):
                         messages=[{"role": "user", "content": prompt}]
                     )
                     topic_output = response.choices[0].message.content.strip()
-                    # Update session state with generated tags
                     st.session_state['selected_tags'] = [t.strip().lower() for t in topic_output.split(',') if t.strip()]
                     st.success("✨ Tags generated!")
+                    save_user_input(name, jobs, hobbies, decade, st.session_state['selected_tags'])
                 except Exception as e:
                     st.error(f"Failed to generate tags using OpenAI. Please check your API key and try again. Error: {e}")
             else:
                 st.warning("Cannot generate tags as content database is empty or 'tags' column is missing.")
     else:
-        st.warning("Please enter your name and at least one detail about yourself (job, hobbies, or favorite decade) to generate tags.")
+        st.warning("Please enter at least one detail about your pair (job, hobbies, or favorite decade) to generate tags.")
 
 
-# --- Display Generated Tags (Persisted) ---
+# --- Display Generated Tags (Persisted and Interactive) ---
 if st.session_state['selected_tags']:
     st.subheader("Your Personalized Tags:")
-    st.info(f"Based on your input, here are the tags our AI suggests: **{', '.join(st.session_state['selected_tags'])}**")
+    st.markdown("Here are the tags our AI suggests. **You can uncheck any tags you don't feel are relevant** for your pair.")
+
+    # Create checkboxes for each tag
+    st.session_state['active_tags_for_filter'] = [] # Initialize list for active tags
+    cols = st.columns(min(len(st.session_state['selected_tags']), 5)) # Up to 5 columns for tags
+    for i, tag in enumerate(st.session_state['selected_tags']):
+        with cols[i % 5]:
+            # Default to True (checked)
+            if st.checkbox(tag.capitalize(), value=True, key=f"tag_checkbox_{tag}"):
+                st.session_state['active_tags_for_filter'].append(tag)
+
+    if st.button("Refine Recommendations Based on Selected Tags"):
+        # This button simply triggers a re-run with the updated st.session_state['active_tags_for_filter']
+        # The recommendation logic below will use these active tags.
+        st.success("Recommendations refined!")
+    else:
+        # If no explicit refine button click, use all initial selected tags for the first display
+        if not st.session_state.get('active_tags_for_filter'):
+            st.session_state['active_tags_for_filter'] = list(st.session_state['selected_tags'])
+
     st.markdown("Now, scroll down to see your tailored recommendations!")
 
+
+# --- Display Historical Context (if decade provided) ---
+if st.session_state['current_user_decade']:
+    st.markdown("---")
+    st.subheader(f"🕰️ A Glimpse into the {st.session_state['current_user_decade']}:")
+    with st.spinner(f"Generating context for the {st.session_state['current_user_decade']}..."):
+        historical_context = generate_historical_context(st.session_state['current_user_decade'])
+        st.info(historical_context)
+
+
 # --- Display Recommendations ---
-if st.session_state['selected_tags']: # Only show recommendations section if tags exist
+if st.session_state['active_tags_for_filter']: # Use active_tags_for_filter for recommendations
     st.markdown("---") # Visual separator
     st.subheader("🔍 Search for a Specific Topic:")
-    search_term = st.text_input("Enter a keyword (e.g., 'adventure', 'history', 'science fiction', 'actor')")
+    search_term = st.text_input("Enter a keyword (e.g., 'adventure', 'history', 'science fiction', 'actor')", key="search_input")
 
     if search_term:
         st.markdown(f"### Results for '{search_term}'")
@@ -354,14 +463,14 @@ if st.session_state['selected_tags']: # Only show recommendations section if tag
     books_candidates = []
     newspapers_candidates = []
 
-    # Iterate through content to find matching items based on generated tags and feedback scores
+    # Iterate through content to find matching items based on GENERATED and ACTIVE tags and feedback scores
     for item in content_df.itertuples(index=False):
         item_tags = getattr(item, 'tags', set())
         item_type = getattr(item, 'Type', '').lower()
 
-        tag_matches = item_tags & set(st.session_state['selected_tags'])
+        # Use st.session_state['active_tags_for_filter'] for filtering
+        tag_matches = item_tags & set(st.session_state['active_tags_for_filter'])
         num_matches = len(tag_matches)
-        # Calculate a weighted score based on feedback. Positive feedback increases weight, negative decreases.
         tag_weight = sum(feedback_tag_scores.get(tag, 0) for tag in tag_matches)
 
         if item_type == 'newspaper' and num_matches >= 2 and tag_weight >= -2:
@@ -382,7 +491,7 @@ if st.session_state['selected_tags']: # Only show recommendations section if tag
 
     related_books = []
     # Collect all relevant tags from selected_tags and primary recommendations
-    all_relevant_tags = set(st.session_state['selected_tags'])
+    all_relevant_tags = set(st.session_state['active_tags_for_filter']) # Use active tags
     for item in books + newspapers:
         all_relevant_tags.update(item.get('tags', set()))
 
@@ -420,11 +529,17 @@ if st.session_state['selected_tags']: # Only show recommendations section if tag
             with cols[1]:
                 st.markdown(f"### {item.get('Title', 'N/A')} ({item.get('Type', 'N/A')})")
                 st.markdown(item.get('Summary', 'N/A'))
-                original_tag_matches = set(item.get('tags', set())) & set(st.session_state['selected_tags'])
+                original_tag_matches = item.get('tags', set()) & set(st.session_state['active_tags_for_filter'])
                 if original_tag_matches:
                     st.markdown(f"**Why this was recommended:** Matched tags — **{', '.join(original_tag_matches)}**")
                 else:
                     st.markdown("_No direct tag matches found for this recommendation._")
+
+                # "Why This Book?" explanation
+                with st.expander("Why this recommendation is great for your pair:"):
+                    with st.spinner("Generating personalized insights..."):
+                        explanation = generate_recommendation_explanation(item, user_info, st.session_state['active_tags_for_filter'])
+                        st.markdown(explanation)
 
                 # Unique key for each feedback radio button
                 feedback_key = f"feedback_{item.get('Title', 'NoTitle')}_{item.get('Type', 'NoType')}"
@@ -483,6 +598,13 @@ if st.session_state['selected_tags']: # Only show recommendations section if tag
                 else:
                     st.image(f"https://placehold.co/120x160/cccccc/333333?text=No+Image", width=120)
                 st.caption(book.get('Title', 'N/A'))
+
+                # "Why This Book?" explanation for related books
+                with st.expander("Why this recommendation is great for your pair:"):
+                    with st.spinner("Generating personalized insights..."):
+                        explanation = generate_recommendation_explanation(book, user_info, st.session_state['active_tags_for_filter'])
+                        st.markdown(explanation)
+
                 # Add the "Buy Now" link for related books
                 if 'URL' in book and book['URL']:
                     st.markdown(f"<a class='buy-button' href='{book['URL']}' target='_blank'>Buy Now</a>", unsafe_allow_html=True)
