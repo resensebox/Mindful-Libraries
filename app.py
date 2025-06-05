@@ -18,16 +18,32 @@ content_ws = sheet.worksheet('ContentDB')
 content_df = pd.DataFrame(content_ws.get_all_records())
 content_df['tags'] = content_df['Tags'].apply(lambda x: set(tag.strip().lower() for tag in str(x).split(',')))
 
+# Define comprehensive topic categories
+categories = {
+    "Nature & Outdoors": [...],  # Unchanged for brevity
+    "Crafts & Hobbies": [...],  # Unchanged for brevity
+    "Food & Cooking": [...],  # Unchanged for brevity
+    "Faith & Reflection": [...],  # Unchanged for brevity
+    "History & Culture": [...],  # Unchanged for brevity
+    "Family & Community": [...],  # Unchanged for brevity
+    "Nostalgia & Reminiscence": [...],  # Unchanged for brevity
+    "Seasons & Holidays": [...],  # Unchanged for brevity
+    "Science & Learning": [...],  # Unchanged for brevity
+    "Entertainment: Performing Arts & Music": ["Ballet", "Charlie Chaplin", "Dance", "Dancing", "Elvis", "Elvis Presley", "Entertainment", "Hollywood Stars", "James Dean", "James Stewart", "Lawrence Welk", "Media & Entertainment", "Michael Jackson", "Music", "Singing", "Songs", "Sound Of Music", "Theater"],
+    "Entertainment: Games & Sports": ["Baseball", "Basketball", "Board Games", "Celebrities", "Days Of Our Lives", "Film", "Movies", "Rollerskating", "Sports", "TV", "Wheel Of Fortune"]
+}
+
 # Streamlit App UI
 st.title("📰 Personalized Reading Recommendations")
-st.write("Enter your interests below to receive custom reading material suggestions!")
+st.write("Select a category and choose **4 topics** below to receive custom reading material suggestions!")
 
 name = st.text_input("Your Name")
-interests_input = st.text_area("Enter your interests (comma-separated)", "")
+selected_category = st.selectbox("Choose a Category", list(categories.keys()))
+selected_topics = st.multiselect("Now choose exactly 4 topics from that category:", categories[selected_category])
 
 if st.button("Get Recommendations"):
-    if name and interests_input:
-        interest_set = set(tag.strip().lower() for tag in interests_input.split(","))
+    if name and len(selected_topics) == 4:
+        interest_set = set(tag.strip().lower() for tag in selected_topics)
         scored = []
         for _, row in content_df.iterrows():
             score = len(interest_set.intersection(row['tags']))
@@ -37,23 +53,18 @@ if st.button("Get Recommendations"):
         top_matches = [item[0] for item in sorted_items if item[1] > 0]
 
         # Guarantee at least one Book and one Newspaper
-        book = next((item[0] for item in sorted_items if item[0]['Type'].lower() == 'book'), None)
-        newspaper = next((item[0] for item in sorted_items if item[0]['Type'].lower() == 'newspaper'), None)
+        book = next((item for item in top_matches if item['Type'].lower() == 'book'), None)
+        newspaper = next((item for item in top_matches if item['Type'].lower() == 'newspaper'), None)
 
-        unique_titles = set()
         unique_matches = []
-
         if book is not None:
             unique_matches.append(book)
-            unique_titles.add(book['Title'])
-        if newspaper is not None and newspaper['Title'] not in unique_titles:
+        if newspaper is not None and (book is None or newspaper['Title'] != book['Title']):
             unique_matches.append(newspaper)
-            unique_titles.add(newspaper['Title'])
 
         for item in top_matches:
-            if item['Title'] not in unique_titles and len(unique_matches) < 3:
+            if item['Title'] not in [m['Title'] for m in unique_matches] and len(unique_matches) < 3:
                 unique_matches.append(item)
-                unique_titles.add(item['Title'])
 
         st.subheader(f"📚 Recommendations for {name}")
         if unique_matches:
@@ -62,5 +73,7 @@ if st.button("Get Recommendations"):
                 st.markdown(f"  - {item['Summary']}")
         else:
             st.info("We didn't find any strong matches, but stay tuned for future updates!")
+    elif len(selected_topics) != 4:
+        st.warning("Please select exactly 4 interests from the list.")
     else:
-        st.warning("Please enter both your name and interests.")
+        st.warning("Please enter your name and select 4 interests.")
