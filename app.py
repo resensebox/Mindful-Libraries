@@ -44,7 +44,7 @@ st.markdown("""
         border-radius: 8px;
         font-weight: bold;
         transition: background-color 0.3s ease, transform 0.2s ease;
-        box-shadow: 3px 33px 8px rgba(0,0,0,0.3);
+        box-shadow: 2px 2px 4px rgba(0,0,0,0.2); /* Reduced shadow */
     }
     .stButton>button:hover {
         background-color: #45a049;
@@ -80,7 +80,7 @@ st.markdown("""
         text-decoration: none; /* Remove underline */
         font-weight: bold;
         transition: background-color 0.3s ease, transform 0.2s ease;
-        box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+        box-shadow: 1px 1px 3px rgba(0,0,0,0.15); /* Reduced shadow */
         display: inline-block; /* Allows padding and margins */
         margin: 5px; /* Spacing between buttons */
         text-align: center;
@@ -295,6 +295,35 @@ def load_feedback_tag_scores():
         st.info(f"Could not load feedback tag scores. Recommendations will not be reweighted by feedback. Error: {e}")
     return feedback_scores
 
+@st.cache_data(ttl=3600) # Cache the activity suggestions for an hour
+def generate_activities(_ai_client, active_tags, recommended_titles):
+    """Generates activity suggestions based on tags and recommended titles."""
+    if not active_tags and not recommended_titles:
+        return ["No specific tags or recommended titles to suggest activities for. Try generating personalized tags first!"]
+
+    titles_str = ", ".join(recommended_titles) if recommended_titles else "No specific reading materials recommended yet."
+
+    prompt = f"""
+    You are a helpful assistant for a student volunteer working with an individual living with dementia.
+    Given the following key interests (tags) and recommended reading materials, suggest 3-5 gentle and engaging activities that a student volunteer can do with their pair.
+    Always include "Reading the recommended books/newspapers together and discussing them" as one of the suggestions.
+    Focus on activities that can spark positive memories, facilitate conversation, and provide calming engagement, suitable for individuals with dementia.
+
+    Key Interests (Tags): {', '.join(active_tags)}
+    Recommended Reading Titles: {titles_str}
+
+    Suggest activities in a numbered list format. Each activity should be a short, actionable sentence.
+    """
+    try:
+        response = _ai_client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": prompt}]
+        )
+        return response.choices[0].message.content.strip().split('\n')
+    except Exception as e:
+        return [f"Could not generate activity suggestions at this time. Error: {e}"]
+
+
 # --- Streamlit UI ---
 st.image("https://i.postimg.cc/0yVG4bhN/mindfullibrarieswhite-01.png", width=300)
 st.title("Discover Your Next Nostalgic Read!")
@@ -307,15 +336,18 @@ st.markdown("""
 # --- Navigation Buttons (Sticky) ---
 st.markdown('<div class="sticky-navbar">', unsafe_allow_html=True)
 st.subheader("Quick Navigation:")
-nav_cols = st.columns(4) # One column for each button
+# Add a column for "Activities" button
+nav_cols = st.columns(5) # Changed from 4 to 5 columns
 
 with nav_cols[0]:
     st.markdown('<a href="#search_section" class="nav-button-link">Search</a>', unsafe_allow_html=True)
 with nav_cols[1]:
     st.markdown('<a href="#personalized_recommendations" class="nav-button-link">My Recommendations</a>', unsafe_allow_html=True)
 with nav_cols[2]:
-    st.markdown('<a href="#you_might_also_like" class="nav-button-link">Related Books</a>', unsafe_allow_html=True)
+    st.markdown('<a href="#activities_section" class="nav-button-link">Activities</a>', unsafe_allow_html=True) # New button
 with nav_cols[3]:
+    st.markdown('<a href="#you_might_also_like" class="nav-button-link">Related Books</a>', unsafe_allow_html=True)
+with nav_cols[4]:
     if st.session_state['current_user_decade']: # Only show if decade is provided
         st.markdown('<a href="#decade_summary" class="nav-button-link">Decade Summary</a>', unsafe_allow_html=True)
     else:
@@ -557,6 +589,10 @@ if st.session_state['active_tags_for_filter']:
     # Keep track of primary recommended titles to avoid duplicates in "You Might Also Like"
     primary_recommended_titles = {item.get('Title') for item in books + newspapers if item.get('Title')}
 
+    # Store titles of recommended books/newspapers for activity generation
+    recommended_titles_for_activities = [item.get('Title', 'N/A') for item in books + newspapers]
+
+
     related_books = []
     # Collect all relevant tags from selected_tags and primary recommendations
     all_relevant_tags = set(st.session_state['active_tags_for_filter']) # Use active tags
@@ -642,6 +678,16 @@ if st.session_state['active_tags_for_filter']:
             st.markdown("_No primary recommendations found based on your current tags. Please try adjusting your input or generating new tags._")
     else:
         st.markdown("_No primary recommendations found based on your current tags. Please try adjusting your input or generating new tags._")
+
+    # --- Recommended Activities Section ---
+    st.markdown('<a name="activities_section"></a>', unsafe_allow_html=True) # Anchor for navigation
+    st.markdown("---")
+    st.subheader("💡 Recommended Activities:")
+    with st.spinner("Generating activity suggestions..."):
+        activities = generate_activities(client_ai, st.session_state['active_tags_for_filter'], recommended_titles_for_activities)
+        for activity in activities:
+            st.markdown(activity)
+
 
     st.markdown('<a name="you_might_also_like"></a>', unsafe_allow_html=True) # Anchor for navigation
     # --- "You Might Also Like" Section ---
