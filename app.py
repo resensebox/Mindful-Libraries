@@ -6,7 +6,6 @@ from io import StringIO
 from oauth2client.service_account import ServiceAccountCredentials
 import requests
 from collections import Counter
-import random
 
 # Google Sheets Setup (using secrets)
 scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
@@ -48,39 +47,16 @@ def log_to_google_sheet(name, college, topics, recommendations):
     except Exception as e:
         st.error(f"Logging failed: {e}")
 
-# Topic Categories
-categories = {
-    "Nature & Outdoors": ["Animals", "Animal Watching", "Birdwatching", "Gardening", "Hiking", "Nature", "Outdoors", "Seasons & Holidays", "Wildlife", "Turtles", "Hummingbirds", "Parrots", "Penguins", "Orcas"],
-    "Crafts & Hobbies": ["Crocheting", "Painting", "Calligraphy", "Model Kits", "Crafts", "Plate Painting", "Terrarium", "Paper Fish", "Paper Flowers", "Wreath Craft", "Chair Exercises"],
-    "Food & Cooking": ["Baking", "Candy Nostalgia", "Chocolate Chip Cookies", "Mac And Cheese", "Cupcakes", "Garlic Bread", "Brownies", "Salted Brownies", "Blueberry Muffins", "Brownie Kiss Cupcakes", "Oatmeal Raisin Cookies"],
-    "Faith & Reflection": ["Faith", "Bible", "Spirituality", "Prayer", "Meditation", "Devotion", "Worship", "Reflection", "Quiet Time", "Psalms", "Proverbs", "Shabbat"],
-    "History & Culture": ["Native American", "Egyptian Bread", "Roman Empire", "Founding Fathers", "George Washington", "Lewis And Clark", "Cleopatra", "Jfk", "Fdr", "Gandhi", "Stanton", "Women"],
-    "Family & Community": ["Family", "Friendships", "Motherhood", "Community", "Togetherness", "Relationships", "Bond", "Care And Support", "Belonging"],
-    "Nostalgia & Reminiscence": ["Drive-In Movies", "Childhood", "Retro Games", "Penny Candy", "Nostalgia", "Simpler Times", "Reminiscence & Nostalgia", "Life Before Tv", "Good Times"],
-    "Seasons & Holidays": ["Christmas", "Thanksgiving", "Halloween", "Easter", "Valentine’S Day", "Winter", "Autumn", "Spring"],
-    "Science & Learning": ["Aviation", "Space Race", "John Muir", "Museums", "Law", "Language", "Literature", "Education", "Nature & Outdoors", "Evolution Of Movies"],
-    "Entertainment: Performing Arts & Music": ["Dancing", "Elvis Presley", "Jazzercise", "Singing", "Lawrence Welk", "Sound Of Music", "Music", "Instruments", "Spirituals", "Joyful Sounds"],
-    "Entertainment: Games & Sports": ["Board Games", "Baseball", "Basketball", "Trivia", "Wheel Of Fortune", "Sports", "Super Bowl", "Dog Olympics", "Games"]
-}
-
 # Streamlit UI
 st.title("📰 Personalized Reading Recommendations")
-st.write("Select categories and choose **at least 4 topics** total to receive custom reading material suggestions!")
+st.write("Select **at least 4 topics** to receive custom reading material suggestions!")
 
 with st.form("recommendation_form"):
     name = st.text_input("Your Name")
     college = st.text_input("College Chapter (Optional)")
-    selected_categories = st.multiselect("Choose 1 or more Categories", list(categories.keys()))
-
-    available_topics = []
-    for cat in selected_categories:
-        available_topics.extend(categories[cat])
-
-    random.shuffle(available_topics)
-
     selected_topics = st.multiselect(
-        "Now choose at least 4 topics from your selected categories:",
-        options=available_topics,
+        "Choose at least 4 topics:",
+        sorted(list(set(tag for tags in content_df['tags'] for tag in tags))),
         default=st.session_state['selected_topics']
     )
 
