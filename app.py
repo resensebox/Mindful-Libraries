@@ -52,11 +52,11 @@ content_df = load_content()
 if 'book_counter' not in st.session_state:
     st.session_state['book_counter'] = Counter()
 
-def save_user_input(name, jobs, hobbies, decade, selected_topics):
+def save_user_input(name, jobs, hobbies, faith, decade, selected_topics):
     try:
         sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXJRXcfmxjoj5s')
         log_ws = sheet.worksheet('Logs')
-        log_ws.append_row([datetime.now().strftime("%Y-%m-%d %H:%M:%S"), name, jobs, hobbies, decade, ", ".join(selected_topics)])
+        log_ws.append_row([datetime.now().strftime("%Y-%m-%d %H:%M:%S"), name, jobs, hobbies, faith, decade, ", ".join(selected_topics)])
     except Exception:
         st.warning("Failed to save user data.")
 
@@ -88,6 +88,7 @@ st.write("Answer a few fun questions to get personalized topic suggestions for n
 name = st.text_input("Your Name")
 jobs = st.text_input("What did you used to do for a living?")
 hobbies = st.text_input("What are your hobbies or favorite activities?")
+faith = st.text_input("Do you have a faith background (e.g. Christian, Jewish, None)?")
 decade = st.text_input("What is your favorite decade or era?")
 reroll = st.button("🎲 Reroll My Topics")
 
@@ -103,9 +104,15 @@ if st.button("Generate My Topics") or reroll:
             Person's background:
             - Job: {jobs}
             - Hobbies: {hobbies}
+            - Faith: {faith}
             - Favorite decade: {decade}
 
-            If the person was a veteran or had a patriotic job, include patriotic or American history topics. If the user mentions faith, include spiritual topics. Focus on what would feel familiar, positive, or reminiscent to them.
+            Be very thoughtful in matching content. For example:
+            - If the person was a veteran or had a patriotic job, include patriotic or American history topics.
+            - If the user mentions Jewish faith, include Jewish books or holidays.
+            - If faith is mentioned generally (e.g. Christian, Catholic), include spiritual or church-related content.
+            - Match hobbies and jobs to content themes—e.g. a teacher might like education or books, a gardener might enjoy nature.
+            - Include at least one newspaper result in final recommendations.
 
             Return just a list of 10 topics, comma-separated.
             """
@@ -122,7 +129,7 @@ if st.button("Generate My Topics") or reroll:
 
         st.success("Here are your personalized topics:")
         st.write(", ".join(selected_topics))
-        save_user_input(name, jobs, hobbies, decade, selected_topics)
+        save_user_input(name, jobs, hobbies, faith, decade, selected_topics)
 
         interest_set = set(selected_topics)
         scored = []
@@ -136,11 +143,23 @@ if st.button("Generate My Topics") or reroll:
 
         unique_matches = []
         seen_titles = set()
+        book_found = False
+        newspaper_found = False
+
         for item in top_matches:
             if item['Title'] not in seen_titles:
-                unique_matches.append(item)
-                seen_titles.add(item['Title'])
-            if len(unique_matches) == 3:
+                if not newspaper_found and item['Type'].lower() == 'newspaper':
+                    unique_matches.append(item)
+                    seen_titles.add(item['Title'])
+                    newspaper_found = True
+                elif not book_found and item['Type'].lower() == 'book':
+                    unique_matches.append(item)
+                    seen_titles.add(item['Title'])
+                    book_found = True
+                elif len(unique_matches) < 3:
+                    unique_matches.append(item)
+                    seen_titles.add(item['Title'])
+            if len(unique_matches) >= 3:
                 break
 
         st.subheader(f"📚 Recommendations for {name}")
