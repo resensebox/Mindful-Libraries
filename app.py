@@ -37,8 +37,8 @@ service_account_info = json.load(StringIO(st.secrets["GOOGLE_SERVICE_JSON"]))
 creds = ServiceAccountCredentials.from_json_keyfile_dict(service_account_info, scope)
 client = gspread.authorize(creds)
 
-# OpenAI API Key
-openai.api_key = st.secrets["OPENAI_API_KEY"]
+# OpenAI API Client
+client_ai = openai.OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
 # Load content from Google Sheet with caching
 @st.cache_data(ttl=300)
@@ -122,11 +122,11 @@ if st.button("Generate My Topics") or reroll:
             {all_topics}
             Just return the list of 10 topics, comma-separated.
             """
-            response = openai.ChatCompletion.create(
+            response = client_ai.chat.completions.create(
                 model="gpt-4",
                 messages=[{"role": "user", "content": prompt}]
             )
-            topic_output = response.choices[0].message['content']
+            topic_output = response.choices[0].message.content
             selected_topics = [t.strip() for t in topic_output.split(',') if t.strip()]
 
         st.success("Here are your personalized topics:")
