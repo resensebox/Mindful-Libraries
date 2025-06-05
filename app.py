@@ -33,11 +33,11 @@ if 'book_counter' not in st.session_state:
 
 def log_to_google_sheet(name, topics, recommendations):
     url = "https://script.google.com/macros/s/AKfycbyEjfmz_ngHiw4nTQ08oWfa83EOln2-ZASqqggtVDln2s9PROkXR3-Ejh5m2_WUzQoU/exec"
-    rec_titles = ", ".join([item['Title'] for item in recommendations])
+    rec_text = ", ".join([item['Title'] for item in recommendations])
     payload = {
         "name": name,
         "topics": ", ".join(topics),
-        "recommendations": rec_titles
+        "recommendations": rec_text
     }
     try:
         response = requests.post(url, json=payload)
@@ -106,6 +106,7 @@ if st.button("Get Recommendations"):
                     st.image(item['Image'], width=300)
                 if 'URL' in item and item['URL']:
                     st.markdown(f"[Buy The Book!]({item['URL']})")
+                    st.image(f"https://ws-na.amazon-adsystem.com/widgets/q?_encoding=UTF8&ASIN={item['URL'].split('/dp/')[-1].split('/')[0]}&Format=_SL250_&ID=AsinImage&MarketPlace=US&ServiceVersion=20070822&WS=1&tag=affiliateid")
 
             book_titles = [item['Title'] for item in unique_matches if item['Type'].lower() == 'book']
             st.session_state['book_counter'].update(book_titles)
