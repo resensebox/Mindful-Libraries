@@ -174,10 +174,11 @@ if 'current_user_decade' not in st.session_state:
 # Session state for session notes
 if 'session_date' not in st.session_state:
     st.session_state['session_date'] = date.today()
+# Corrected default values for mood and engagement to match list options
 if 'session_mood' not in st.session_state:
-    st.session_state['session_mood'] = "Neutral"
+    st.session_state['session_mood'] = "Neutral 😐"
 if 'session_engagement' not in st.session_state:
-    st.session_state['session_engagement'] = "Moderate"
+    st.session_state['session_engagement'] = "Moderately Engaged ⭐⭐"
 if 'session_takeaways' not in st.session_state:
     st.session_state['session_takeaways'] = ""
 if 'show_printable_summary' not in st.session_state:
@@ -857,7 +858,7 @@ if st.session_state['active_tags_for_filter']:
                 num_cols_fallback = min(5, len(fallback_books))
                 cols_fallback = st.columns(num_cols_fallback)
                 for i, book in enumerate(fallback_books):
-                    with cols_fallback[i % num_cols_fallback]:
+                    with cols[i % num_cols_fallback]: # Changed from `cols_fallback` to `cols` to match other sections
                         img_url = None
                         if book.get('Image', '').startswith("http"):
                             img_url = book['Image']
@@ -894,6 +895,7 @@ with col_sn2:
     session_mood = st.radio(
         "Pair's Overall Mood During Session:",
         ["Happy 😊", "Calm 😌", "Neutral 😐", "Agitated 😠", "Sad 😢"],
+        # Ensure the index matches the full string with emoji
         index=["Happy 😊", "Calm 😌", "Neutral 😐", "Agitated 😠", "Sad 😢"].index(st.session_state['session_mood']),
         key="session_mood_input"
     )
@@ -902,6 +904,7 @@ with col_sn2:
 session_engagement = st.radio(
     "Engagement Level:",
     ["Highly Engaged ⭐⭐⭐", "Moderately Engaged ⭐⭐", "Minimally Engaged ⭐", "Not Engaged 🚫"],
+    # Ensure the index matches the full string with emoji
     index=["Highly Engaged ⭐⭐⭐", "Moderately Engaged ⭐⭐", "Minimally Engaged ⭐", "Not Engaged 🚫"].index(st.session_state['session_engagement']),
     key="session_engagement_input"
 )
@@ -924,10 +927,10 @@ if st.button("Save Session Notes"):
             st.session_state['session_engagement'],
             st.session_state['session_takeaways']
         )
-        # Clear the input fields after saving
+        # Clear the input fields after saving, using full strings with emojis
         st.session_state['session_date'] = date.today()
-        st.session_state['session_mood'] = "Neutral"
-        st.session_state['session_engagement'] = "Moderate"
+        st.session_state['session_mood'] = "Neutral 😐"
+        st.session_state['session_engagement'] = "Moderately Engaged ⭐⭐"
         st.session_state['session_takeaways'] = ""
         # Re-run to refresh history display
         st.rerun()
