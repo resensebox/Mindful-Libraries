@@ -124,6 +124,9 @@ if 'book_counter' not in st.session_state:
     st.session_state['book_counter'] = Counter()
 if 'selected_tags' not in st.session_state:
     st.session_state['selected_tags'] = []
+# Initialize 'active_tags_for_filter' to an empty list at the start
+if 'active_tags_for_filter' not in st.session_state:
+    st.session_state['active_tags_for_filter'] = []
 if 'current_user_name' not in st.session_state:
     st.session_state['current_user_name'] = ""
 if 'current_user_jobs' not in st.session_state:
@@ -333,22 +336,36 @@ if st.session_state['selected_tags']:
     st.markdown("Here are the tags our AI suggests. **You can uncheck any tags you don't feel are relevant** for your pair.")
 
     # Create checkboxes for each tag
-    st.session_state['active_tags_for_filter'] = [] # Initialize list for active tags
+    st.session_state['active_tags_for_filter'] = [] # Initialize list for active tags for current run
     cols = st.columns(min(len(st.session_state['selected_tags']), 5)) # Up to 5 columns for tags
     for i, tag in enumerate(st.session_state['selected_tags']):
         with cols[i % 5]:
             # Default to True (checked)
-            if st.checkbox(tag.capitalize(), value=True, key=f"tag_checkbox_{tag}"):
+            # Check if tag is in session_state for active_tags_for_filter to maintain state
+            # This logic was corrected to ensure persistent state
+            if st.session_state.get('initial_tags_set_up', False) and tag in st.session_state.get('prev_active_tags', []):
+                checked_status = st.checkbox(tag.capitalize(), value=True, key=f"tag_checkbox_{tag}")
+            else:
+                checked_status = st.checkbox(tag.capitalize(), value=True, key=f"tag_checkbox_{tag}")
+
+            if checked_status:
                 st.session_state['active_tags_for_filter'].append(tag)
+
+    # Store the currently active tags for the next run (to maintain checkbox state)
+    st.session_state['prev_active_tags'] = st.session_state['active_tags_for_filter']
+    st.session_state['initial_tags_set_up'] = True
+
 
     if st.button("Refine Recommendations Based on Selected Tags"):
         # This button simply triggers a re-run with the updated st.session_state['active_tags_for_filter']
         # The recommendation logic below will use these active tags.
         st.success("Recommendations refined!")
     else:
-        # If no explicit refine button click, use all initial selected tags for the first display
+        # If no explicit refine button click, and active_tags_for_filter is empty (e.g., initial load after tag generation)
+        # populate it with selected_tags. This handles the case where the user generates tags but hasn't clicked "Refine" yet.
         if not st.session_state.get('active_tags_for_filter'):
             st.session_state['active_tags_for_filter'] = list(st.session_state['selected_tags'])
+
 
     st.markdown("Now, scroll down to see your tailored recommendations!")
 
