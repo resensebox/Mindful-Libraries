@@ -156,14 +156,14 @@ if selected_tags:
                 st.markdown(f"<a class='buy-button' href='{item['URL']}' target='_blank'>Buy Now</a>", unsafe_allow_html=True)
     used_tags = set()
     books = []
-    magazines = []
+    newspapers = []
     matched_items = []
     shuffled_df = content_df.sample(frac=1, random_state=42)
     for item in shuffled_df.itertuples(index=False):
         tag_matches = set(item.tags) & set(selected_tags)
         tag_weight = sum(feedback_tag_scores.get(tag, 0) for tag in tag_matches)
         if item.Type.lower() == 'newspaper' and len(tag_matches) >= 3 and tag_weight >= -1:
-                magazines.append(item._asdict())
+        newspapers.append(item._asdict())
                 used_tags.update(tag_matches)
         elif item.Type.lower() == 'book' and len(tag_matches) >= 3 and tag_weight >= 0:
             books.append(item._asdict())
@@ -179,9 +179,9 @@ if selected_tags:
        set(item['tags']) & set(selected_tags)
 ]
 
-    if books or magazines:
+    if books or newspapers:
         st.subheader(f"📚 Recommendations for {name}")
-                for item in books[:3] + magazines[:3]:
+        for item in books[:3] + newspapers[:3]:
         cols = st.columns([1, 2])
         with cols[0]:
             img_url = None
