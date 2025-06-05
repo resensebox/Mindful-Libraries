@@ -2,10 +2,11 @@ import streamlit as st
 import pandas as pd
 import gspread
 import json
+import openai
+
 from io import StringIO
 from oauth2client.service_account import ServiceAccountCredentials
 from collections import Counter
-import openai
 from fpdf import FPDF
 from datetime import datetime
 
@@ -34,13 +35,13 @@ st.write("🔍 Secrets found:", list(st.secrets.keys()))
 
 # --- Google Sheets and OpenAI Initialization ---
 try:
+    scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
     st.write("🔁 Initializing services...")
 
     if "GOOGLE_SERVICE_JSON" not in st.secrets:
         st.error("❌ GOOGLE_SERVICE_JSON is missing from secrets.")
         st.stop()
 
-    scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
     service_account_info = dict(st.secrets["GOOGLE_SERVICE_JSON"])
     creds = ServiceAccountCredentials.from_json_keyfile_dict(service_account_info, scope)
     client = gspread.authorize(creds)
@@ -50,11 +51,12 @@ try:
         st.stop()
 
     openai.api_key = st.secrets["OPENAI_API_KEY"]
-
     st.write("✅ Successfully initialized Google Sheets and OpenAI clients")
+
 except Exception as e:
-    st.exception(e)
+    st.error(f"Failed to initialize Google Sheets or OpenAI client. Please check your `st.secrets` configuration. Error: {e}")
     st.stop()
+
 
 @st.cache_data(ttl=3600)
 def load_content():
