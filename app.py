@@ -29,14 +29,14 @@ st.markdown("""
 
 # --- Google Sheets and OpenAI Initialization ---
 try:
-    scope = ['https://sheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
-    service_account_info = json.load(StringIO(st.secrets["GOOGLE_SERVICE_JSON"]))
+    scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
+    service_account_info = dict(st.secrets["GOOGLE_SERVICE_JSON"])  # Directly convert AttrDict to dict
     creds = ServiceAccountCredentials.from_json_keyfile_dict(service_account_info, scope)
     client = gspread.authorize(creds)
-    client_ai = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+    client_ai = OpenAI(api_key=st.secrets["OPENAI_API_KEY"]["key"])  # Access the key from nested secret
 except Exception as e:
     st.error(f"Failed to initialize Google Sheets or OpenAI client. Please check your `st.secrets` configuration. Error: {e}")
-    st.stop() # Stop the app if essential services cannot be initialized
+    st.stop()  # Stop the app if essential services cannot be initialized
 
 @st.cache_data(ttl=3600)
 def load_content():
