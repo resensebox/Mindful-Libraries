@@ -189,6 +189,7 @@ if selected_tags:
                 feedback = st.radio(f"Was this recommendation helpful?", ["Select an option", "✅ Yes", "❌ No"], index=0, key=f"feedback_{item['Title']}")
                 if feedback != "Select an option" and not st.session_state.get(f"feedback_submitted_{item['Title']}", False):
                     st.session_state[f"feedback_submitted_{item['Title']}"] = True
+                    st.success("✅ Feedback submitted!")
                     try:
                         sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXJRXcfmxjoj5s')
                         feedback_ws = sheet.worksheet('Feedback')
