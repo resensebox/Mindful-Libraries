@@ -57,6 +57,17 @@ except Exception as e:
     st.error(f"Failed to initialize Google Sheets or OpenAI client. Please check your `st.secrets` configuration. Error: {e}")
     st.stop()
 
+def generate_tags_with_openai(prompt):
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": prompt}]
+        )
+        return response['choices'][0]['message']['content']
+    except Exception as e:
+        st.error(f"Failed to generate tags using OpenAI. Error: {e}")
+        return ""
+
 
 @st.cache_data(ttl=3600)
 def load_content():
