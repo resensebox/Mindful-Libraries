@@ -144,8 +144,8 @@ if st.button("Generate My Tags"):
 if selected_tags:
     used_tags = set()
     books = []
-magazines = []
-matched_items = []
+    magazines = []
+    matched_items = []
     for item in content_df.itertuples(index=False):
         tag_matches = set(item.tags) & set(selected_tags)
         tag_weight = sum(feedback_tag_scores.get(tag, 0) for tag in tag_matches)
@@ -155,7 +155,7 @@ matched_items = []
                 used_tags.update(tag_matches)
         elif item.Type.lower() == 'book' and tag_matches and tag_weight >= 0:
             books.append(item._asdict())
-                used_tags.update(tag_matches)
+            used_tags.update(tag_matches)
         elif tag_matches:
             matched_items.append(item._asdict())
 
