@@ -38,7 +38,6 @@ client = gspread.authorize(creds)
 client_ai = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
 # Load content
-@st.cache_data(ttl=300)
 def load_content():
     sheet_url = 'https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXJRXcfmxjoj5s'
     sheet = client.open_by_url(sheet_url)
@@ -107,14 +106,15 @@ if st.button("Generate My Topics") or reroll:
             - Faith: {faith}
             - Favorite decade: {decade}
 
-            Be very thoughtful in matching content. For example:
-            - If the person was a veteran or had a patriotic job, include patriotic or American history topics.
-            - If the user mentions Jewish faith, include Jewish books or holidays.
-            - If faith is mentioned generally (e.g. Christian, Catholic), include spiritual or church-related content.
-            - Match hobbies and jobs to content themes—e.g. a teacher might like education or books, a gardener might enjoy nature.
-            - Include at least one newspaper result in final recommendations.
+            Cross-reference jobs, hobbies, and faith background with the topics to identify precise interests. For example:
+            - Veterans → patriotic, military, Americana.
+            - Teachers → education, books, school days.
+            - Gardeners → nature, outdoors, flowers.
+            - Jewish faith → include Jewish books and holidays.
+            - Christian faith → include spiritual or church-centered content.
+            - Emphasize relevance, meaning, and nostalgia.
 
-            Return just a list of 10 topics, comma-separated.
+            Return 10 comma-separated topics from the list above.
             """
             try:
                 response = client_ai.chat.completions.create(
