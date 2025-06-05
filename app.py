@@ -46,6 +46,8 @@ content_df = load_content()
 if 'book_counter' not in st.session_state:
     st.session_state['book_counter'] = Counter()
 
+recommended_tags = set()
+
 def save_user_input(name, jobs, hobbies, decade, selected_topics):
     try:
         sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXJRXcfmxjoj5s')
@@ -109,118 +111,32 @@ if st.button("Generate My Tags"):
             save_user_input(name, jobs, hobbies, decade, selected_tags)
 
 if selected_tags:
-    actor_keywords = {
-        "1940s": ["humphrey bogart", "ingrid bergman", "frank sinatra"],
-        "1950s": ["marilyn monroe", "elvis presley", "james dean"],
-        "1960s": ["audrey hepburn", "sidney poitier", "the beatles"],
-        "1970s": ["robert de niro", "meryl streep", "john travolta"],
-        "1980s": ["michael j. fox", "madonna", "harrison ford"],
-        "1990s": ["leonardo dicaprio", "julia roberts", "brad pitt"]
-    }
+    used_tags = set()
+    matched_titles = []
+    for item in content_df.itertuples(index=False):
+        tag_matches = set(item.tags) & set(selected_tags)
+        if item.Type.lower() == 'newspaper' and len(tag_matches) >= 3 and not tag_matches & used_tags:
+            matched_titles.append(item.Title)
+            used_tags.update(tag_matches)
+        elif item.Type.lower() != 'newspaper' and tag_matches:
+            matched_titles.append(item.Title)
 
-    normalized_tags = set(selected_tags)
-    filtered_df = content_df[content_df['Type'].str.lower().isin(['book', 'newspaper'])]
+    related_books = [item for item in content_df.to_dict('records') if item['Title'] not in matched_titles and item['Type'].lower() == 'book' and set(item['tags']) & set(selected_tags)]
 
-    if decade:
-        decade_lower = decade.lower()
-        decade_filtered_df = filtered_df[
-            filtered_df['Summary'].str.lower().str.contains(decade_lower, na=False) |
-            filtered_df['Title'].str.lower().str.contains(decade_lower, na=False)
-        ]
-        if not decade_filtered_df.empty:
-            filtered_df = decade_filtered_df
-
-    filtered_df = filtered_df.sample(frac=1, random_state=42).reset_index(drop=True)
-
-    scored = []
-    progress_text = "Scoring content based on your tags and decade..."
-    progress_bar = st.progress(0, text=progress_text)
-
-    for i, (_, row) in enumerate(filtered_df.iterrows()):
-        tags = row['tags']
-        match_count = len(tags & normalized_tags)
-        base_score = match_count * 3
-
-        summary = row.get('Summary', '').lower()
-        title = row.get('Title', '').lower()
-        row_type = row['Type'].lower()
-
-        decade_boost = 2 if decade and decade.lower() in summary + title else 0
-        historical_boost = sum(1 for kw in ["eisenhower", "fdr", "civil rights", "world war", "apollo", "nixon", "kennedy", "vietnam", "rosa parks"] if kw in summary) if row_type == 'newspaper' else 0
-
-        actor_boost = 0
-        for decade_key, actors in actor_keywords.items():
-            if decade_key in decade.lower():
-                if any(actor in summary for actor in actors):
-                    actor_boost = 3
-                    break
-
-        total_score = base_score + decade_boost + historical_boost + actor_boost
-        scored.append((row, total_score))
-        progress_bar.progress((i + 1) / len(filtered_df), text=progress_text)
-
-    progress_bar.empty()
-
-    sorted_items = sorted(scored, key=lambda x: -x[1])
-    top_matches = [item[0] for item in sorted_items if item[1] > 0]
-
-    if not top_matches:
-        st.warning("We couldn't find any content that strongly matched your tags. Try adjusting your inputs or picking a different decade.")
-    else:
-        books, newspapers, seen_titles = [], [], set()
-        for item in top_matches:
-            if item['Title'] in seen_titles:
-                continue
-            if item['Type'].lower() == 'book':
-                books.append(item)
-            elif item['Type'].lower() == 'newspaper':
-                newspapers.append(item)
-            seen_titles.add(item['Title'])
-
-        books = books[:2]
-        newspapers = newspapers[:3]
-        unique_matches = books + newspapers
-
-        st.subheader(f"\U0001F4DA Recommendations for {name}")
-        for item in unique_matches:
-            cols = st.columns([1, 2])
-            with cols[0]:
-                img_url = item.get('Image', '')
-                if not img_url.startswith("http") and 'URL' in item and "/dp/" in item['URL']:
-                    asin = item['URL'].split('/dp/')[-1].split('/')[0].split('?')[0]
-                    img_url = f"https://images-na.ssl-images-amazon.com/images/P/{asin}.01._SL250_.jpg"
+    if related_books:
+        st.markdown("### \U0001F4D6 You Might Also Like")
+        cols = st.columns(min(5, len(related_books)))
+        for i, book in enumerate(related_books[:10]):
+            with cols[i % len(cols)]:
+                img_url = None
+                if book.get('Image', '').startswith("http"):
+                    img_url = book['Image']
+                elif 'URL' in book and "amazon." in book['URL'] and "/dp/" in book['URL']:
+                    try:
+                        asin = book['URL'].split('/dp/')[-1].split('/')[0].split('?')[0]
+                        img_url = f"https://images-na.ssl-images-amazon.com/images/P/{asin}.01._SL250_.jpg"
+                    except:
+                        pass
                 if img_url:
-                    st.image(img_url, width=180)
-            with cols[1]:
-                st.markdown(f"### {item['Title']} ({item['Type']})")
-                st.markdown(f"{item['Summary']}")
-
-                reasons = []
-                matched_tags = list(item['tags'] & normalized_tags)
-                if matched_tags:
-                    reasons.append(f"Matches your interests: {', '.join(matched_tags)}")
-                if decade and decade.lower() in (item.get('Summary', '') + item.get('Title', '')).lower():
-                    reasons.append(f"Mentions your favorite decade: {decade}")
-                for decade_key, actors in actor_keywords.items():
-                    if decade_key in decade.lower():
-                        if any(actor in item.get('Summary', '').lower() for actor in actors):
-                            reasons.append(f"Mentions a famous actor from the {decade_key}")
-                            break
-
-                if reasons:
-                    st.markdown("**\U0001F31F Why I Chose This:**")
-                    for reason in reasons:
-                        emoji = "\U0001F4A1"
-                        if "interests" in reason.lower():
-                            emoji = "\U0001F4CC"
-                        elif "decade" in reason.lower():
-                            emoji = "\U0001F4C5"
-                        elif "actor" in reason.lower():
-                            emoji = "\U0001F3AC"
-                        st.markdown(f"{emoji} {reason}")
-
-                if 'URL' in item and item['URL']:
-                    st.markdown(f"<a class='buy-button' href='{item['URL']}' target='_blank'>Buy Now</a>", unsafe_allow_html=True)
-
-        if st.download_button("\U0001F4C4 Download My PDF", data=generate_pdf(name, selected_tags, unique_matches).output(dest='S').encode('latin-1'), file_name=f"{name}_recommendations.pdf"):
-            st.success("PDF ready!")
+                    st.image(img_url, width=120)
+                st.caption(book['Title'])
