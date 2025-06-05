@@ -6,7 +6,6 @@ from io import StringIO
 from oauth2client.service_account import ServiceAccountCredentials
 import requests
 from collections import Counter
-import random
 
 # Google Sheets Setup (using secrets)
 scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
@@ -69,9 +68,8 @@ name = st.text_input("Your Name")
 college = st.text_input("College Chapter (Optional)")
 selected_categories = st.multiselect("Choose 1 or more Categories", list(categories.keys()))
 
-# Gather and shuffle all topics from selected categories
+# Gather all topics from selected categories
 selected_topics_pool = [topic for cat in selected_categories for topic in categories[cat]]
-random.shuffle(selected_topics_pool)
 selected_topics = st.multiselect("Now choose at least 4 topics from your selected categories:", selected_topics_pool)
 
 if st.button("Get Recommendations"):
@@ -118,4 +116,4 @@ if st.button("Get Recommendations"):
     elif len(selected_topics) < 4:
         st.warning("Please select at least 4 interests from the list.")
     else:
-        st.warning("Please enter your name and select at least 4 interests.")
+        st.warning("Please enter your name and select at least 4 in
