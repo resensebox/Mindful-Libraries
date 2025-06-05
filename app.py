@@ -82,10 +82,7 @@ jobs = st.text_input("What did you used to do for a living?")
 hobbies = st.text_input("What are your hobbies or favorite activities?")
 decade = st.text_input("What is your favorite decade or era?")
 
-tone_preferences = st.multiselect(
-    "What kind of stories do you enjoy most?",
-    ["Heartwarming", "Funny", "Historical", "Adventurous", "Inspirational", "Surprising"],
-    key="story_tone")
+
 
 
 if st.button("Generate My Tags"):
@@ -142,12 +139,20 @@ if row_type == 'newspaper':
         except Exception:
             pass
 
-            title = row.get('Title', '').lower()
+    title = row.get('Title', '').lower()
             row_type = row['Type'].lower()
 
             tone_boost = sum(2 for tone in tone_preferences if tone.lower() in summary) if row_type == 'book' else 0
             decade_boost = 2 if row_type == 'newspaper' and decade.lower() in summary + title else 0
-            historical_boost = sum(1 for kw in ["eisenhower", "fdr", "civil rights", "world war", "apollo", "nixon", "kennedy", "vietnam", "rosa parks"]
+            historical_boost = 
+
+    actor_boost = 0
+    for decade_key, actors in actor_keywords.items():
+        if decade_key in decade.lower():
+            if any(actor in summary for actor in actors):
+                actor_boost = 3
+                break
+sum(1 for kw in ["eisenhower", "fdr", "civil rights", "world war", "apollo", "nixon", "kennedy", "vietnam", "rosa parks"]
                                    if kw in summary) if row_type == 'newspaper' else 0
 
             total_score = base_score + tone_boost + decade_boost + historical_boost
