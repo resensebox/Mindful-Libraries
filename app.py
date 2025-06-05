@@ -144,6 +144,16 @@ if st.button("Generate My Tags"):
             save_user_input(name, jobs, hobbies, decade, selected_tags)
 
 if selected_tags:
+    search_term = st.text_input("Or, type a topic or interest you'd like us to search for")
+    if search_term:
+        st.markdown(f"### 🔍 Search Results for '{search_term}'")
+        results = [item for item in content_df.to_dict('records') if search_term.lower() in item['Title'].lower() or search_term.lower() in item['Summary'].lower() or search_term.lower() in ', '.join(item['tags'])]
+        for item in results[:5]:
+            st.markdown(f"**{item['Title']}** ({item['Type']})  ")
+            st.markdown(item['Summary'])
+            st.markdown(f"_Tags: {', '.join(item['tags'])}_")
+            if 'URL' in item and item['URL']:
+                st.markdown(f"<a class='buy-button' href='{item['URL']}' target='_blank'>Buy Now</a>", unsafe_allow_html=True)
     used_tags = set()
     books = []
     magazines = []
@@ -171,7 +181,7 @@ if selected_tags:
 
     if books or magazines:
         st.subheader(f"📚 Recommendations for {name}")
-        for item in books[:3] + magazines[:3]:
+                for item in books[:3] + magazines[:3]:
         cols = st.columns([1, 2])
         with cols[0]:
             img_url = None
