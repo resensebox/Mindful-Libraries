@@ -24,9 +24,9 @@ def load_content():
 
 content_df = load_content()
 
-# Logging function
+# Logging function using Google Apps Script
 def log_to_google_sheet(name, topics, recommendations):
-    url = "https://script.google.com/macros/s/AKfycbxYkKCPeWl3A9ooshG5-4jDm1lZBsZXn2kj1ParfbsT0V-QQwePMAeNaCvLzNSmMTRg/exec"  # Replace with your Web App URL from Apps Script
+    url = "https://script.google.com/macros/s/AKfycbxYkKCPeWl3A9ooshG5-4jDm1lZBsZXn2kj1ParfbsT0V-QQwePMAeNaCvLzNSmMTRg/exec"
     payload = {
         "name": name,
         "topics": topics,
@@ -34,12 +34,10 @@ def log_to_google_sheet(name, topics, recommendations):
     }
     try:
         response = requests.post(url, json=payload)
-        if response.status_code == 200:
-            print("Logged successfully.")
-        else:
-            print("Logging failed:", response.text)
+        st.write("Log status:", response.status_code)
+        st.write("Log response:", response.text)
     except Exception as e:
-        print("Error logging to sheet:", e)
+        st.error(f"Logging failed: {e}")
 
 # Expanded topic categories with full list
 categories = {
