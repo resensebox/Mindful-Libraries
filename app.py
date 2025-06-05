@@ -327,7 +327,7 @@ def save_pair_details(volunteer_username, pair_name, jobs, life_experiences, hob
             st.session_state['selected_pair_name'] = pair_name # Auto-select new pair
 
         st.cache_data(load_pairs).clear()
-        global PAIRS_DATA # Update global PAIRS_DATA
+        global PAIRS_DATA # Update global PAIRS_DATA at the end of the function
         PAIRS_DATA = load_pairs(volunteer_username)
         return True
     except gspread.exceptions.WorksheetNotFound:
@@ -551,7 +551,7 @@ def get_ai_expanded_search_tags(search_term, content_tags_list, _ai_client):
     try:
         response = _ai_client.chat.completions.create(
             model="gpt-3.5-turbo",
-            messages=[{"role": "user", "content": search_prompt}]
+            messages=[{"role": "user", "content": prompt}]
         )
         ai_tags_output = response.choices[0].message.content.strip()
         ai_tags_from_response = {t.strip().lower() for t in ai_tags_output.split(',') if t.strip()}
@@ -660,13 +660,12 @@ if not st.session_state['is_authenticated']:
             login_button = st.form_submit_button("Log In")
 
             if login_button:
-                # IMPORTANT: Declare global before any assignment to it in this scope
-                global PAIRS_DATA 
                 if username in USERS and USERS[username] == password:
                     st.session_state['is_authenticated'] = True
                     st.session_state['logged_in_username'] = username
                     st.success(f"Welcome back, {username}!")
                     # Reload pairs specific to this user after successful login
+                    # No 'global' keyword needed here because PAIRS_DATA is a module-level global
                     PAIRS_DATA = load_pairs(st.session_state['logged_in_username'])
                     # If there's only one pair for this user, auto-select it
                     if len(PAIRS_DATA) == 1:
@@ -699,8 +698,6 @@ if not st.session_state['is_authenticated']:
             register_button = st.form_submit_button("Register Account")
 
             if register_button:
-                # IMPORTANT: Declare global before any assignment to it in this scope
-                global PAIRS_DATA
                 if not new_username:
                     st.error("Username cannot be empty.")
                 elif new_username in USERS:
@@ -713,6 +710,7 @@ if not st.session_state['is_authenticated']:
                     if save_new_user(new_username, new_password):
                         st.session_state['is_authenticated'] = True
                         st.session_state['logged_in_username'] = new_username
+                        # No 'global' keyword needed here because PAIRS_DATA is a module-level global
                         PAIRS_DATA = {} # Update global PAIRS_DATA for new user (empty initially)
                         st.session_state['selected_pair_name'] = "" # No pair selected for new user
                         # Clear all pair-related session state on new registration
@@ -726,8 +724,6 @@ if not st.session_state['is_authenticated']:
 else: # If authenticated
     st.markdown(f"Welcome, **{st.session_state['logged_in_username']}**!")
     if st.button("Log Out"):
-        # IMPORTANT: Declare global before any assignment to it in this scope
-        global PAIRS_DATA
         st.session_state['is_authenticated'] = False
         st.session_state['logged_in_username'] = ""
         st.session_state['selected_pair_name'] = "" # Clear selected pair on logout
@@ -746,6 +742,7 @@ else: # If authenticated
         st.session_state['recommended_books_current_session'] = []
         st.session_state['recommended_newspapers_current_session'] = []
         st.session_state['show_printable_summary'] = False
+        # No 'global' keyword needed here because PAIRS_DATA is a module-level global
         PAIRS_DATA = {} # Clear global PAIRS_DATA on logout
         st.rerun()
 
