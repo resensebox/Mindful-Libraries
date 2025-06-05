@@ -7,6 +7,27 @@ from oauth2client.service_account import ServiceAccountCredentials
 import requests
 from collections import Counter
 
+# Set page config for background color
+st.set_page_config(page_title="Mindful Libraries", layout="centered")
+st.markdown("""
+    <style>
+        body {
+            background-color: white;
+        }
+        .buy-button {
+            background-color: #6BA292;
+            color: white;
+            padding: 0.5em 1em;
+            border: none;
+            border-radius: 5px;
+            text-decoration: none;
+            font-weight: bold;
+            margin-top: 10px;
+            display: inline-block;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
 # Google Sheets Setup (using secrets)
 scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
 service_account_info = json.load(StringIO(st.secrets["GOOGLE_SERVICE_JSON"]))
@@ -99,21 +120,23 @@ if st.button("Get Recommendations"):
         st.subheader(f"📚 Recommendations for {name}")
         if unique_matches:
             for item in unique_matches:
-                st.markdown(f"- **{item['Title']}** ({item['Type']})")
-                st.markdown(f"  - {item['Summary']}")
+                cols = st.columns([1, 2])
+                with cols[0]:
+                    if 'Image' in item and item['Image'] and item['Image'].startswith("http"):
+                        st.image(item['Image'], width=180)
+                    elif 'URL' in item and "amazon." in item['URL'] and "/dp/" in item['URL']:
+                        try:
+                            asin = item['URL'].split('/dp/')[-1].split('/')[0].split('?')[0]
+                            image_url = f"https://images-na.ssl-images-amazon.com/images/P/{asin}.01._SL250_.jpg"
+                            st.image(image_url, width=180)
+                        except Exception:
+                            pass
 
-                if 'Image' in item and item['Image'] and item['Image'].startswith("http"):
-                    st.image(item['Image'], width=300)
-                elif 'URL' in item and "amazon." in item['URL'] and "/dp/" in item['URL']:
-                    try:
-                        asin = item['URL'].split('/dp/')[-1].split('/')[0].split('?')[0]
-                        image_url = f"https://images-na.ssl-images-amazon.com/images/P/{asin}.01._SL250_.jpg"
-                        st.image(image_url, width=200)
-                    except Exception:
-                        pass
-
-                if 'URL' in item and item['URL']:
-                    st.markdown(f"[Buy Now]({item['URL']})")
+                with cols[1]:
+                    st.markdown(f"### {item['Title']} ({item['Type']})")
+                    st.markdown(f"{item['Summary']}")
+                    if 'URL' in item and item['URL']:
+                        st.markdown(f"<a class='buy-button' href='{item['URL']}' target='_blank'>Buy Now</a>", unsafe_allow_html=True)
 
             book_titles = [item['Title'] for item in unique_matches if item['Type'].lower() == 'book']
             st.session_state['book_counter'].update(book_titles)
