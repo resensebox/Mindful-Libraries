@@ -185,7 +185,7 @@ if st.button("Generate My Tags"):
             if not content_df.empty and 'tags' in content_df.columns:
                 content_tags_list = sorted(set(tag for tags_set in content_df['tags'] for tag in tags_set))
                 prompt = f"""
-                    You are an expert librarian and therapist. Your job is to recommend 10 relevant and emotionally resonant tags for nostalgic content using the list below and this person's background.
+                    You are an expert librarian and therapist. Your job is to recommend 20 relevant and specific tags for reading content using the list below and this person's background. Make sure you really analyze each aspect of what they do, they hobbies, and come up with specific tags that match the list of tags in the google sheet. Be specific. 
 
                     Available tags:
                     {", ".join(content_tags_list)}
@@ -196,7 +196,7 @@ if st.button("Generate My Tags"):
                     Hobbies: {hobbies if hobbies else 'Not provided'}
                     Favorite Decade: {decade if decade else 'Not provided'}
 
-                    Only return 10 comma-separated tags from the list above. Do not include any additional text or formatting.
+                    Only return 20 comma-separated tags from the list above. Do not include any additional text or formatting.
                 """
                 try:
                     # FIX: Use the 'client_ai' object initialized earlier
