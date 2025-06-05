@@ -216,7 +216,27 @@ if st.button("Generate My Tags") or reroll:
 
             if st.download_button("📄 Download My PDF", data=generate_pdf(name, selected_tags, unique_matches).output(dest='S').encode('latin-1'), file_name=f"{name}_recommendations.pdf"):
                 st.success("PDF ready!")
+
+        # ✅ Related Book Carousel
+        st.markdown("### 📖 You Might Also Like")
+        related_books = []
+        for _, row in content_df.iterrows():
+            if row['Title'] in [b['Title'] for b in unique_matches]:
+                continue
+            if row['Type'].lower() != 'book':
+                continue
+            if row['tags'] & normalized_tags:
+                related_books.append(row)
+
+        if related_books:
+            cols = st.columns(min(5, len(related_books)))
+            for i, book in enumerate(related_books[:10]):
+                with cols[i % len(cols)]:
+                    if book.get('Image', '').startswith("http"):
+                        st.image(book['Image'], width=120)
+                    st.caption(book['Title'])
         else:
-            st.info("We didn't find any strong matches, but stay tuned for future updates!")
+            st.markdown("_No other related books found._")
+
     else:
         st.warning("Please enter your name and at least one answer to the questions above.")
