@@ -12,7 +12,7 @@ creds = ServiceAccountCredentials.from_json_keyfile_dict(service_account_info, s
 client = gspread.authorize(creds)
 
 # Load content from Google Sheet
-sheet_url = 'https://docs.google.com/spreadsheets/d/892416667'
+sheet_url = 'https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXJRXcfmxjoj5s'
 sheet = client.open_by_url(sheet_url)
 content_ws = sheet.worksheet('ContentDB')
 content_df = pd.DataFrame(content_ws.get_all_records())
