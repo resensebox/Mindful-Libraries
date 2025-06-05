@@ -379,9 +379,10 @@ if st.button("Generate Personalized Tags & Recommendations"):
                         messages=[{"role": "user", "content": prompt}]
                     )
                     topic_output = response.choices[0].message.content.strip()
-                    st.session_state['selected_tags'] = [t.strip().lower() for t in topic_output.split(',') if t.strip()]
+                    # Ensure uniqueness and sorting of tags from AI output
+                    st.session_state['selected_tags'] = sorted(list(set([t.strip().lower() for t in topic_output.split(',') if t.strip()])))
 
-                    # Initialize or reset tag_checkbox_states and active_tags_for_filter
+                    # Initialize or reset tag_checkbox_states and active_tags_for_filter based on NEW selected_tags
                     st.session_state['tag_checkbox_states'] = {tag: True for tag in st.session_state['selected_tags']}
                     st.session_state['active_tags_for_filter'] = list(st.session_state['selected_tags']) # Immediately active
                     st.success("✨ Tags generated!")
@@ -399,20 +400,22 @@ if st.session_state['selected_tags']:
     st.subheader("Your Personalized Tags:")
     st.markdown("Here are the tags our AI suggests. **You can uncheck any tags you don't feel are relevant** for your pair.")
 
+    # Ensure tag_checkbox_states is aligned with selected_tags for robust display
+    # This loop ensures that any tag in selected_tags has an entry in tag_checkbox_states
+    for tag in st.session_state['selected_tags']:
+        if tag not in st.session_state['tag_checkbox_states']:
+            st.session_state['tag_checkbox_states'][tag] = True # Default new tags to checked
+
     # Rebuild active_tags_for_filter based on current checkbox states
-    # This list will be used for filtering recommendations
     current_active_tags = []
     cols = st.columns(min(len(st.session_state['selected_tags']), 5)) # Up to 5 columns for tags
     for i, tag in enumerate(st.session_state['selected_tags']):
         with cols[i % 5]:
-            # Ensure the tag's state is initialized in tag_checkbox_states if it's new
-            if tag not in st.session_state['tag_checkbox_states']:
-                st.session_state['tag_checkbox_states'][tag] = True # Default new tags to checked
-
             # Create checkbox, linking its value to the session state dictionary
             checked_status = st.checkbox(
                 tag.capitalize(),
-                value=st.session_state['tag_checkbox_states'][tag],
+                # Use .get() with a default in case of unexpected state, though the preceding loop minimizes this risk
+                value=st.session_state['tag_checkbox_states'].get(tag, True),
                 key=f"interactive_tag_checkbox_{tag}" # Unique key for each tag
             )
             # Update the session state dictionary based on user interaction
@@ -422,13 +425,11 @@ if st.session_state['selected_tags']:
                 current_active_tags.append(tag)
 
     # After rendering all checkboxes, update active_tags_for_filter from the collected active tags
-    # This ensures active_tags_for_filter always reflects the current state of the checkboxes
     st.session_state['active_tags_for_filter'] = current_active_tags
 
     # The "Refine" button is now explicitly for triggering a re-run after checkbox changes
     if st.button("Apply Tag Filters & Update Recommendations"):
         st.success("Recommendations updated based on your selected tags!")
-    # Else block not needed here, as active_tags_for_filter is always set by the checkbox loop above
 
 
     st.markdown("Now, scroll down to see your tailored recommendations!")
