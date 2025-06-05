@@ -6,6 +6,9 @@ from io import StringIO
 from oauth2client.service_account import ServiceAccountCredentials
 import requests
 from collections import Counter
+import openai
+from fpdf import FPDF
+from datetime import datetime
 
 # Set page config for background color
 st.set_page_config(page_title="Mindful Libraries", layout="centered")
@@ -34,6 +37,9 @@ service_account_info = json.load(StringIO(st.secrets["GOOGLE_SERVICE_JSON"]))
 creds = ServiceAccountCredentials.from_json_keyfile_dict(service_account_info, scope)
 client = gspread.authorize(creds)
 
+# OpenAI API Key
+openai.api_key = st.secrets["OPENAI_API_KEY"]
+
 # Load content from Google Sheet with caching
 @st.cache_data(ttl=300)
 def load_content():
@@ -50,22 +56,36 @@ content_df = load_content()
 if 'book_counter' not in st.session_state:
     st.session_state['book_counter'] = Counter()
 
-# Logging function using Google Apps Script
-def log_to_google_sheet(name, topics, recommendations):
-    url = "https://script.google.com/macros/s/AKfycbyEjfmz_ngHiw4nTQ08oWfa83EOln2-ZASqqggtVDln2s9PROkXR3-Ejh5m2_WUzQoU/exec"
-    rec_text = ", ".join([item['Title'] for item in recommendations])
-    payload = {
-        "name": name,
-        "topics": ", ".join(topics),
-        "recommendations": rec_text
-    }
+# Save user info
+def save_user_input(name, jobs, hobbies, decade, selected_topics):
     try:
-        response = requests.post(url, json=payload)
+        sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXJRXcfmxjoj5s')
+        log_ws = sheet.worksheet('Logs')
+        log_ws.append_row([datetime.now().strftime("%Y-%m-%d %H:%M:%S"), name, jobs, hobbies, decade, ", ".join(selected_topics)])
     except Exception as e:
-        st.error(f"Logging failed: {e}")
+        st.warning("Failed to save user data.")
 
-# Expanded topic categories with full list
-categories = {
+# PDF Generator
+def generate_pdf(name, topics, recs):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", size=14)
+    pdf.cell(200, 10, txt=f"Reading Recommendations for {name}", ln=True, align='C')
+    pdf.ln(10)
+    pdf.set_font("Arial", size=12)
+    pdf.cell(200, 10, txt="Top 10 Personalized Topics:", ln=True)
+    for topic in topics:
+        pdf.cell(200, 10, txt=f"- {topic}", ln=True)
+    pdf.ln(10)
+    pdf.set_font("Arial", size=12)
+    pdf.cell(200, 10, txt="Recommended Reads:", ln=True)
+    for r in recs:
+        pdf.multi_cell(0, 10, txt=f"{r['Title']} ({r['Type']}): {r['Summary']}")
+        pdf.ln(2)
+    return pdf
+
+# Topics List
+all_topics = [topic for sublist in {
     "Nature & Outdoors": ["Animals", "Animal Watching", "Birdwatching", "Gardening", "Hiking", "Nature", "Outdoors", "Seasons & Holidays", "Wildlife", "Turtles", "Hummingbirds", "Parrots", "Penguins", "Orcas"],
     "Crafts & Hobbies": ["Crocheting", "Painting", "Calligraphy", "Model Kits", "Crafts", "Plate Painting", "Terrarium", "Paper Fish", "Paper Flowers", "Wreath Craft", "Chair Exercises"],
     "Food & Cooking": ["Baking", "Candy Nostalgia", "Chocolate Chip Cookies", "Mac And Cheese", "Cupcakes", "Garlic Bread", "Brownies", "Salted Brownies", "Blueberry Muffins", "Brownie Kiss Cupcakes", "Oatmeal Raisin Cookies"],
@@ -77,22 +97,42 @@ categories = {
     "Science & Learning": ["Aviation", "Space Race", "John Muir", "Museums", "Law", "Language", "Literature", "Education", "Nature & Outdoors", "Evolution Of Movies"],
     "Entertainment: Performing Arts & Music": ["Dancing", "Elvis Presley", "Jazzercise", "Singing", "Lawrence Welk", "Sound Of Music", "Music", "Instruments", "Spirituals", "Joyful Sounds"],
     "Entertainment: Games & Sports": ["Board Games", "Baseball", "Basketball", "Trivia", "Wheel Of Fortune", "Sports", "Super Bowl", "Dog Olympics", "Games"]
-}
+}.values() for topic in sublist]
 
-# Streamlit App UI
+# Streamlit UI
 st.image("https://i.postimg.cc/0yVG4bhN/mindfullibrarieswhite-01.png", width=300)
 st.title("Personalized Reading Recommendations")
-st.write("Select categories and choose **at least 4 topics** total to receive custom reading material suggestions!")
+st.write("Answer a few fun questions to get personalized topic suggestions for nostalgic reading material!")
 
 name = st.text_input("Your Name")
-selected_categories = st.multiselect("Choose 1 or more Categories", list(categories.keys()))
+jobs = st.text_input("What did you used to do for a living?")
+hobbies = st.text_input("What are your hobbies or favorite activities?")
+decade = st.text_input("What is your favorite decade or era?")
+reroll = st.button("🎲 Reroll My Topics")
 
-# Gather all topics from selected categories
-selected_topics_pool = [topic for cat in selected_categories for topic in categories[cat]]
-selected_topics = st.multiselect("Now choose at least 4 topics from your selected categories:", selected_topics_pool)
+if st.button("Generate My Topics") or reroll:
+    if name and (jobs or hobbies or decade):
+        with st.spinner("Thinking deeply..."):
+            prompt = f"""
+            Based on this person's background:
+            - Past job: {jobs}
+            - Hobbies: {hobbies}
+            - Favorite decade: {decade}
+            Suggest 10 relevant and engaging topics from the following list:
+            {all_topics}
+            Just return the list of 10 topics, comma-separated.
+            """
+            response = openai.ChatCompletion.create(
+                model="gpt-4",
+                messages=[{"role": "user", "content": prompt}]
+            )
+            topic_output = response.choices[0].message['content']
+            selected_topics = [t.strip() for t in topic_output.split(',') if t.strip()]
 
-if st.button("Get Recommendations"):
-    if name and len(selected_topics) >= 4:
+        st.success("Here are your personalized topics:")
+        st.write(", ".join(selected_topics))
+        save_user_input(name, jobs, hobbies, decade, selected_topics)
+
         interest_set = set(tag.strip().lower() for tag in selected_topics)
         scored = []
         for _, row in content_df.iterrows():
@@ -140,9 +180,10 @@ if st.button("Get Recommendations"):
                 st.markdown(f"- {title}: {count} times")
 
             log_to_google_sheet(name, selected_topics, unique_matches)
+
+            if st.download_button("📄 Download My PDF", data=generate_pdf(name, selected_topics, unique_matches).output(dest='S').encode('latin-1'), file_name=f"{name}_recommendations.pdf"):
+                st.success("PDF ready!")
         else:
             st.info("We didn't find any strong matches, but stay tuned for future updates!")
-    elif len(selected_topics) < 4:
-        st.warning("Please select at least 4 interests from the list.")
     else:
-        st.warning("Please enter your name and select at least 4 interests.")
+        st.warning("Please enter your name and at least one answer to the questions above.")
