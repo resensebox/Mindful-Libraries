@@ -29,8 +29,6 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-st.write("✅ App is running")
-st.write("🔍 Secrets found:", list(st.secrets.keys()))
 
 # --- Google Sheets and OpenAI Initialization ---
 try:
@@ -51,7 +49,6 @@ try:
 
     # FIX: Initialize the OpenAI client correctly for the new library
     client_ai = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
-    st.write("✅ Successfully initialized Google Sheets and OpenAI clients")
 
 except Exception as e:
     st.error(f"Failed to initialize Google Sheets or OpenAI client. Please check your `st.secrets` configuration. Error: {e}")
