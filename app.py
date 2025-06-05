@@ -133,14 +133,14 @@ if st.button("Generate My Tags"):
 # Generalize summary for scoring with AI assistance
 if row_type == 'newspaper':
     try:
-        enhanced_prompt = f"Summarize and generalize this newspaper summary to highlight key themes and topics: {summary}"
-        response = client_ai.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[{"role": "user", "content": enhanced_prompt}]
-        )
-        summary = response.choices[0].message.content.strip().lower()
-    except Exception:
-        pass
+            enhanced_prompt = f"Summarize and generalize this newspaper summary to highlight key themes and topics: {summary}"
+            response = client_ai.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=[{"role": "user", "content": enhanced_prompt}]
+            )
+            summary = response.choices[0].message.content.strip().lower()
+        except Exception:
+            pass
 
             title = row.get('Title', '').lower()
             row_type = row['Type'].lower()
