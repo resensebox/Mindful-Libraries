@@ -189,7 +189,7 @@ def save_user_input(name, jobs, hobbies, decade, selected_topics):
         st.warning(f"Failed to save user data. Error: {e}")
 
 @st.cache_data(ttl=3600) # Cache the explanation for an hour
-def generate_recommendation_explanation(item, user_info, selected_tags_from_session, ai_client):
+def generate_recommendation_explanation(item, user_info, selected_tags_from_session, _ai_client):
     """Generates an AI-powered explanation for a specific recommendation."""
     prompt = f"""
     You are a helpful assistant for a student volunteer working with an individual living with dementia.
@@ -212,7 +212,7 @@ def generate_recommendation_explanation(item, user_info, selected_tags_from_sess
     Explain in 2-3 sentences.
     """
     try:
-        response = ai_client.chat.completions.create(
+        response = _ai_client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[{"role": "user", "content": prompt}]
         )
@@ -221,14 +221,14 @@ def generate_recommendation_explanation(item, user_info, selected_tags_from_sess
         return f"Could not generate explanation at this time. Error: {e}"
 
 @st.cache_data(ttl=3600) # Cache the historical context for an hour
-def generate_historical_context(decade, ai_client):
+def generate_historical_context(decade, _ai_client):
     """Generates a brief, positive historical overview for a given decade."""
     prompt = f"""
     You are a helpful assistant for a student volunteer working with an individual living with dementia.
     Given the decade "{decade}", provide a brief (2-3 sentences), positive, and gentle overview of what made that era special. Focus on aspects that could evoke pleasant memories, such as common pastimes, cultural trends, or general positive feelings associated with the period. This information will help the student volunteer understand the context for their pair. Avoid any potentially sensitive or negative historical events.
     """
     try:
-        response = ai_client.chat.completions.create(
+        response = _ai_client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[{"role": "user", "content": prompt}]
         )
@@ -237,7 +237,7 @@ def generate_historical_context(decade, ai_client):
         return f"Could not retrieve historical context for {decade}. Error: {e}"
 
 @st.cache_data(ttl=3600) # Cache the expanded search tags for an hour
-def get_ai_expanded_search_tags(search_term, content_tags_list, ai_client):
+def get_ai_expanded_search_tags(search_term, content_tags_list, _ai_client):
     """Uses AI to expand a search term into relevant content tags."""
     if not search_term:
         return set()
@@ -253,7 +253,7 @@ def get_ai_expanded_search_tags(search_term, content_tags_list, ai_client):
         Only return comma-separated tags from the list above. Do not include any additional text or formatting.
     """
     try:
-        response = ai_client.chat.completions.create(
+        response = _ai_client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[{"role": "user", "content": search_prompt}]
         )
