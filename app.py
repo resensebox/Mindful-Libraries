@@ -45,7 +45,6 @@ def load_content():
     content_ws = sheet.worksheet('ContentDB')
     df = pd.DataFrame(content_ws.get_all_records())
     df['tags'] = df['Tags'].apply(lambda x: set(tag.strip().lower() for tag in str(x).split(',')))
-    df['curated'] = df['Curated Topic'].apply(lambda x: str(x).strip().lower() if x else '')
     return df
 
 content_df = load_content()
@@ -80,10 +79,6 @@ def generate_pdf(name, topics, recs):
 
 # Topics List
 all_topics = sorted(set(topic.strip() for sublist in content_df['tags'] for topic in sublist))
-
-# Add curated themes to all_topics
-all_curated = sorted(set(content_df['curated'].dropna().unique()))
-all_topics = sorted(set(all_topics).union(all_curated))
 
 # Streamlit UI
 st.image("https://i.postimg.cc/0yVG4bhN/mindfullibrarieswhite-01.png", width=300)
@@ -133,8 +128,7 @@ if st.button("Generate My Topics") or reroll:
         scored = []
         for _, row in content_df.iterrows():
             tag_score = sum(2 if tag in interest_set else 0.5 for tag in row['tags'])
-            curated_score = 2 if row['curated'] in interest_set else 0
-            total_score = tag_score + curated_score
+            total_score = tag_score
             scored.append((row, total_score))
 
         sorted_items = sorted(scored, key=lambda x: -x[1])
