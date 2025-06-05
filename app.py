@@ -44,24 +44,15 @@ def log_to_google_sheet(name, topics, recommendations):
     except Exception as e:
         st.error(f"Logging failed: {e}")
 
-# Expanded topic categories with full list
-categories = {
-    "Nature & Outdoors": ["Animals", "Animal Watching", "Birdwatching", "Gardening", "Hiking", "Nature", "Outdoors", "Seasons & Holidays", "Wildlife", "Turtles", "Hummingbirds", "Parrots", "Penguins", "Orcas"],
-    "Crafts & Hobbies": ["Crocheting", "Painting", "Calligraphy", "Model Kits", "Crafts", "Plate Painting", "Terrarium", "Paper Fish", "Paper Flowers", "Wreath Craft", "Chair Exercises"],
-    "Food & Cooking": ["Baking", "Candy Nostalgia", "Chocolate Chip Cookies", "Mac And Cheese", "Cupcakes", "Garlic Bread", "Brownies", "Salted Brownies", "Blueberry Muffins", "Brownie Kiss Cupcakes", "Oatmeal Raisin Cookies"],
-    "Faith & Reflection": ["Faith", "Bible", "Spirituality", "Prayer", "Meditation", "Devotion", "Worship", "Reflection", "Quiet Time", "Psalms", "Proverbs", "Shabbat"],
-    "History & Culture": ["Native American", "Egyptian Bread", "Roman Empire", "Founding Fathers", "George Washington", "Lewis And Clark", "Cleopatra", "Jfk", "Fdr", "Gandhi", "Stanton", "Women"],
-    "Family & Community": ["Family", "Friendships", "Motherhood", "Community", "Togetherness", "Relationships", "Bond", "Care And Support", "Belonging"],
-    "Nostalgia & Reminiscence": ["Drive-In Movies", "Childhood", "Retro Games", "Penny Candy", "Nostalgia", "Simpler Times", "Reminiscence & Nostalgia", "Life Before Tv", "Good Times"],
-    "Seasons & Holidays": ["Christmas", "Thanksgiving", "Halloween", "Easter", "Valentine’S Day", "Winter", "Autumn", "Spring"],
-    "Science & Learning": ["Aviation", "Space Race", "John Muir", "Museums", "Law", "Language", "Literature", "Education", "Nature & Outdoors", "Evolution Of Movies"],
-    "Entertainment: Performing Arts & Music": ["Dancing", "Elvis Presley", "Jazzercise", "Singing", "Lawrence Welk", "Sound Of Music", "Music", "Instruments", "Spirituals", "Joyful Sounds"],
-    "Entertainment: Games & Sports": ["Board Games", "Baseball", "Basketball", "Trivia", "Wheel Of Fortune", "Sports", "Super Bowl", "Dog Olympics", "Games"]
-}
+# Color palette from branding
+PRIMARY_COLOR = "#FF6200"
+SECONDARY_COLOR = "#293241"
+ACCENT_COLOR = "#3D5A80"
 
 # Streamlit App UI
-st.title("📰 Personalized Reading Recommendations")
-st.write("Select categories and choose **at least 4 topics** total to receive custom reading material suggestions!")
+st.image("/mnt/data/mindfullibrarieswhite-01.png", width=300)
+st.markdown(f"<h1 style='color:{PRIMARY_COLOR};'>📰 Personalized Reading Recommendations</h1>", unsafe_allow_html=True)
+st.markdown("<p style='color:#293241;'>Select categories and choose <b>at least 4 topics</b> total to receive custom reading material suggestions!</p>", unsafe_allow_html=True)
 
 name = st.text_input("Your Name")
 selected_categories = st.multiselect("Choose 1 or more Categories", list(categories.keys()))
@@ -101,15 +92,17 @@ if st.button("Get Recommendations"):
                 st.markdown(f"- **{item['Title']}** ({item['Type']})")
                 st.markdown(f"  - {item['Summary']}")
 
+                image_url = ""
                 if 'Image' in item and item['Image'] and item['Image'].startswith("http"):
-                    st.image(item['Image'], width=300)
+                    image_url = item['Image']
                 elif 'URL' in item and "amazon." in item['URL'] and "/dp/" in item['URL']:
                     try:
                         asin = item['URL'].split('/dp/')[-1].split('/')[0].split('?')[0]
                         image_url = f"https://images-na.ssl-images-amazon.com/images/P/{asin}.01._SL250_.jpg"
-                        st.image(image_url, width=200)
                     except Exception:
                         pass
+                if image_url:
+                    st.image(image_url, width=200)
 
                 if 'URL' in item and item['URL']:
                     st.markdown(f"[Buy Now]({item['URL']})")
