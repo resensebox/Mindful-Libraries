@@ -42,4 +42,3 @@ if st.button("Get Recommendations"):
             st.markdown(f"[Read Here]({item['URL']})")
     else:
         st.warning("Please enter both your name and interests.")
-
