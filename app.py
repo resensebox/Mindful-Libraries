@@ -153,7 +153,7 @@ if row_type == 'newspaper':
                 actor_boost = 3
                 break
 sum(1 for kw in ["eisenhower", "fdr", "civil rights", "world war", "apollo", "nixon", "kennedy", "vietnam", "rosa parks"]
-                                   if kw in summary) if row_type == 'newspaper' else 0
+                                if kw in summary) if row_type == 'newspaper' else 0
 
             total_score = base_score + tone_boost + decade_boost + historical_boost
             scored.append((row, total_score))
