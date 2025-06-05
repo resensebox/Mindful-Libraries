@@ -1,102 +1,16 @@
-import streamlit as st
-import pandas as pd
-import gspread
-import json
-from io import StringIO
-from oauth2client.service_account import ServiceAccountCredentials
-import requests
-from collections import Counter
-import openai
-from fpdf import FPDF
-from datetime import datetime
-
-# Set page config for background color
-st.set_page_config(page_title="Mindful Libraries", layout="centered")
-st.markdown("""
-    <style>
-        body {
-            background-color: white;
-        }
-        .buy-button {
-            background-color: orange;
-            color: white;
-            padding: 0.5em 1em;
-            border: none;
-            border-radius: 5px;
-            text-decoration: none;
-            font-weight: bold;
-            margin-top: 10px;
-            display: inline-block;
-        }
-    </style>
-""", unsafe_allow_html=True)
-
-# Google Sheets Setup (using secrets)
-scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
-service_account_info = json.load(StringIO(st.secrets["GOOGLE_SERVICE_JSON"]))
-creds = ServiceAccountCredentials.from_json_keyfile_dict(service_account_info, scope)
-client = gspread.authorize(creds)
-
-# OpenAI API Client
-openai.api_key = st.secrets["OPENAI_API_KEY"]
-
-# Load content from Google Sheet with caching
-@st.cache_data(ttl=300)
-def load_content():
-    sheet_url = 'https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXJRXcfmxjoj5s'
-    sheet = client.open_by_url(sheet_url)
-    content_ws = sheet.worksheet('ContentDB')
-    df = pd.DataFrame(content_ws.get_all_records())
-    df['tags'] = df['Tags'].apply(lambda x: set(tag.strip().lower() for tag in str(x).split(',')))
-    return df
-
-content_df = load_content()
-
-# Track book recommendation counts
-if 'book_counter' not in st.session_state:
-    st.session_state['book_counter'] = Counter()
-
-# Save user info
-def save_user_input(name, jobs, hobbies, decade, selected_topics):
-    try:
-        sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXJRXcfmxjoj5s')
-        log_ws = sheet.worksheet('Logs')
-        log_ws.append_row([datetime.now().strftime("%Y-%m-%d %H:%M:%S"), name, jobs, hobbies, decade, ", ".join(selected_topics)])
-    except Exception as e:
-        st.warning("Failed to save user data.")
-
-# PDF Generator
-def generate_pdf(name, topics, recs):
-    pdf = FPDF()
-    pdf.add_page()
-    pdf.set_font("Arial", size=14)
-    pdf.cell(200, 10, txt=f"Reading Recommendations for {name}", ln=True, align='C')
-    pdf.ln(10)
-    pdf.set_font("Arial", size=12)
-    pdf.cell(200, 10, txt="Top 10 Personalized Topics:", ln=True)
-    for topic in topics:
-        pdf.cell(200, 10, txt=f"- {topic}", ln=True)
-    pdf.ln(10)
-    pdf.set_font("Arial", size=12)
-    pdf.cell(200, 10, txt="Recommended Reads:", ln=True)
-    for r in recs:
-        pdf.multi_cell(0, 10, txt=f"{r['Title']} ({r['Type']}): {r['Summary']}")
-        pdf.ln(2)
-    return pdf
-
 # Topics List
 all_topics = [topic for sublist in {
-    "Nature & Outdoors": [...],  # same content as before
-    "Crafts & Hobbies": [...],
-    "Food & Cooking": [...],
-    "Faith & Reflection": [...],
-    "History & Culture": [...],
-    "Family & Community": [...],
-    "Nostalgia & Reminiscence": [...],
-    "Seasons & Holidays": [...],
-    "Science & Learning": [...],
-    "Entertainment: Performing Arts & Music": [...],
-    "Entertainment: Games & Sports": [...]
+    "Nature & Outdoors": ["Animals", "Birdwatching", "Gardening", "Hiking", "Nature", "Outdoors", "Wildlife", "Turtles", "Hummingbirds", "Parrots", "Penguins", "Orcas", "Fishing", "Camping"],
+    "Crafts & Hobbies": ["Crocheting", "Painting", "Calligraphy", "Model Kits", "Crafts", "Knitting", "Woodworking", "Origami", "Embroidery", "Scrapbooking", "Terrarium", "Paper Fish", "Paper Flowers", "Wreath Craft", "Chair Exercises"],
+    "Food & Cooking": ["Baking", "Candy Nostalgia", "Chocolate Chip Cookies", "Mac And Cheese", "Cupcakes", "Garlic Bread", "Brownies", "Salted Brownies", "Blueberry Muffins", "Brownie Kiss Cupcakes", "Oatmeal Raisin Cookies", "Vintage Recipes", "Sunday Dinners"],
+    "Faith & Reflection": ["Faith", "Bible", "Spirituality", "Prayer", "Meditation", "Devotion", "Worship", "Reflection", "Quiet Time", "Psalms", "Proverbs", "Shabbat", "Gratitude"],
+    "History & Culture": ["Native American", "Egyptian Bread", "Roman Empire", "Founding Fathers", "George Washington", "Lewis And Clark", "Cleopatra", "JFK", "FDR", "Gandhi", "Stanton", "Women", "Civil Rights", "Presidents", "Historic Landmarks"],
+    "Family & Community": ["Family", "Friendships", "Motherhood", "Community", "Togetherness", "Relationships", "Bond", "Care And Support", "Belonging", "Grandparenting", "Reunions", "Storytelling"],
+    "Nostalgia & Reminiscence": ["Drive-In Movies", "Childhood", "Retro Games", "Penny Candy", "Nostalgia", "Simpler Times", "Reminiscence & Nostalgia", "Life Before TV", "Good Times", "Old-Fashioned Fun", "Radio Shows"],
+    "Seasons & Holidays": ["Christmas", "Thanksgiving", "Halloween", "Easter", "Valentine's Day", "Winter", "Autumn", "Spring", "Summer", "New Year", "Fourth of July"],
+    "Science & Learning": ["Aviation", "Space Race", "John Muir", "Museums", "Law", "Language", "Literature", "Education", "Nature & Outdoors", "Evolution Of Movies", "Inventions", "Dinosaurs"],
+    "Entertainment: Performing Arts & Music": ["Dancing", "Elvis Presley", "Jazzercise", "Singing", "Lawrence Welk", "Sound Of Music", "Music", "Instruments", "Spirituals", "Joyful Sounds", "Classical Music", "Vaudeville"],
+    "Entertainment: Games & Sports": ["Board Games", "Baseball", "Basketball", "Trivia", "Wheel Of Fortune", "Sports", "Super Bowl", "Dog Olympics", "Games", "Card Games", "Bowling", "Carnival Games"]
 }.values() for topic in sublist]
 
 # Streamlit UI
@@ -122,11 +36,11 @@ if st.button("Generate My Topics") or reroll:
             {all_topics}
             Just return the list of 10 topics, comma-separated.
             """
-            response = openai.ChatCompletion.create(
+            response = client_ai.chat.completions.create(
                 model="gpt-3.5-turbo",
                 messages=[{"role": "user", "content": prompt}]
             )
-            topic_output = response.choices[0].message['content']
+            topic_output = response.choices[0].message.content
             selected_topics = [t.strip() for t in topic_output.split(',') if t.strip()]
 
         st.success("Here are your personalized topics:")
