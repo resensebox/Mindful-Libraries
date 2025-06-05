@@ -366,7 +366,7 @@ def generate_activities(_ai_client, active_tags, recommended_titles):
     Suggest activities in a numbered list format. Each activity should be a short, actionable sentence.
     """
     try:
-        response = _ai_client.chat.completions.create(
+        response = _ai_ai_client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[{"role": "user", "content": prompt}]
         )
@@ -504,6 +504,7 @@ if st.button("Generate Personalized Tags & Recommendations"):
                 Significant Life Experiences: {life_experiences if life_experiences else 'Not provided'}
 
                 Only return 20 comma-separated tags from the list above. Do not include any additional text or formatting.
+                Please ensure the tags are varied and cover different aspects of their life to maximize recommendation diversity, aiming to provide as close to 20 unique tags as possible.
             """
             try:
                 response = client_ai.chat.completions.create(
@@ -676,9 +677,10 @@ if st.session_state['active_tags_for_filter']:
         num_matches = len(tag_matches)
         tag_weight = sum(feedback_tag_scores.get(tag, 0) for tag in tag_matches)
 
-        if item_type == 'newspaper' and num_matches >= 2 and tag_weight >= -2:
+        # Adjusted conditions for recommendations
+        if item_type == 'newspaper' and num_matches >= 1 and tag_weight >= -2: # Changed num_matches from 2 to 1
             newspapers_candidates.append((num_matches, tag_weight, item._asdict()))
-        elif item_type == 'book' and num_matches >= 2 and tag_weight >= 2:
+        elif item_type == 'book' and num_matches >= 2 and tag_weight >= 0: # Changed tag_weight from 2 to 0
             books_candidates.append((num_matches, tag_weight, item._asdict()))
 
     # Sort candidates by number of matches and then by feedback weight (descending)
@@ -858,7 +860,7 @@ if st.session_state['active_tags_for_filter']:
                 num_cols_fallback = min(5, len(fallback_books))
                 cols_fallback = st.columns(num_cols_fallback)
                 for i, book in enumerate(fallback_books):
-                    with cols[i % num_cols_fallback]: # Changed from `cols_fallback` to `cols` to match other sections
+                    with cols_fallback[i % num_cols_fallback]:
                         img_url = None
                         if book.get('Image', '').startswith("http"):
                             img_url = book['Image']
