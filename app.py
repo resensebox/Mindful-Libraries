@@ -116,4 +116,4 @@ if st.button("Get Recommendations"):
     elif len(selected_topics) < 4:
         st.warning("Please select at least 4 interests from the list.")
     else:
-        st.warning("Please enter your name and select at least 4 in
+        st.warning("Please enter your name and select at least 4 interests.")
