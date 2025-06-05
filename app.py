@@ -81,6 +81,9 @@ jobs = st.text_input("What did you used to do for a living?")
 hobbies = st.text_input("What are your hobbies or favorite activities?")
 decade = st.text_input("What is your favorite decade or era?")
 
+# Initialize selected_tags to avoid NameError
+selected_tags = []
+
 if st.button("Generate My Tags"):
     if name and (jobs or hobbies or decade):
         with st.spinner("Thinking deeply..."):
@@ -113,6 +116,16 @@ tone_preferences = st.multiselect(
     ["Heartwarming", "Funny", "Historical", "Adventurous", "Inspirational", "Surprising"]
 )
 
+# Define actor_keywords (was undefined in original code)
+actor_keywords = {
+    "1940s": ["humphrey bogart", "ingrid bergman", "frank sinatra"],
+    "1950s": ["marilyn monroe", "elvis presley", "james dean"],
+    "1960s": ["audrey hepburn", "sidney poitier", "the beatles"],
+    "1970s": ["robert de niro", "meryl streep", "john travolta"],
+    "1980s": ["michael j. fox", "madonna", "harrison ford"],
+    "1990s": ["leonardo dicaprio", "julia roberts", "brad pitt"]
+}
+
 normalized_tags = set(selected_tags)
 scored = []
 
@@ -122,6 +135,8 @@ for _, row in content_df.iterrows():
     base_score = match_count * 2
 
     summary = row.get('Summary', '').lower()
+    title = row.get('Title', '').lower()
+    row_type = row['Type'].lower()
 
     # Generalize summary for scoring with AI assistance
     if row_type == 'newspaper':
@@ -135,12 +150,9 @@ for _, row in content_df.iterrows():
         except Exception:
             pass
 
-    title = row.get('Title', '').lower()
-    row_type = row['Type'].lower()
-
     tone_boost = sum(2 for tone in tone_preferences if tone.lower() in summary) if row_type == 'book' else 0
     decade_boost = 2 if row_type == 'newspaper' and decade.lower() in summary + title else 0
-    historical_boost = 0  # Note: This was incomplete in the original code
+    historical_boost = sum(1 for kw in ["eisenhower", "fdr", "civil rights", "world war", "apollo", "nixon", "kennedy", "vietnam", "rosa parks"] if kw in summary) if row_type == 'newspaper' else 0
 
     actor_boost = 0
     for decade_key, actors in actor_keywords.items():
@@ -148,10 +160,8 @@ for _, row in content_df.iterrows():
             if any(actor in summary for actor in actors):
                 actor_boost = 3
                 break
-    sum(1 for kw in ["eisenhower", "fdr", "civil rights", "world war", "apollo", "nixon", "kennedy", "vietnam", "rosa parks"]
-        if kw in summary) if row_type == 'newspaper' else 0
 
-    total_score = base_score + tone_boost + decade_boost + historical_boost
+    total_score = base_score + tone_boost + decade_boost + historical_boost + actor_boost
     scored.append((row, total_score))
 
 sorted_items = sorted(scored, key=lambda x: -x[1])
