@@ -229,8 +229,10 @@ def save_session_notes_to_gsheet(pair_name, session_date, mood, engagement, take
             takeaways
         ])
         st.success("Session notes saved successfully!")
+    except gspread.exceptions.WorksheetNotFound:
+        st.error(f"Failed to save session notes: 'SessionLogs' worksheet not found. Please create a sheet named 'SessionLogs' in your Google Sheet.")
     except Exception as e:
-        st.error(f"Failed to save session notes. Please ensure 'SessionLogs' worksheet exists and is accessible. Error: {e}")
+        st.error(f"Failed to save session notes. Error: {e}")
 
 @st.cache_data(ttl=60) # Cache session logs for 1 minute
 def load_session_logs(pair_name):
@@ -244,8 +246,11 @@ def load_session_logs(pair_name):
         if not df.empty and 'Pair Name' in df.columns:
             return df[df['Pair Name'].str.lower() == pair_name.lower()].sort_values(by='Timestamp', ascending=False)
         return pd.DataFrame()
+    except gspread.exceptions.WorksheetNotFound:
+        st.info(f"The 'SessionLogs' worksheet was not found. Please create a sheet named 'SessionLogs' in your Google Sheet to enable session history tracking.")
+        return pd.DataFrame()
     except Exception as e:
-        st.info(f"Could not load session history for {pair_name}. Error: {e}")
+        st.info(f"Could not load session history for {pair_name}. An unexpected error occurred: {e}")
         return pd.DataFrame()
 
 @st.cache_data(ttl=3600) # Cache the explanation for an hour
@@ -366,7 +371,7 @@ def generate_activities(_ai_client, active_tags, recommended_titles):
     Suggest activities in a numbered list format. Each activity should be a short, actionable sentence.
     """
     try:
-        response = _ai_ai_client.chat.completions.create(
+        response = _ai_client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[{"role": "user", "content": prompt}]
         )
@@ -678,12 +683,14 @@ if st.session_state['active_tags_for_filter']:
         tag_weight = sum(feedback_tag_scores.get(tag, 0) for tag in tag_matches)
 
         # Adjusted conditions for recommendations
-        if item_type == 'newspaper' and num_matches >= 1 and tag_weight >= -2: # Changed num_matches from 2 to 1
+        # Newspaper requires at least 1 matching tag and a feedback weight >= -2
+        if item_type == 'newspaper' and num_matches >= 1 and tag_weight >= -2:
             newspapers_candidates.append((num_matches, tag_weight, item._asdict()))
-        elif item_type == 'book' and num_matches >= 2 and tag_weight >= 0: # Changed tag_weight from 2 to 0
+        # Book requires at least 2 matching tags and a feedback weight >= 0
+        elif item_type == 'book' and num_matches >= 2 and tag_weight >= 0:
             books_candidates.append((num_matches, tag_weight, item._asdict()))
 
-    # Sort candidates by number of matches and then by feedback weight (descending)
+    # Sort candidates by number of matches (primary) and then by feedback weight (secondary, descending)
     books_candidates.sort(key=lambda x: (x[0], x[1]), reverse=True)
     newspapers_candidates.sort(key=lambda x: (x[0], x[1]), reverse=True)
 
