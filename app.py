@@ -7,7 +7,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 from collections import Counter
 from openai import OpenAI
 from fpdf import FPDF
-from datetime import datetime
+from datetime import datetime, date
 
 st.set_option('client.showErrorDetails', True)
 
@@ -171,6 +171,19 @@ if 'current_user_hobbies' not in st.session_state:
 if 'current_user_decade' not in st.session_state:
     st.session_state['current_user_decade'] = ""
 
+# Session state for session notes
+if 'session_date' not in st.session_state:
+    st.session_state['session_date'] = date.today()
+if 'session_mood' not in st.session_state:
+    st.session_state['session_mood'] = "Neutral"
+if 'session_engagement' not in st.session_state:
+    st.session_state['session_engagement'] = "Moderate"
+if 'session_takeaways' not in st.session_state:
+    st.session_state['session_takeaways'] = ""
+if 'show_printable_summary' not in st.session_state:
+    st.session_state['show_printable_summary'] = False
+
+
 # This function is not used in the current code, but kept for context if PDF generation is needed.
 def generate_pdf(name, topics, recs):
     """Generates a PDF summary of recommendations (currently unused)."""
@@ -190,7 +203,7 @@ def generate_pdf(name, topics, recs):
         pdf.ln(2)
     return pdf
 
-# Function to save user input to Google Sheet
+# Function to save user input to Google Sheet (Logs)
 def save_user_input(name, jobs, hobbies, decade, selected_topics):
     """Saves user input to the 'Logs' Google Sheet."""
     try:
@@ -199,6 +212,40 @@ def save_user_input(name, jobs, hobbies, decade, selected_topics):
         log_ws.append_row([datetime.now().strftime("%Y-%m-%d %H:%M:%S"), name, jobs, hobbies, decade, ", ".join(selected_topics)])
     except Exception as e:
         st.warning(f"Failed to save user data. Error: {e}")
+
+# Function to save session notes to Google Sheet (SessionLogs)
+def save_session_notes_to_gsheet(pair_name, session_date, mood, engagement, takeaways):
+    """Saves session notes to the 'SessionLogs' Google Sheet."""
+    try:
+        sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXJRXcfmxjoj5s')
+        session_log_ws = sheet.worksheet('SessionLogs')
+        session_log_ws.append_row([
+            datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            pair_name,
+            session_date.strftime("%Y-%m-%d"),
+            mood,
+            engagement,
+            takeaways
+        ])
+        st.success("Session notes saved successfully!")
+    except Exception as e:
+        st.error(f"Failed to save session notes. Please ensure 'SessionLogs' worksheet exists and is accessible. Error: {e}")
+
+@st.cache_data(ttl=60) # Cache session logs for 1 minute
+def load_session_logs(pair_name):
+    """Loads session logs for a specific pair from Google Sheet."""
+    if not pair_name:
+        return pd.DataFrame()
+    try:
+        sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXJRXcfmxjoj5s')
+        session_log_ws = sheet.worksheet('SessionLogs')
+        df = pd.DataFrame(session_log_ws.get_all_records())
+        if not df.empty and 'Pair Name' in df.columns:
+            return df[df['Pair Name'].str.lower() == pair_name.lower()].sort_values(by='Timestamp', ascending=False)
+        return pd.DataFrame()
+    except Exception as e:
+        st.info(f"Could not load session history for {pair_name}. Error: {e}")
+        return pd.DataFrame()
 
 @st.cache_data(ttl=3600) # Cache the explanation for an hour
 def generate_recommendation_explanation(item, user_info, selected_tags_from_session, _ai_client):
@@ -326,6 +373,37 @@ def generate_activities(_ai_client, active_tags, recommended_titles):
     except Exception as e:
         return [f"Could not generate activity suggestions at this time. Error: {e}"]
 
+def get_printable_summary(user_info, tags, books, newspapers, activities):
+    """Generates a formatted string summary for printing."""
+    summary = f"--- Session Plan Summary for {user_info['name'] if user_info['name'] else 'Your Pair'} ---\n\n"
+    summary += f"Date: {datetime.now().strftime('%Y-%m-%d')}\n"
+    summary += f"User Profile:\n"
+    summary += f"  Job: {user_info['jobs'] if user_info['jobs'] else 'N/A'}\n"
+    summary += f"  Life Experiences: {user_info['life_experiences'] if user_info['life_experiences'] else 'N/A'}\n"
+    summary += f"  Hobbies: {user_info['hobbies'] if user_info['hobbies'] else 'N/A'}\n"
+    summary += f"  Favorite Decade: {user_info['decade'] if user_info['decade'] else 'N/A'}\n\n"
+
+    summary += f"Personalized Tags:\n- {', '.join(tags)}\n\n"
+
+    if books:
+        summary += "Recommended Books:\n"
+        for book in books:
+            summary += f"- Title: {book.get('Title', 'N/A')}\n"
+            summary += f"  Summary: {book.get('Summary', 'N/A')}\n"
+            summary += f"  Link: {book.get('URL', 'N/A')}\n\n"
+    if newspapers:
+        summary += "Recommended Newspapers:\n"
+        for newspaper in newspapers:
+            summary += f"- Title: {newspaper.get('Title', 'N/A')}\n"
+            summary += f"  Summary: {newspaper.get('Summary', 'N/A')}\n"
+            summary += f"  Link: {newspaper.get('URL', 'N/A')}\n\n"
+
+    summary += "Suggested Activities:\n"
+    for activity in activities:
+        summary += f"{activity}\n"
+
+    summary += "\n--- End of Summary ---"
+    return summary
 
 # --- Streamlit UI ---
 st.image("https://i.postimg.cc/0yVG4bhN/mindfullibrarieswhite-01.png", width=300)
@@ -340,7 +418,7 @@ st.markdown("""
 st.markdown('<div class="sticky-navbar">', unsafe_allow_html=True)
 st.subheader("Quick Navigation:")
 # Add a column for "Activities" button
-nav_cols = st.columns(5) # Changed from 4 to 5 columns
+nav_cols = st.columns(6) # Changed from 5 to 6 columns for new button
 
 with nav_cols[0]:
     st.markdown('<a href="#search_section" class="nav-button-link">Search</a>', unsafe_allow_html=True)
@@ -351,6 +429,8 @@ with nav_cols[2]:
 with nav_cols[3]:
     st.markdown('<a href="#you_might_also_like" class="nav-button-link">Related Books</a>', unsafe_allow_html=True)
 with nav_cols[4]:
+    st.markdown('<a href="#session_notes_section" class="nav-button-link">Session Notes</a>', unsafe_allow_html=True) # New button
+with nav_cols[5]:
     if st.session_state['current_user_decade']: # Only show if decade is provided
         st.markdown('<a href="#decade_summary" class="nav-button-link">Decade Summary</a>', unsafe_allow_html=True)
     else:
@@ -715,6 +795,19 @@ if st.session_state['active_tags_for_filter']:
         for activity in activities:
             st.markdown(activity)
 
+    # --- Printable Session Summary Section ---
+    st.markdown("---")
+    if st.button("Prepare Printable Session Summary"):
+        st.session_state['show_printable_summary'] = True
+
+    if st.session_state['show_printable_summary']:
+        st.subheader("📄 Printable Session Summary:")
+        # Generate the summary string
+        printable_summary_content = get_printable_summary(user_info, st.session_state['active_tags_for_filter'], books, newspapers, activities)
+        st.text_area("Copy and Print Your Session Plan", value=printable_summary_content, height=300, key="printable_summary_text")
+        st.info("You can copy the text above and paste it into a document for printing.")
+        st.session_state['show_printable_summary'] = False # Hide after showing once, or make it a toggle
+
 
     st.markdown('<a name="you_might_also_like"></a>', unsafe_allow_html=True) # Anchor for navigation
     # --- "You Might Also Like" Section ---
@@ -786,3 +879,73 @@ if st.session_state['active_tags_for_filter']:
                 st.markdown("_No books available in the database to recommend._")
         else:
             st.markdown("_No books available in the database to recommend._")
+
+# --- Session Notes Section (new) ---
+st.markdown('<a name="session_notes_section"></a>', unsafe_allow_html=True) # Anchor for navigation
+st.markdown("---")
+st.header("📝 Record Your Session Notes:")
+
+# Input fields for session notes
+col_sn1, col_sn2 = st.columns(2)
+with col_sn1:
+    session_date = st.date_input("Session Date", value=st.session_state['session_date'], key="session_date_input")
+    st.session_state['session_date'] = session_date
+with col_sn2:
+    session_mood = st.radio(
+        "Pair's Overall Mood During Session:",
+        ["Happy 😊", "Calm 😌", "Neutral 😐", "Agitated 😠", "Sad 😢"],
+        index=["Happy 😊", "Calm 😌", "Neutral 😐", "Agitated 😠", "Sad 😢"].index(st.session_state['session_mood']),
+        key="session_mood_input"
+    )
+    st.session_state['session_mood'] = session_mood
+
+session_engagement = st.radio(
+    "Engagement Level:",
+    ["Highly Engaged ⭐⭐⭐", "Moderately Engaged ⭐⭐", "Minimally Engaged ⭐", "Not Engaged 🚫"],
+    index=["Highly Engaged ⭐⭐⭐", "Moderately Engaged ⭐⭐", "Minimally Engaged ⭐", "Not Engaged 🚫"].index(st.session_state['session_engagement']),
+    key="session_engagement_input"
+)
+st.session_state['session_engagement'] = session_engagement
+
+session_takeaways = st.text_area(
+    "Key Takeaways & Observations (e.g., specific topics they responded well to, new memories recalled, challenges faced):",
+    value=st.session_state['session_takeaways'],
+    height=150,
+    key="session_takeaways_input"
+)
+st.session_state['session_takeaways'] = session_takeaways
+
+if st.button("Save Session Notes"):
+    if st.session_state['current_user_name']:
+        save_session_notes_to_gsheet(
+            st.session_state['current_user_name'],
+            st.session_state['session_date'],
+            st.session_state['session_mood'],
+            st.session_state['session_engagement'],
+            st.session_state['session_takeaways']
+        )
+        # Clear the input fields after saving
+        st.session_state['session_date'] = date.today()
+        st.session_state['session_mood'] = "Neutral"
+        st.session_state['session_engagement'] = "Moderate"
+        st.session_state['session_takeaways'] = ""
+        # Re-run to refresh history display
+        st.rerun()
+    else:
+        st.warning("Please enter the 'Pair's Name' at the top to save session notes.")
+
+st.markdown("---")
+st.subheader("Past Session History:")
+
+# Load and display previous session logs if a name is provided
+if st.session_state['current_user_name']:
+    session_history_df = load_session_logs(st.session_state['current_user_name'])
+    if not session_history_df.empty:
+        # Display selected columns and format Date
+        display_df = session_history_df[['Session Date', 'Pair Name', 'Mood', 'Engagement', 'Takeaways']]
+        display_df['Session Date'] = pd.to_datetime(display_df['Session Date']).dt.strftime('%Y-%m-%d')
+        st.dataframe(display_df, use_container_width=True)
+    else:
+        st.info("No past session notes found for this pair. Save a session to see history!")
+else:
+    st.info("Enter the 'Pair's Name' above to view their session history.")
