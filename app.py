@@ -75,16 +75,6 @@ def generate_pdf(name, topics, recs):
 
 st.image("https://i.postimg.cc/0yVG4bhN/mindfullibrarieswhite-01.png", width=300)
 st.title("Personalized Reading Recommendations")
-search_term = st.text_input("🔍 Or, type a topic or interest you'd like us to search for")
-if search_term:
-    st.markdown(f"### 🔍 Search Results for '{search_term}'")
-    results = [item for item in content_df.to_dict('records') if search_term.lower() in item['Title'].lower() or search_term.lower() in item['Summary'].lower() or search_term.lower() in ', '.join(item['tags'])]
-    for item in results[:5]:
-        st.markdown(f"**{item['Title']}** ({item['Type']})  ")
-        st.markdown(item['Summary'])
-        st.markdown(f"_Tags: {', '.join(item['tags'])}_")
-        if 'URL' in item and item['URL']:
-            st.markdown(f"<a class='buy-button' href='{item['URL']}' target='_blank'>Buy Now</a>", unsafe_allow_html=True)
 
 admin_mode = st.sidebar.checkbox("🔍 Show Tag Feedback Summary (Admin)")
 if admin_mode:
@@ -137,7 +127,9 @@ if st.button("Generate My Tags"):
                 {", ".join(content_tags_list)}
 
                 Person's background:
-                The person used to work as a {jobs}, which likely involved related interests and skills. They enjoy hobbies like {hobbies}, and their favorite decade is the {decade}.
+                Job: {jobs}
+                Hobbies: {hobbies}
+                Favorite Decade: {decade}
 
                 Only return 10 comma-separated tags from the list above.
             """
@@ -152,27 +144,27 @@ if st.button("Generate My Tags"):
             save_user_input(name, jobs, hobbies, decade, selected_tags)
 
 if selected_tags:
-    # Moved search_term input and display block to before "Generate My Tags" button
-    # for better user flow. It was originally duplicated after the button.
-    # search_term = st.text_input("Or, type a topic or interest you'd like us to search for")
-    # if search_term:
-    #     st.markdown(f"### 🔍 Search Results for '{search_term}'")
-    #     results = [item for item in content_df.to_dict('records') if search_term.lower() in item['Title'].lower() or search_term.lower() in item['Summary'].lower() or search_term.lower() in ', '.join(item['tags'])]
-    #     for item in results[:5]:
-    #         st.markdown(f"**{item['Title']}** ({item['Type']})  ")
-    #         st.markdown(item['Summary'])
-    #         st.markdown(f"_Tags: {', '.join(item['tags'])}_")
-    #         if 'URL' in item and item['URL']:
-    #             st.markdown(f"<a class='buy-button' href='{item['URL']}' target='_blank'>Buy Now</a>", unsafe_allow_html=True)
+    search_term = st.text_input("Or, type a topic or interest you'd like us to search for")
+    if search_term:
+        st.markdown(f"### 🔍 Search Results for '{search_term}'")
+        results = [item for item in content_df.to_dict('records') if search_term.lower() in item['Title'].lower() or search_term.lower() in item['Summary'].lower() or search_term.lower() in ', '.join(item['tags'])]
+        for item in results[:5]:
+            st.markdown(f"**{item['Title']}** ({item['Type']})  ")
+            st.markdown(item['Summary'])
+            st.markdown(f"_Tags: {', '.join(item['tags'])}_")
+            if 'URL' in item and item['URL']:
+                st.markdown(f"<a class='buy-button' href='{item['URL']}' target='_blank'>Buy Now</a>", unsafe_allow_html=True)
 
     used_tags = set()
     books = []
     newspapers = []
     matched_items = []
     shuffled_df = content_df.sample(frac=1, random_state=42)
+
     for item in shuffled_df.itertuples(index=False):
         tag_matches = set(item.tags) & set(selected_tags)
         tag_weight = sum(feedback_tag_scores.get(tag, 0) for tag in tag_matches)
+
         if item.Type.lower() == 'newspaper' and len(tag_matches) >= 3 and tag_weight >= -1:
             newspapers.append(item._asdict())
             used_tags.update(tag_matches)
@@ -182,13 +174,35 @@ if selected_tags:
         elif tag_matches:
             matched_items.append(item._asdict())
 
-    matched_titles = [item['Title'] for item in matched_items]
+    # Titles already recommended in the primary "books" and "newspapers" lists
+    recommended_titles = {item['Title'] for item in books + newspapers}
+
+    # First attempt for related books: books that match selected_tags but weren't in primary recommendations
     related_books = [
         item for item in content_df.to_dict('records')
-        if item['Title'] not in matched_titles and
+        if item['Title'] not in recommended_titles and
            item['Type'].lower() == 'book' and
            set(item['tags']) & set(selected_tags)
     ]
+
+    # If not enough related books, try broadening the search to include tags from *all* matched items
+    if len(related_books) < 10 and matched_items: # Limit the display to 10
+        all_matched_tags = set()
+        for item in matched_items:
+            all_matched_tags.update(item['tags'])
+        
+        # Add a few more items based on `all_matched_tags` if `related_books` is still small
+        temp_related_books = [
+            item for item in content_df.to_dict('records')
+            if item['Title'] not in recommended_titles and
+               item['Type'].lower() == 'book' and
+               set(item['tags']) & all_matched_tags and
+               item not in related_books # Avoid duplicates
+        ]
+        related_books.extend(temp_related_books)
+        # Remove duplicates while preserving order (approx) and limit to 10
+        related_books = list(dict.fromkeys(related_books))[:10]
+
 
     if books or newspapers:
         st.subheader(f"📚 Recommendations for {name}")
@@ -230,6 +244,7 @@ if selected_tags:
                 if 'URL' in item and item['URL']:
                     st.markdown(f"<a class='buy-button' href='{item['URL']}' target='_blank'>Buy Now</a>", unsafe_allow_html=True)
 
+    # Display related books (now with a broader search if needed)
     if related_books:
         st.markdown("### 📖 You Might Also Like")
         cols = st.columns(min(5, len(related_books)))
@@ -248,4 +263,17 @@ if selected_tags:
                     st.image(img_url, width=120)
                 st.caption(book['Title'])
     else:
-        st.markdown("_No other related books found._")
+        # Fallback if no related books are found even after broadening the search
+        st.markdown("_No other related books found with your current tags. Try generating new tags or searching for a specific topic!_")
+        # Optional: Display some generally popular books here if you have a way to determine "popularity"
+        # For example, you could show the top 5 books from content_df if you have a 'views' or 'rating' column.
+        # As a placeholder, let's just show some random books if related_books is empty:
+        # if not related_books:
+        #     st.markdown("### ✨ Here are some other popular reads:")
+        #     random_books = content_df[content_df['Type'].str.lower() == 'book'].sample(min(5, len(content_df))).to_dict('records')
+        #     cols = st.columns(min(5, len(random_books)))
+        #     for i, book in enumerate(random_books):
+        #         with cols[i % len(cols)]:
+        #             if book.get('Image', '').startswith("http"):
+        #                 st.image(book['Image'], width=120)
+        #             st.caption(book['Title'])
