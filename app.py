@@ -2,8 +2,6 @@ import streamlit as st
 import pandas as pd
 import gspread
 import json
-
-
 from io import StringIO
 from oauth2client.service_account import ServiceAccountCredentials
 from collections import Counter
@@ -11,7 +9,6 @@ import openai
 from fpdf import FPDF
 from datetime import datetime
 
-import streamlit as st
 st.set_option('client.showErrorDetails', True)
 
 st.set_page_config(page_title="Mindful Libraries", layout="centered")
@@ -35,17 +32,15 @@ st.markdown("""
 st.write("✅ App is running")
 st.write("🔍 Secrets found:", list(st.secrets.keys()))
 
-
 # --- Google Sheets and OpenAI Initialization ---
 try:
-    scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
     st.write("🔁 Initializing services...")
-
 
     if "GOOGLE_SERVICE_JSON" not in st.secrets:
         st.error("❌ GOOGLE_SERVICE_JSON is missing from secrets.")
         st.stop()
 
+    scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
     service_account_info = dict(st.secrets["GOOGLE_SERVICE_JSON"])
     creds = ServiceAccountCredentials.from_json_keyfile_dict(service_account_info, scope)
     client = gspread.authorize(creds)
@@ -54,39 +49,29 @@ try:
         st.error("❌ OPENAI_API_KEY is missing from secrets.")
         st.stop()
 
-    client_ai = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
-    
+    openai.api_key = st.secrets["OPENAI_API_KEY"]
+
+    st.write("✅ Successfully initialized Google Sheets and OpenAI clients")
 except Exception as e:
     st.exception(e)
     st.stop()
-try:
-    scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
-    service_account_info = dict(st.secrets["GOOGLE_SERVICE_JSON"])  # Directly convert AttrDict to dict
-    creds = ServiceAccountCredentials.from_json_keyfile_dict(service_account_info, scope)
-    client = gspread.authorize(creds)
-    client_ai = OpenAI(api_key=st.secrets["OPENAI_API_KEY"]["key"])  # Access the key from nested secret
-except Exception as e:
-    st.error(f"Failed to initialize Google Sheets or OpenAI client. Please check your `st.secrets` configuration. Error: {e}")
-    st.stop()  # Stop the app if essential services cannot be initialized
 
 @st.cache_data(ttl=3600)
 def load_content():
-    """Loads content from the 'ContentDB' worksheet and processes tags."""
     try:
         sheet_url = 'https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXJRXcfmxjoj5s'
         sheet = client.open_by_url(sheet_url)
         content_ws = sheet.worksheet('ContentDB')
         df = pd.DataFrame(content_ws.get_all_records())
-        # Ensure 'Tags' column exists and handle potential NaN values
         if 'Tags' in df.columns:
             df['tags'] = df['Tags'].apply(lambda x: set(tag.strip().lower() for tag in str(x).split(',') if tag.strip().lower() != 'nostalgia'))
         else:
-            df['tags'] = [set() for _ in range(len(df))] # Add an empty set for 'tags' if 'Tags' column is missing
+            df['tags'] = [set() for _ in range(len(df))]
             st.warning(" 'Tags' column not found in 'ContentDB' worksheet. Please ensure it exists.")
         return df
     except Exception as e:
         st.error(f"Failed to load content from Google Sheet. Error: {e}")
-        return pd.DataFrame() # Return empty DataFrame on error
+        return pd.DataFrame()
 
 content_df = load_content()
 
@@ -94,7 +79,6 @@ if 'book_counter' not in st.session_state:
     st.session_state['book_counter'] = Counter()
 
 def save_user_input(name, jobs, hobbies, decade, selected_topics):
-    """Saves user input to the 'Logs' worksheet."""
     try:
         sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXJRXcfmxjoj5s')
         log_ws = sheet.worksheet('Logs')
@@ -103,7 +87,6 @@ def save_user_input(name, jobs, hobbies, decade, selected_topics):
         st.warning(f"Failed to save user data. Error: {e}")
 
 def generate_pdf(name, topics, recs):
-    """Generates a PDF with reading recommendations."""
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", size=14)
@@ -116,10 +99,13 @@ def generate_pdf(name, topics, recs):
     pdf.ln(10)
     pdf.cell(200, 10, txt="Recommended Reads:", ln=True)
     for r in recs:
-        # Using multi_cell for potentially long summaries
         pdf.multi_cell(0, 10, txt=f"{r.get('Title', 'N/A')} ({r.get('Type', 'N/A')}): {r.get('Summary', 'N/A')}")
         pdf.ln(2)
     return pdf
+
+# The rest of your code remains unchanged (Streamlit UI, tag generation, recommendations, etc.)
+# Just make sure your OpenAI call uses:
+# response = openai.ChatCompletion.create(...)
 
 # --- Streamlit UI ---
 st.image("https://i.postimg.cc/0yVG4bhN/mindfullibrarieswhite-01.png", width=300)
