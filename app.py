@@ -94,30 +94,36 @@ reroll = st.button("🎲 Reroll My Topics")
 if st.button("Generate My Topics") or reroll:
     if name and (jobs or hobbies or decade):
         with st.spinner("Thinking deeply..."):
+            # Prepare content summary for AI to scan
+            content_preview = "\n".join([
+                f"- {row['Title']} ({row['Type']}): tags = {', '.join(row['tags'])}"
+                for _, row in content_df.iterrows()
+            ])
+
             prompt = f"""
             You are an expert librarian and therapist focused on nostalgic reading materials for older adults, veterans, and those living with memory loss.
 
-            Your job is to pick 10 highly specific and emotionally resonant topics from the list below. Each topic must connect clearly with the person's background — especially their jobs, hobbies, faith, and favorite decade. Think beyond generic matches — choose themes that could match cultural figures, time-specific trends, or faith traditions.
+            Your goal is to recommend 10 highly specific and emotionally resonant topics that align with this user's life experiences — especially jobs, hobbies, faith, and favorite decade.
+
+            IMPORTANT: Review the following content library first. These are the only books and newspapers available, and your topics MUST align with what is tagged there so they can be matched directly to real content.
+
+            Content Library:
+            {content_preview}
 
             Examples:
-            - If the person enjoyed TV in the 1960s, recommend topics like "Betty White", "Classic Sitcoms", or "I Love Lucy".
-            - If the user was a teacher, topics like "One-Room Schoolhouse" or "Old-School Books" are more specific than just "Education".
+            - If they loved 1960s TV, suggest "Betty White" or "Classic Sitcoms"
+            - If they were a nurse, suggest "Healthcare History" or "Red Cross"
+            - If the user is Christian, suggest faith-based topics only if tagged
 
-            Also, if any topic is a well-known person's name (e.g., "Betty White", "Lucille Ball"), assume they are interested in that individual and connect with tags like "Famous Women", "Hollywood", or "Classic TV Stars".
+            If you're unsure, ask a follow-up question instead of guessing.
 
-            If you're unsure what would match well, instead of guessing, ask the user a follow-up question like:
-            "Can you tell me more about what you liked about the 1960s?"
-
-            Available topics:
-            {all_topics}
-
-            Person's background:
+            User Background:
             - Job: {jobs}
             - Hobbies: {hobbies}
             - Faith: {faith}
             - Favorite decade: {decade}
 
-            Return only the 10 best-matched, comma-separated topics or ask one clarifying question if you're not confident.
+            Return a comma-separated list of 10 topics (only from what can be matched above), OR ask a follow-up question.
             """
             try:
                 response = client_ai.chat.completions.create(
@@ -164,7 +170,7 @@ if st.button("Generate My Topics") or reroll:
             penalty = st.session_state['book_counter'].get(row['Title'], 0)
             total_score = base_score - penalty
 
-            scored.append((row, total_score))  # Don't filter out anything
+            scored.append((row, total_score))
 
         sorted_items = sorted(scored, key=lambda x: -x[1])
         top_matches = [item[0] for item in sorted_items]
