@@ -7,6 +7,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 import requests
 from collections import Counter
 import openai
+from openai import OpenAI
 from fpdf import FPDF
 from datetime import datetime
 
@@ -38,7 +39,7 @@ creds = ServiceAccountCredentials.from_json_keyfile_dict(service_account_info, s
 client = gspread.authorize(creds)
 
 # OpenAI API Client
-client_ai = openai.OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+client_ai = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
 # Load content from Google Sheet with caching
 @st.cache_data(ttl=300)
