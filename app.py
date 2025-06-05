@@ -18,31 +18,34 @@ content_ws = sheet.worksheet('ContentDB')
 content_df = pd.DataFrame(content_ws.get_all_records())
 content_df['tags'] = content_df['Tags'].apply(lambda x: set(tag.strip().lower() for tag in str(x).split(',')))
 
-# Define comprehensive topic categories
+# Expanded topic categories with full list
 categories = {
-    "Nature & Outdoors": [...],  # Unchanged for brevity
-    "Crafts & Hobbies": [...],  # Unchanged for brevity
-    "Food & Cooking": [...],  # Unchanged for brevity
-    "Faith & Reflection": [...],  # Unchanged for brevity
-    "History & Culture": [...],  # Unchanged for brevity
-    "Family & Community": [...],  # Unchanged for brevity
-    "Nostalgia & Reminiscence": [...],  # Unchanged for brevity
-    "Seasons & Holidays": [...],  # Unchanged for brevity
-    "Science & Learning": [...],  # Unchanged for brevity
-    "Entertainment: Performing Arts & Music": ["Ballet", "Charlie Chaplin", "Dance", "Dancing", "Elvis", "Elvis Presley", "Entertainment", "Hollywood Stars", "James Dean", "James Stewart", "Lawrence Welk", "Media & Entertainment", "Michael Jackson", "Music", "Singing", "Songs", "Sound Of Music", "Theater"],
-    "Entertainment: Games & Sports": ["Baseball", "Basketball", "Board Games", "Celebrities", "Days Of Our Lives", "Film", "Movies", "Rollerskating", "Sports", "TV", "Wheel Of Fortune"]
+    "Nature & Outdoors": ["Animals", "Animal Watching", "Birdwatching", "Gardening", "Hiking", "Nature", "Outdoors", "Seasons & Holidays", "Wildlife", "Turtles", "Hummingbirds", "Parrots", "Penguins", "Orcas"],
+    "Crafts & Hobbies": ["Crocheting", "Painting", "Calligraphy", "Model Kits", "Crafts", "Plate Painting", "Terrarium", "Paper Fish", "Paper Flowers", "Wreath Craft", "Chair Exercises"],
+    "Food & Cooking": ["Baking", "Candy Nostalgia", "Chocolate Chip Cookies", "Mac And Cheese", "Cupcakes", "Garlic Bread", "Brownies", "Salted Brownies", "Blueberry Muffins", "Brownie Kiss Cupcakes", "Oatmeal Raisin Cookies"],
+    "Faith & Reflection": ["Faith", "Bible", "Spirituality", "Prayer", "Meditation", "Devotion", "Worship", "Reflection", "Quiet Time", "Psalms", "Proverbs", "Shabbat"],
+    "History & Culture": ["Native American", "Egyptian Bread", "Roman Empire", "Founding Fathers", "George Washington", "Lewis And Clark", "Cleopatra", "Jfk", "Fdr", "Gandhi", "Stanton", "Women"],
+    "Family & Community": ["Family", "Friendships", "Motherhood", "Community", "Togetherness", "Relationships", "Bond", "Care And Support", "Belonging"],
+    "Nostalgia & Reminiscence": ["Drive-In Movies", "Childhood", "Retro Games", "Penny Candy", "Nostalgia", "Simpler Times", "Reminiscence & Nostalgia", "Life Before Tv", "Good Times"],
+    "Seasons & Holidays": ["Christmas", "Thanksgiving", "Halloween", "Easter", "Valentine’S Day", "Winter", "Autumn", "Spring"],
+    "Science & Learning": ["Aviation", "Space Race", "John Muir", "Museums", "Law", "Language", "Literature", "Education", "Nature & Outdoors", "Evolution Of Movies"],
+    "Entertainment: Performing Arts & Music": ["Dancing", "Elvis Presley", "Jazzercise", "Singing", "Lawrence Welk", "Sound Of Music", "Music", "Instruments", "Spirituals", "Joyful Sounds"],
+    "Entertainment: Games & Sports": ["Board Games", "Baseball", "Basketball", "Trivia", "Wheel Of Fortune", "Sports", "Super Bowl", "Dog Olympics", "Games"]
 }
 
 # Streamlit App UI
 st.title("📰 Personalized Reading Recommendations")
-st.write("Select a category and choose **4 topics** below to receive custom reading material suggestions!")
+st.write("Select categories and choose **at least 4 topics** total to receive custom reading material suggestions!")
 
 name = st.text_input("Your Name")
-selected_category = st.selectbox("Choose a Category", list(categories.keys()))
-selected_topics = st.multiselect("Now choose exactly 4 topics from that category:", categories[selected_category])
+selected_categories = st.multiselect("Choose 1 or more Categories", list(categories.keys()))
+
+# Gather all topics from selected categories
+selected_topics_pool = [topic for cat in selected_categories for topic in categories[cat]]
+selected_topics = st.multiselect("Now choose at least 4 topics from your selected categories:", selected_topics_pool)
 
 if st.button("Get Recommendations"):
-    if name and len(selected_topics) == 4:
+    if name and len(selected_topics) >= 4:
         interest_set = set(tag.strip().lower() for tag in selected_topics)
         scored = []
         for _, row in content_df.iterrows():
@@ -73,7 +76,7 @@ if st.button("Get Recommendations"):
                 st.markdown(f"  - {item['Summary']}")
         else:
             st.info("We didn't find any strong matches, but stay tuned for future updates!")
-    elif len(selected_topics) != 4:
-        st.warning("Please select exactly 4 interests from the list.")
+    elif len(selected_topics) < 4:
+        st.warning("Please select at least 4 interests from the list.")
     else:
-        st.warning("Please enter your name and select 4 interests.")
+        st.warning("Please enter your name and select at least 4 interests.")
