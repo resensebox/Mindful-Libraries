@@ -81,9 +81,14 @@ name = st.text_input("Your Name")
 jobs = st.text_input("What did you used to do for a living?")
 hobbies = st.text_input("What are your hobbies or favorite activities?")
 decade = st.text_input("What is your favorite decade or era?")
-reroll = st.button("🎲 Reroll My Tags")
 
-if st.button("Generate My Tags") or reroll:
+tone_preferences = st.multiselect(
+    "What kind of stories do you enjoy most?",
+    ["Heartwarming", "Funny", "Historical", "Adventurous", "Inspirational", "Surprising"]
+)
+
+
+if st.button("Generate My Tags"):
     if name and (jobs or hobbies or decade):
         with st.spinner("Thinking deeply..."):
             content_tags_list = sorted(set(tag for tags in content_df['tags'] for tag in tags))
