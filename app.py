@@ -12,12 +12,17 @@ service_account_info = json.load(StringIO(st.secrets["GOOGLE_SERVICE_JSON"]))
 creds = ServiceAccountCredentials.from_json_keyfile_dict(service_account_info, scope)
 client = gspread.authorize(creds)
 
-# Load content from Google Sheet
-sheet_url = 'https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXJRXcfmxjoj5s'
-sheet = client.open_by_url(sheet_url)
-content_ws = sheet.worksheet('ContentDB')
-content_df = pd.DataFrame(content_ws.get_all_records())
-content_df['tags'] = content_df['Tags'].apply(lambda x: set(tag.strip().lower() for tag in str(x).split(',')))
+# Load content from Google Sheet with caching
+@st.cache_data(ttl=300)
+def load_content():
+    sheet_url = 'https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXJRXcfmxjoj5s'
+    sheet = client.open_by_url(sheet_url)
+    content_ws = sheet.worksheet('ContentDB')
+    df = pd.DataFrame(content_ws.get_all_records())
+    df['tags'] = df['Tags'].apply(lambda x: set(tag.strip().lower() for tag in str(x).split(',')))
+    return df, sheet
+
+content_df, sheet = load_content()
 
 # Access or create Logs worksheet
 try:
