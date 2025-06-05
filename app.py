@@ -101,6 +101,19 @@ hobbies = st.text_input("What are your hobbies or favorite activities?")
 decade = st.text_input("What is your favorite decade or era?")
 selected_tags = []
 
+# Load tag scores for reweighting
+feedback_tag_scores = {}
+try:
+    sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXJRXcfmxjoj5s')
+    fb_ws = sheet.worksheet('Feedback')
+    fb_data = pd.DataFrame(fb_ws.get_all_records())
+    for _, row in fb_data.iterrows():
+        for tag in str(row['Tags']).split(','):
+            tag = tag.strip().lower()
+            feedback_tag_scores[tag] = feedback_tag_scores.get(tag, 0) + (1 if 'yes' in row['Feedback'].lower() else -1)
+except Exception:
+    pass
+
 if st.button("Generate My Tags"):
     if name and (jobs or hobbies or decade):
         with st.spinner("Thinking deeply..."):
@@ -130,12 +143,18 @@ if st.button("Generate My Tags"):
 
 if selected_tags:
     used_tags = set()
-    matched_items = []
+    books = []
+magazines = []
+matched_items = []
     for item in content_df.itertuples(index=False):
         tag_matches = set(item.tags) & set(selected_tags)
+        tag_weight = sum(feedback_tag_scores.get(tag, 0) for tag in tag_matches)
         if item.Type.lower() == 'newspaper':
-            if len(tag_matches) >= 3 and not tag_matches & used_tags:
-                matched_items.append(item._asdict())
+            if len(tag_matches) >= 3 and not tag_matches & used_tags and tag_weight >= 0:
+                magazines.append(item._asdict())
+                used_tags.update(tag_matches)
+        elif item.Type.lower() == 'book' and tag_matches and tag_weight >= 0:
+            books.append(item._asdict())
                 used_tags.update(tag_matches)
         elif tag_matches:
             matched_items.append(item._asdict())
@@ -148,9 +167,9 @@ if selected_tags:
        set(item['tags']) & set(selected_tags)
 ]
 
-    if matched_items:
+    if books or magazines:
         st.subheader(f"📚 Recommendations for {name}")
-        for item in matched_items:
+        for item in books[:3] + magazines[:3]:
             cols = st.columns([1, 2])
             with cols[0]:
                 img_url = None
