@@ -1,3 +1,82 @@
+import streamlit as st
+import pandas as pd
+import gspread
+import json
+from io import StringIO
+from oauth2client.service_account import ServiceAccountCredentials
+from collections import Counter
+from openai import OpenAI
+from fpdf import FPDF
+from datetime import datetime
+
+# Streamlit and styling setup
+st.set_page_config(page_title="Mindful Libraries", layout="centered")
+st.markdown("""
+    <style>
+        body { background-color: white; }
+        .buy-button {
+            background-color: orange;
+            color: white;
+            padding: 0.5em 1em;
+            border: none;
+            border-radius: 5px;
+            text-decoration: none;
+            font-weight: bold;
+            margin-top: 10px;
+            display: inline-block;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
+# Google Sheets authorization
+scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
+service_account_info = json.load(StringIO(st.secrets["GOOGLE_SERVICE_JSON"]))
+creds = ServiceAccountCredentials.from_json_keyfile_dict(service_account_info, scope)
+client = gspread.authorize(creds)
+
+# OpenAI client setup
+client_ai = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+
+# Load content
+@st.cache_data(ttl=300)
+def load_content():
+    sheet_url = 'https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXJRXcfmxjoj5s'
+    sheet = client.open_by_url(sheet_url)
+    content_ws = sheet.worksheet('ContentDB')
+    df = pd.DataFrame(content_ws.get_all_records())
+    df['tags'] = df['Tags'].apply(lambda x: set(tag.strip().lower() for tag in str(x).split(',')))
+    return df
+
+content_df = load_content()
+
+if 'book_counter' not in st.session_state:
+    st.session_state['book_counter'] = Counter()
+
+def save_user_input(name, jobs, hobbies, decade, selected_topics):
+    try:
+        sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXJRXcfmxjoj5s')
+        log_ws = sheet.worksheet('Logs')
+        log_ws.append_row([datetime.now().strftime("%Y-%m-%d %H:%M:%S"), name, jobs, hobbies, decade, ", ".join(selected_topics)])
+    except Exception:
+        st.warning("Failed to save user data.")
+
+def generate_pdf(name, topics, recs):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", size=14)
+    pdf.cell(200, 10, txt=f"Reading Recommendations for {name}", ln=True, align='C')
+    pdf.ln(10)
+    pdf.set_font("Arial", size=12)
+    pdf.cell(200, 10, txt="Top 10 Personalized Topics:", ln=True)
+    for topic in topics:
+        pdf.cell(200, 10, txt=f"- {topic}", ln=True)
+    pdf.ln(10)
+    pdf.cell(200, 10, txt="Recommended Reads:", ln=True)
+    for r in recs:
+        pdf.multi_cell(0, 10, txt=f"{r['Title']} ({r['Type']}): {r['Summary']}")
+        pdf.ln(2)
+    return pdf
+
 # Topics List
 all_topics = [topic for sublist in {
     "Nature & Outdoors": ["Animals", "Birdwatching", "Gardening", "Hiking", "Nature", "Outdoors", "Wildlife", "Turtles", "Hummingbirds", "Parrots", "Penguins", "Orcas", "Fishing", "Camping"],
