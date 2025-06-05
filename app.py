@@ -187,12 +187,58 @@ if 'is_authenticated' not in st.session_state:
     st.session_state['is_authenticated'] = False
 if 'logged_in_username' not in st.session_state:
     st.session_state['logged_in_username'] = ""
+if 'show_register_form' not in st.session_state:
+    st.session_state['show_register_form'] = False
 
-# Hardcoded credentials for demonstration
-USERS = {
-    "student1": "pass123",
-    "student2": "pass456"
-}
+# Global variable to store users, will be loaded from Google Sheet
+USERS = {}
+
+@st.cache_data(ttl=60) # Cache user data for 1 minute
+def load_users():
+    """Loads user credentials from the 'Users' Google Sheet."""
+    users_dict = {}
+    try:
+        sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXJRXcfmxjoj5s')
+        users_ws = sheet.worksheet('Users')
+        records = users_ws.get_all_records()
+        for record in records:
+            username = record.get('Username')
+            password = record.get('Password')
+            if username and password:
+                users_dict[username] = password
+    except gspread.exceptions.WorksheetNotFound:
+        st.warning("The 'Users' worksheet was not found. Please create a sheet named 'Users' with 'Username' and 'Password' columns to enable registration.")
+    except Exception as e:
+        st.error(f"Failed to load user data from Google Sheet. Error: {e}")
+    return users_dict
+
+# Load users at the start of the app (after client is authorized)
+USERS.update(load_users())
+
+def save_new_user(username, password):
+    """Saves a new user to the 'Users' Google Sheet."""
+    try:
+        sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXJRXcfmxjoj5s')
+        users_ws = sheet.worksheet('Users')
+        
+        # Ensure header row exists with 'Username' and 'Password'
+        header_row = users_ws.row_values(1)
+        if 'Username' not in header_row or 'Password' not in header_row:
+            users_ws.append_row(['Username', 'Password']) # Append if missing
+            st.info("Added 'Username' and 'Password' columns to 'Users' worksheet.")
+
+        users_ws.append_row([username, password])
+        st.success("Account registered successfully!")
+        # Invalidate cache for users to reload the new user
+        st.cache_data.clear() # Clear all caches, or specifically load_users cache
+        USERS.update(load_users()) # Reload users into the global dictionary
+        return True
+    except gspread.exceptions.WorksheetNotFound:
+        st.error("Cannot register: 'Users' worksheet not found. Please create a sheet named 'Users' in your Google Sheet.")
+        return False
+    except Exception as e:
+        st.error(f"Failed to register user. Error: {e}")
+        return False
 
 
 # This function is not used in the current code, but kept for context if PDF generation is needed.
@@ -495,23 +541,51 @@ def get_printable_summary(user_info, tags, books, newspapers, activities, volunt
 st.image("https://i.postimg.cc/0yVG4bhN/mindfullibrarieswhite-01.png", width=300)
 st.title("Discover Your Next Nostalgic Read!")
 
-# --- Login / Logout Section ---
+# --- Login / Logout / Register Section ---
 if not st.session_state['is_authenticated']:
-    st.markdown("Please log in to use the Mindful Libraries app.")
-    with st.form("login_form"):
-        username = st.text_input("Username")
-        password = st.text_input("Password", type="password")
-        login_button = st.form_submit_button("Log In")
+    st.markdown("Please log in or register to use the Mindful Libraries app.")
 
-        if login_button:
-            if username in USERS and USERS[username] == password:
-                st.session_state['is_authenticated'] = True
-                st.session_state['logged_in_username'] = username
-                st.success(f"Welcome, {username}!")
-                st.rerun()
-            else:
-                st.error("Invalid username or password")
-else:
+    # Toggles between login and registration forms
+    login_tab, register_tab = st.tabs(["Log In", "Register"])
+
+    with login_tab:
+        with st.form("login_form"):
+            username = st.text_input("Username", key="login_username_input")
+            password = st.text_input("Password", type="password", key="login_password_input")
+            login_button = st.form_submit_button("Log In")
+
+            if login_button:
+                if username in USERS and USERS[username] == password:
+                    st.session_state['is_authenticated'] = True
+                    st.session_state['logged_in_username'] = username
+                    st.success(f"Welcome back, {username}!")
+                    st.rerun()
+                else:
+                    st.error("Invalid username or password")
+    
+    with register_tab:
+        with st.form("register_form"):
+            new_username = st.text_input("Choose a Username", key="register_username_input")
+            new_password = st.text_input("Create a Password", type="password", key="register_password_input")
+            confirm_password = st.text_input("Confirm Password", type="password", key="confirm_password_input")
+            register_button = st.form_submit_button("Register Account")
+
+            if register_button:
+                if not new_username:
+                    st.error("Username cannot be empty.")
+                elif new_username in USERS:
+                    st.error("Username already exists. Please choose a different one.")
+                elif not new_password:
+                    st.error("Password cannot be empty.")
+                elif new_password != confirm_password:
+                    st.error("Passwords do not match.")
+                else:
+                    if save_new_user(new_username, new_password):
+                        st.session_state['is_authenticated'] = True
+                        st.session_state['logged_in_username'] = new_username
+                        st.rerun() # Rerun to switch to the main app content
+
+else: # If authenticated
     st.markdown(f"Welcome, **{st.session_state['logged_in_username']}**!")
     if st.button("Log Out"):
         st.session_state['is_authenticated'] = False
@@ -993,7 +1067,7 @@ if st.session_state['is_authenticated']:
                 st.session_state['session_mood'],
                 st.session_state['session_engagement'],
                 st.session_state['session_takeaways'],
-                st.session_state['logged_in_username'] # Pass the logged-in username
+                st.session_state['logged_in_username']
             )
             st.session_state['session_date'] = date.today()
             st.session_state['session_mood'] = "Neutral 😐"
