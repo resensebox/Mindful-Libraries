@@ -99,7 +99,9 @@ name = st.text_input("Your Name")
 jobs = st.text_input("What did you used to do for a living?")
 hobbies = st.text_input("What are your hobbies or favorite activities?")
 decade = st.text_input("What is your favorite decade or era?")
-selected_tags = []
+if 'selected_tags' not in st.session_state:
+    st.session_state['selected_tags'] = []
+selected_tags = st.session_state['selected_tags']
 
 # Load tag scores for reweighting
 feedback_tag_scores = {}
@@ -136,7 +138,7 @@ if st.button("Generate My Tags"):
                 messages=[{"role": "user", "content": prompt}]
             )
             topic_output = response.choices[0].message.content.strip()
-            selected_tags = [t.strip().lower() for t in topic_output.split(',') if t.strip()]
+            st.session_state['selected_tags'] = [t.strip().lower() for t in topic_output.split(',') if t.strip()]
             st.success("Here are your personalized tags:")
             st.write(", ".join(selected_tags))
             save_user_input(name, jobs, hobbies, decade, selected_tags)
@@ -190,6 +192,7 @@ if selected_tags:
                 if feedback != "Select an option" and not st.session_state.get(f"feedback_submitted_{item['Title']}", False):
                     st.session_state[f"feedback_submitted_{item['Title']}"] = True
                     st.success("✅ Feedback submitted!")
+                    st.rerun()
                     try:
                         sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXJRXcfmxjoj5s')
                         feedback_ws = sheet.worksheet('Feedback')
