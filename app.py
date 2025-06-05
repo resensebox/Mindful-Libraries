@@ -95,7 +95,16 @@ if st.button("Generate My Topics") or reroll:
     if name and (jobs or hobbies or decade):
         with st.spinner("Thinking deeply..."):
             prompt = f"""
-            You are an expert in nostalgic, therapeutic reading engagement for older adults and veterans. Based on this user's background, select 10 meaningful and emotionally resonant topics from the following list:
+            You are an expert librarian and therapist focused on nostalgic reading materials for older adults, veterans, and those living with memory loss.
+
+            Your job is to pick 10 highly specific and emotionally resonant topics from the list below. Each topic must connect clearly with the person's background — especially their jobs, hobbies, faith, and favorite decade. Think beyond generic matches — choose themes that could match cultural figures, time-specific trends, or faith traditions.
+
+            Examples:
+            - If the person enjoyed TV in the 1960s, recommend topics like "Betty White", "Classic Sitcoms", or "I Love Lucy".
+            - If the user was a teacher, topics like "One-Room Schoolhouse" or "Old-School Books" are more specific than just "Education".
+
+            If you're unsure what would match well, instead of guessing, ask the user a follow-up question like:
+            "Can you tell me more about what you liked about the 1960s?"
 
             Available topics:
             {all_topics}
@@ -106,14 +115,20 @@ if st.button("Generate My Topics") or reroll:
             - Faith: {faith}
             - Favorite decade: {decade}
 
-            Return 10 comma-separated topics from the list above.
+            Return only the 10 best-matched, comma-separated topics or ask one clarifying question if you're not confident.
             """
             try:
                 response = client_ai.chat.completions.create(
                     model="gpt-3.5-turbo",
                     messages=[{"role": "user", "content": prompt}]
                 )
-                topic_output = response.choices[0].message.content
+                topic_output = response.choices[0].message.content.strip()
+
+                if "?" in topic_output and len(topic_output.split(',')) < 5:
+                    st.warning("The AI needs more information before it can generate accurate topics.")
+                    st.info(topic_output)
+                    st.stop()
+
                 selected_topics = [t.strip().lower() for t in topic_output.split(',') if t.strip()]
             except Exception as e:
                 st.error("⚠️ Oops! We hit a limit with our AI provider or encountered an error. Please try again later.")
@@ -123,7 +138,6 @@ if st.button("Generate My Topics") or reroll:
         st.write(", ".join(selected_topics))
         save_user_input(name, jobs, hobbies, faith, decade, selected_topics)
 
-        # Normalize and prepare matching
         normalized_topics = set(selected_topics)
         topic_aliases = {
             "military": "patriotic",
@@ -140,7 +154,6 @@ if st.button("Generate My Topics") or reroll:
             match_count = len(tags & normalized_topics)
             base_score = match_count * 2
 
-            # Faith-based bonus
             if 'christian' in faith.lower() and 'faith' in tags:
                 base_score += 2
             if 'jewish' in faith.lower() and 'jewish' in tags:
@@ -157,17 +170,11 @@ if st.button("Generate My Topics") or reroll:
 
         unique_matches = []
         seen_titles = set()
-        newspaper_found = False
 
         for item in top_matches:
             if item['Title'] not in seen_titles:
-                if not newspaper_found and item['Type'].lower() == 'newspaper':
-                    unique_matches.append(item)
-                    seen_titles.add(item['Title'])
-                    newspaper_found = True
-                elif len(unique_matches) < 4:
-                    unique_matches.append(item)
-                    seen_titles.add(item['Title'])
+                unique_matches.append(item)
+                seen_titles.add(item['Title'])
             if len(unique_matches) >= 5:
                 break
 
