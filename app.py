@@ -34,14 +34,28 @@ if st.button("Get Recommendations"):
             scored.append((row, score))
 
         sorted_items = sorted(scored, key=lambda x: -x[1])
-        top_matches = [item[0] for item in sorted_items[:3] if item[1] > 0]
+        top_matches = [item[0] for item in sorted_items if item[1] > 0]
+
+        # Guarantee at least one Book and one Newspaper
+        book = next((item[0] for item in sorted_items if item[0]['Type'].lower() == 'book'), None)
+        newspaper = next((item[0] for item in sorted_items if item[0]['Type'].lower() == 'newspaper'), None)
+
+        unique_matches = []
+        if book:
+            unique_matches.append(book)
+        if newspaper and newspaper != book:
+            unique_matches.append(newspaper)
+
+        for item in top_matches:
+            if item not in unique_matches and len(unique_matches) < 3:
+                unique_matches.append(item)
 
         st.subheader(f"📚 Recommendations for {name}")
-        if top_matches:
-            for item in top_matches:
+        if unique_matches:
+            for item in unique_matches:
                 st.markdown(f"- **{item['Title']}** ({item['Type']})")
+                st.markdown(f"  - {item['Summary']}")
         else:
             st.info("We didn't find any strong matches, but stay tuned for future updates!")
     else:
         st.warning("Please enter both your name and interests.")
-
