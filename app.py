@@ -124,7 +124,7 @@ if st.button("Generate My Topics") or reroll:
             Just return the list of 10 topics, comma-separated.
             """
             response = client_ai.chat.completions.create(
-                model="gpt-4",
+                model="gpt-4-turbo",
                 messages=[{"role": "user", "content": prompt}]
             )
             topic_output = response.choices[0].message.content
