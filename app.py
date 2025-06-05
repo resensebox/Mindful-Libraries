@@ -41,8 +41,6 @@ def log_to_google_sheet(name, topics, recommendations):
     }
     try:
         response = requests.post(url, json=payload)
-        st.write("Log status:", response.status_code)
-        st.write("Log response:", response.text)
     except Exception as e:
         st.error(f"Logging failed: {e}")
 
@@ -107,11 +105,11 @@ if st.button("Get Recommendations"):
                     st.image(item['Image'], width=300)
                 elif 'URL' in item and "amazon." in item['URL'] and "/dp/" in item['URL']:
                     try:
-                        asin = item['URL'].split('/dp/')[-1].split('/')[0]
+                        asin = item['URL'].split('/dp/')[-1].split('/')[0].split('?')[0]
                         image_url = f"https://images-na.ssl-images-amazon.com/images/P/{asin}.01._SL250_.jpg"
                         st.image(image_url, width=200)
-                    except Exception as e:
-                        st.warning("Couldn't load book preview image.")
+                    except Exception:
+                        pass
 
                 if 'URL' in item and item['URL']:
                     st.markdown(f"[Read More]({item['URL']})")
