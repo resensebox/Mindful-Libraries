@@ -185,8 +185,8 @@ if selected_tags:
             with cols[1]:
                 st.markdown(f"### {item['Title']} ({item['Type']})")
                 st.markdown(item['Summary'])
-                feedback = st.radio(f"Was this recommendation helpful?", ["Select an option", "✅ Yes", "❌ No"], index=0, key=item['Title'])
-                if feedback != "Select an option" and not st.session_state.get(f"feedback_submitted_{item['Title']}"):
+                feedback = st.radio(f"Was this recommendation helpful?", ["Select an option", "✅ Yes", "❌ No"], index=0, key=f"feedback_{item['Title']}")
+                if feedback != "Select an option" and not st.session_state.get(f"feedback_submitted_{item['Title']}", False):
                     st.session_state[f"feedback_submitted_{item['Title']}"] = True
                     try:
                         sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXJRXcfmxjoj5s')
