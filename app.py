@@ -30,6 +30,25 @@ st.markdown("""
 # --- Google Sheets and OpenAI Initialization ---
 try:
     scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
+
+    if "GOOGLE_SERVICE_JSON" not in st.secrets:
+        st.error("❌ GOOGLE_SERVICE_JSON is missing from secrets.")
+        st.stop()
+
+    service_account_info = dict(st.secrets["GOOGLE_SERVICE_JSON"])
+    creds = ServiceAccountCredentials.from_json_keyfile_dict(service_account_info, scope)
+    client = gspread.authorize(creds)
+
+    if "OPENAI_API_KEY" not in st.secrets:
+        st.error("❌ OPENAI_API_KEY is missing from secrets.")
+        st.stop()
+
+    client_ai = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+except Exception as e:
+    st.exception(e)
+    st.stop()
+try:
+    scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
     service_account_info = dict(st.secrets["GOOGLE_SERVICE_JSON"])  # Directly convert AttrDict to dict
     creds = ServiceAccountCredentials.from_json_keyfile_dict(service_account_info, scope)
     client = gspread.authorize(creds)
