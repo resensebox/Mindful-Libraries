@@ -41,9 +41,9 @@ if st.button("Get Recommendations"):
         newspaper = next((item[0] for item in sorted_items if item[0]['Type'].lower() == 'newspaper'), None)
 
         unique_matches = []
-        if book:
+        if book is not None:
             unique_matches.append(book)
-        if newspaper and newspaper != book:
+        if newspaper is not None and (book is None or newspaper['Title'] != book['Title']):
             unique_matches.append(newspaper)
 
         for item in top_matches:
