@@ -146,7 +146,8 @@ if selected_tags:
     books = []
     magazines = []
     matched_items = []
-    for item in content_df.itertuples(index=False):
+    shuffled_df = content_df.sample(frac=1, random_state=42)
+    for item in shuffled_df.itertuples(index=False):
         tag_matches = set(item.tags) & set(selected_tags)
         tag_weight = sum(feedback_tag_scores.get(tag, 0) for tag in tag_matches)
         if item.Type.lower() == 'newspaper' and len(tag_matches) >= 2 and tag_weight >= -1:
