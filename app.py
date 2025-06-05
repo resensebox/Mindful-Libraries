@@ -106,14 +106,6 @@ if st.button("Generate My Topics") or reroll:
             - Faith: {faith}
             - Favorite decade: {decade}
 
-            Cross-reference jobs, hobbies, and faith background with the topics to identify precise interests. For example:
-            - Veterans → patriotic, military, Americana.
-            - Teachers → education, books, school days.
-            - Gardeners → nature, outdoors, flowers.
-            - Jewish faith → include Jewish books and holidays.
-            - Christian faith → include spiritual or church-centered content.
-            - Emphasize relevance, meaning, and nostalgia.
-
             Return 10 comma-separated topics from the list above.
             """
             try:
@@ -131,22 +123,37 @@ if st.button("Generate My Topics") or reroll:
         st.write(", ".join(selected_topics))
         save_user_input(name, jobs, hobbies, faith, decade, selected_topics)
 
-        interest_set = set(selected_topics)
+        # Normalize and prepare matching
+        normalized_topics = set(selected_topics)
+        topic_aliases = {
+            "military": "patriotic",
+            "nature": "outdoors",
+            "school": "education"
+        }
+        for alias, actual in topic_aliases.items():
+            if alias in normalized_topics:
+                normalized_topics.add(actual)
+
         scored = []
         for _, row in content_df.iterrows():
-            tag_score = sum(2 if tag in interest_set else 0.5 for tag in row['tags'])
+            tags = row['tags']
+            match_count = len(tags & normalized_topics)
+            base_score = match_count * 2
 
-            if 'christian' in faith.lower() and 'faith & spirituality' in row['tags']:
-                tag_score += 2
-            if 'jewish' in faith.lower() and 'jewish culture' in row['tags']:
-                tag_score += 2
+            # Faith-based bonus
+            if 'christian' in faith.lower() and 'faith' in tags:
+                base_score += 2
+            if 'jewish' in faith.lower() and 'jewish' in tags:
+                base_score += 2
 
             penalty = st.session_state['book_counter'].get(row['Title'], 0)
-            total_score = tag_score - penalty
-            scored.append((row, total_score))
+            total_score = base_score - penalty
+
+            if total_score > 0:
+                scored.append((row, total_score))
 
         sorted_items = sorted(scored, key=lambda x: -x[1])
-        top_matches = [item[0] for item in sorted_items if item[1] > 0]
+        top_matches = [item[0] for item in sorted_items]
 
         unique_matches = []
         seen_titles = set()
