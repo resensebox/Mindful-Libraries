@@ -37,8 +37,10 @@ if st.button("Get Recommendations"):
         top_matches = [item[0] for item in sorted_items[:3]]
 
         st.subheader(f"📚 Recommendations for {name}")
-        for item in top_matches:
-            st.markdown(f"**{item['Title']}** ({item['Type']})  ")
-            st.markdown(f"[Read Here]({item['URL']})")
+        if top_matches:
+            for item in top_matches:
+                st.markdown(f"- **{item['Title']}** ({item['Type']})")
+        else:
+            st.info("No strong matches found. Try different interests!")
     else:
         st.warning("Please enter both your name and interests.")
