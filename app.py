@@ -7,7 +7,7 @@ import json
 from io import StringIO
 from oauth2client.service_account import ServiceAccountCredentials
 from collections import Counter
-from openai import OpenAI
+import openai
 from fpdf import FPDF
 from datetime import datetime
 
@@ -207,7 +207,7 @@ if st.button("Generate My Tags"):
                         model="gpt-3.5-turbo",
                         messages=[{"role": "user", "content": prompt}]
                     )
-                    topic_output = response.choices[0].message.content.strip()
+                    topic_output = response.choices[0].message['content'].strip
                     st.session_state['selected_tags'] = [t.strip().lower() for t in topic_output.split(',') if t.strip()]
                     st.success("Here are your personalized tags:")
                     st.write(", ".join(selected_tags))
