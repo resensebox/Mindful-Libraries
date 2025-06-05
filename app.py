@@ -164,6 +164,8 @@ if 'current_user_name' not in st.session_state:
     st.session_state['current_user_name'] = ""
 if 'current_user_jobs' not in st.session_state:
     st.session_state['current_user_jobs'] = ""
+if 'current_user_life_experiences' not in st.session_state: # New session state variable
+    st.session_state['current_user_life_experiences'] = ""
 if 'current_user_hobbies' not in st.session_state:
     st.session_state['current_user_hobbies'] = ""
 if 'current_user_decade' not in st.session_state:
@@ -210,6 +212,7 @@ def generate_recommendation_explanation(item, user_info, selected_tags_from_sess
     Job: {user_info['jobs'] if user_info['jobs'] else 'Not provided'}
     Hobbies: {user_info['hobbies'] if user_info['hobbies'] else 'Not provided'}
     Favorite Decade: {user_info['decade'] if user_info['decade'] else 'Not provided'}
+    Significant Life Experiences: {user_info['life_experiences'] if user_info['life_experiences'] else 'Not provided'}
 
     Recommended Item:
     Title: {item.get('Title', 'N/A')}
@@ -360,12 +363,15 @@ st.header("Tell Us About Your Pair:")
 # Use session state to preserve input across reruns
 name = st.text_input("Their Name (optional, for your reference)", value=st.session_state['current_user_name'], key="user_name_input")
 jobs = st.text_input("What did they used to do for a living? (e.g., Teacher, Engineer, Homemaker)", value=st.session_state['current_user_jobs'], key="user_jobs_input")
+# New input for life experiences
+life_experiences = st.text_input("What are some significant life experiences or memorable events they often talk about? (e.g., specific projects at work, historical events they lived through, family milestones)", value=st.session_state['current_user_life_experiences'], key="user_life_experiences_input")
 hobbies = st.text_input("What are their hobbies or favorite activities? (e.g., Gardening, Reading, Music, Sports)", value=st.session_state['current_user_hobbies'], key="user_hobbies_input")
 decade = st.text_input("What is their favorite decade or era? (e.g., 1950s, 1970s, Victorian era)", value=st.session_state['current_user_decade'], key="user_decade_input")
 
 # Update session state with current input values
 st.session_state['current_user_name'] = name
 st.session_state['current_user_jobs'] = jobs
+st.session_state['current_user_life_experiences'] = life_experiences # Update new session state variable
 st.session_state['current_user_hobbies'] = hobbies
 st.session_state['current_user_decade'] = decade
 
@@ -373,6 +379,7 @@ st.session_state['current_user_decade'] = decade
 user_info = {
     'name': name,
     'jobs': jobs,
+    'life_experiences': life_experiences, # Add to user_info
     'hobbies': hobbies,
     'decade': decade
 }
@@ -382,49 +389,59 @@ feedback_tag_scores = load_feedback_tag_scores()
 
 
 if st.button("Generate Personalized Tags & Recommendations"):
-    if (jobs or hobbies or decade): # Name is optional now
-        with st.spinner("Our expert librarian AI is thinking deeply..."):
-            if not content_df.empty and 'tags' in content_df.columns:
-                content_tags_list = sorted(list(set(tag for tags_set in content_df['tags'] for tag in tags_set)))
-                prompt = f"""
-                    You are an expert librarian and therapist assistant. Your job is to recommend 20 **extremely specific and granular** tags for reading content,
-                    using **only** the available tags list.
-                    These tags will help a student volunteer find appropriate materials for an individual living with dementia.
-                    Instead of vague tags like "wellness" or "spirituality", aim for tags like "mindfulness meditation guides", "cognitive behavioral therapy", "historical fiction - roman empire", "sci-fi - cyberpunk", "vintage fashion", "classic Hollywood", "WWII memoirs", "1950s rock and roll".
-                    Make sure you really analyze each aspect of what they do, their hobbies, and their favorite decade, and come up with specific tags that **exactly** match the list of tags in the google sheet.
-                    The goal is to spark positive memories and facilitate engagement for the individual with dementia.
+    # Validate input: At least one detail must be provided
+    if not (jobs or hobbies or decade or life_experiences):
+        st.warning("Please enter at least one detail about your pair (job, life experiences, hobbies, or favorite decade) to generate tags.")
+        st.stop()
 
-                    Available tags:
-                    {", ".join(content_tags_list)}
+    # Validate hobbies: If hobbies are entered, require at least 4
+    if hobbies:
+        hobby_list = [h.strip() for h in hobbies.split(',') if h.strip()]
+        if len(hobby_list) < 4:
+            st.warning("Please enter at least 4 hobbies, separated by commas.")
+            st.stop()
 
-                    Person's background:
-                    Name: {name if name else 'Not provided'}
-                    Job: {jobs if jobs else 'Not provided'}
-                    Hobbies: {hobbies if hobbies else 'Not provided'}
-                    Favorite Decade: {decade if decade else 'Not provided'}
+    with st.spinner("Our expert librarian AI is thinking deeply..."):
+        if not content_df.empty and 'tags' in content_df.columns:
+            content_tags_list = sorted(list(set(tag for tags_set in content_df['tags'] for tag in tags_set)))
+            prompt = f"""
+                You are an expert librarian and therapist assistant. Your job is to recommend 20 **extremely specific and granular** tags for reading content,
+                using **only** the available tags list.
+                These tags will help a student volunteer find appropriate materials for an individual living with dementia.
+                Instead of vague tags like "wellness" or "spirituality", aim for tags like "mindfulness meditation guides", "cognitive behavioral therapy", "historical fiction - roman empire", "sci-fi - cyberpunk", "vintage fashion", "classic Hollywood", "WWII memoirs", "1950s rock and roll".
+                Make sure you really analyze each aspect of what they do, their hobbies, their favorite decade, and significant life experiences, and come up with specific tags that **exactly** match the list of tags in the google sheet.
+                The goal is to spark positive memories and facilitate engagement for the individual with dementia.
 
-                    Only return 20 comma-separated tags from the list above. Do not include any additional text or formatting.
-                """
-                try:
-                    response = client_ai.chat.completions.create(
-                        model="gpt-3.5-turbo",
-                        messages=[{"role": "user", "content": prompt}]
-                    )
-                    topic_output = response.choices[0].message.content.strip()
-                    # Ensure uniqueness and sorting of tags from AI output
-                    st.session_state['selected_tags'] = sorted(list(set([t.strip().lower() for t in topic_output.split(',') if t.strip()])))
+                Available tags:
+                {", ".join(content_tags_list)}
 
-                    # Initialize or reset tag_checkbox_states and active_tags_for_filter based on NEW selected_tags
-                    st.session_state['tag_checkbox_states'] = {tag: True for tag in st.session_state['selected_tags']}
-                    st.session_state['active_tags_for_filter'] = list(st.session_state['selected_tags']) # Immediately active
-                    st.success("✨ Tags generated!")
-                    save_user_input(name, jobs, hobbies, decade, st.session_state['selected_tags'])
-                except Exception as e:
-                    st.error(f"Failed to generate tags using OpenAI. Please check your API key and try again. Error: {e}")
-            else:
-                st.warning("Cannot generate tags as content database is empty or 'tags' column is missing.")
-    else:
-        st.warning("Please enter at least one detail about your pair (job, hobbies, or favorite decade) to generate tags.")
+                Person's background:
+                Name: {name if name else 'Not provided'}
+                Job: {jobs if jobs else 'Not provided'}
+                Hobbies: {hobbies if hobbies else 'Not provided'}
+                Favorite Decade: {decade if decade else 'Not provided'}
+                Significant Life Experiences: {life_experiences if life_experiences else 'Not provided'}
+
+                Only return 20 comma-separated tags from the list above. Do not include any additional text or formatting.
+            """
+            try:
+                response = client_ai.chat.completions.create(
+                    model="gpt-3.5-turbo",
+                    messages=[{"role": "user", "content": prompt}]
+                )
+                topic_output = response.choices[0].message.content.strip()
+                # Ensure uniqueness and sorting of tags from AI output
+                st.session_state['selected_tags'] = sorted(list(set([t.strip().lower() for t in topic_output.split(',') if t.strip()])))
+
+                # Initialize or reset tag_checkbox_states and active_tags_for_filter based on NEW selected_tags
+                st.session_state['tag_checkbox_states'] = {tag: True for tag in st.session_state['selected_tags']}
+                st.session_state['active_tags_for_filter'] = list(st.session_state['selected_tags']) # Immediately active
+                st.success("✨ Tags generated!")
+                save_user_input(name, jobs, hobbies, decade, st.session_state['selected_tags'])
+            except Exception as e:
+                st.error(f"Failed to generate tags using OpenAI. Please check your API key and try again. Error: {e}")
+        else:
+            st.warning("Cannot generate tags as content database is empty or 'tags' column is missing.")
 
 
 # --- Display Generated Tags (Persisted and Interactive) ---
