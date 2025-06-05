@@ -188,12 +188,25 @@ if selected_tags:
             with cols[1]:
                 st.markdown(f"### {item['Title']} ({item['Type']})")
                 st.markdown(item['Summary'])
+                st.markdown(f"_Why this was recommended: matched tags — {', '.join(set(item['tags']) & set(selected_tags))}_")
                 feedback = st.radio(f"Was this recommendation helpful?", ["Select an option", "✅ Yes", "❌ No"], index=0, key=f"feedback_{item['Title']}")
                 if feedback != "Select an option" and not st.session_state.get(f"feedback_submitted_{item['Title']}", False):
-                    st.session_state[f"feedback_submitted_{item['Title']}"] = True
-                    st.success("✅ Feedback submitted!")
-                    st.rerun()
                     try:
+                        sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXJRXcfmxjoj5s')
+                        feedback_ws = sheet.worksheet('Feedback')
+                        feedback_ws.append_row([
+                            datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                            name,
+                            item['Title'],
+                            item['Type'],
+                            feedback,
+                            ", ".join(item['tags'])
+                        ])
+                        st.session_state[f"feedback_submitted_{item['Title']}"] = True
+                        st.success("✅ Feedback submitted!")
+                        st.rerun()
+                    except Exception as e:
+                        st.warning("⚠️ Failed to save feedback.")
                         sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXJRXcfmxjoj5s')
                         feedback_ws = sheet.worksheet('Feedback')
                         feedback_ws.append_row([
