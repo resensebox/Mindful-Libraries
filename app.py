@@ -33,14 +33,11 @@ if 'book_counter' not in st.session_state:
 
 def log_to_google_sheet(name, topics, recommendations):
     url = "https://script.google.com/macros/s/AKfycbyEjfmz_ngHiw4nTQ08oWfa83EOln2-ZASqqggtVDln2s9PROkXR3-Ejh5m2_WUzQoU/exec"
-    rec_text = "\n".join([
-        f"{item['Title']} ({item['Type']}): {item['Summary']} - {item.get('URL', '')}"
-        for item in recommendations
-    ])
+    rec_titles = ", ".join([item['Title'] for item in recommendations])
     payload = {
         "name": name,
         "topics": ", ".join(topics),
-        "recommendations": rec_text
+        "recommendations": rec_titles
     }
     try:
         response = requests.post(url, json=payload)
