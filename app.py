@@ -15,7 +15,7 @@ st.markdown("""
             background-color: white;
         }
         .buy-button {
-            background-color: #6BA292;
+            background-color: orange;
             color: white;
             padding: 0.5em 1em;
             border: none;
