@@ -4,6 +4,7 @@ import gspread
 import json
 from io import StringIO
 from oauth2client.service_account import ServiceAccountCredentials
+from datetime import datetime
 
 # Google Sheets Setup (using secrets)
 scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
@@ -17,6 +18,13 @@ sheet = client.open_by_url(sheet_url)
 content_ws = sheet.worksheet('ContentDB')
 content_df = pd.DataFrame(content_ws.get_all_records())
 content_df['tags'] = content_df['Tags'].apply(lambda x: set(tag.strip().lower() for tag in str(x).split(',')))
+
+# Access or create Logs worksheet
+try:
+    log_ws = sheet.worksheet('Logs')
+except gspread.WorksheetNotFound:
+    log_ws = sheet.add_worksheet(title='Logs', rows="1000", cols="20")
+    log_ws.append_row(["Timestamp", "Name", "Selected Topics", "Recommended Titles"])
 
 # Expanded topic categories with full list
 categories = {
@@ -74,6 +82,12 @@ if st.button("Get Recommendations"):
             for item in unique_matches:
                 st.markdown(f"- **{item['Title']}** ({item['Type']})")
                 st.markdown(f"  - {item['Summary']}")
+
+            # Log user interaction
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            selected_str = ", ".join(selected_topics)
+            recommended_titles = ", ".join([item['Title'] for item in unique_matches])
+            log_ws.append_row([timestamp, name, selected_str, recommended_titles])
         else:
             st.info("We didn't find any strong matches, but stay tuned for future updates!")
     elif len(selected_topics) < 4:
