@@ -245,26 +245,67 @@ def load_session_logs(pair_name):
         sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXJRXcfmxjoj5s')
         session_log_ws = sheet.worksheet('SessionLogs')
         
+        # Get all values from the worksheet
+        all_values = session_log_ws.get_all_values()
+
+        if not all_values:
+            st.info("The 'SessionLogs' worksheet is empty or has no valid data.")
+            return pd.DataFrame()
+
+        # Assume the first row contains headers.
+        # Clean headers by stripping whitespace and generating unique names for empty/duplicate headers.
+        raw_headers = [str(h).strip() for h in all_values[0]]
+        
+        cleaned_headers = []
+        header_name_counts = Counter()
+        for header in raw_headers:
+            if not header: # If header is empty or just whitespace
+                header_name_counts['Unnamed'] += 1
+                cleaned_headers.append(f'Unnamed_{header_name_counts["Unnamed"]}')
+            elif header in cleaned_headers: # If header is a duplicate of a previously cleaned one
+                header_name_counts[header] += 1
+                cleaned_headers.append(f'{header}_{header_name_counts[header]}')
+            else:
+                cleaned_headers.append(header)
+
+        data_rows = all_values[1:]
+
+        # Create DataFrame from data rows and cleaned headers
+        df_raw = pd.DataFrame(data_rows, columns=cleaned_headers)
+
         # Define the expected headers for the 'SessionLogs' worksheet
         expected_headers = ['Timestamp', 'Pair Name', 'Session Date', 'Mood', 'Engagement', 'Takeaways']
         
-        # Use expected_headers to handle potential issues with the actual header row
-        df = pd.DataFrame(session_log_ws.get_all_records(expected_headers=expected_headers))
-        
-        if not df.empty and 'Pair Name' in df.columns:
-            return df[df['Pair Name'].str.lower() == pair_name.lower()].sort_values(by='Timestamp', ascending=False)
+        # Create a new DataFrame with only the expected columns, filling missing ones with empty strings
+        df_final = pd.DataFrame()
+        for col in expected_headers:
+            # Check if a column matching the expected name (or its Pandas-generated duplicate) exists
+            found_col_name = None
+            for df_col in df_raw.columns:
+                # Use startswith for robustness against auto-generated suffixes like 'Takeaways_1'
+                if df_col == col or (df_col.startswith(f"{col}_") and df_col[len(col):].replace('_', '').isdigit()):
+                    found_col_name = df_col
+                    break
+            
+            if found_col_name and found_col_name in df_raw.columns:
+                df_final[col] = df_raw[found_col_name]
+            else:
+                df_final[col] = '' # Add missing column with empty string
+
+        if not df_final.empty and 'Pair Name' in df_final.columns:
+            return df_final[df_final['Pair Name'].str.lower() == pair_name.lower()].sort_values(by='Timestamp', ascending=False)
         return pd.DataFrame()
+
     except gspread.exceptions.WorksheetNotFound:
         st.info(f"The 'SessionLogs' worksheet was not found. Please create a sheet named 'SessionLogs' in your Google Sheet to enable session history tracking.")
         return pd.DataFrame()
-    except gspread.exceptions.DuplicateHeaderError as e:
-        st.error(f"Could not load session history for {pair_name}. Error: {e}. "
-                 "This often means there are duplicate or empty headers in your 'SessionLogs' worksheet. "
-                 "Please ensure the first row of your 'SessionLogs' sheet contains unique and clear headers like "
-                 "'Timestamp', 'Pair Name', 'Session Date', 'Mood', 'Engagement', 'Takeaways'.")
-        return pd.DataFrame()
     except Exception as e:
-        st.error(f"Could not load session history for {pair_name}. An unexpected error occurred: {e}")
+        st.error(f"Could not load session history for {pair_name}. An unexpected error occurred: {e}. "
+                 "This often happens if there are empty or duplicate column headers in your 'SessionLogs' worksheet, "
+                 "or if the column names do not exactly match. "
+                 "Please ensure the first row of your 'SessionLogs' sheet contains unique and clear headers like "
+                 "'Timestamp', 'Pair Name', 'Session Date', 'Mood', 'Engagement', 'Takeaways'. "
+                 "Also, check for any entirely blank leading columns that might be causing issues.")
         return pd.DataFrame()
 
 @st.cache_data(ttl=3600) # Cache the explanation for an hour
@@ -978,3 +1019,4 @@ if st.session_state['current_user_name']:
         st.info("No past session notes found for this pair. Save a session to see history!")
 else:
     st.info("Enter the 'Pair's Name' above to view their session history.")
+
