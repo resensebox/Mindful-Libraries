@@ -26,7 +26,7 @@ content_df = load_content()
 
 # Logging function using Google Apps Script
 def log_to_google_sheet(name, topics, recommendations):
-url = "https://script.google.com/macros/s/AKfycbyEjfmz_ngHiw4nTQ08oWfa83EOln2-ZASqqggtVDln2s9PROkXR3-Ejh5m2_WUzQoU/exec"
+    url = "https://script.google.com/macros/s/AKfycbyEjfmz_ngHiw4nTQ08oWfa83EOln2-ZASqqggtVDln2s9PROkXR3-Ejh5m2_WUzQoU/exec"
     payload = {
         "name": name,
         "topics": topics,
