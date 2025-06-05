@@ -55,6 +55,7 @@ try:
         st.stop()
 
     client_ai = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+    
 except Exception as e:
     st.exception(e)
     st.stop()
