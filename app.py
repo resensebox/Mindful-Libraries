@@ -4,7 +4,6 @@ import gspread
 import json
 from io import StringIO
 from oauth2client.service_account import ServiceAccountCredentials
-from datetime import datetime
 
 # Google Sheets Setup (using secrets)
 scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
@@ -24,12 +23,12 @@ def load_content():
 
 content_df, sheet = load_content()
 
-# Access or create Logs worksheet
+# Ensure Logs worksheet exists
 try:
     log_ws = sheet.worksheet('Logs')
 except gspread.WorksheetNotFound:
     log_ws = sheet.add_worksheet(title='Logs', rows="1000", cols="20")
-    log_ws.append_row(["Timestamp", "Name", "Selected Topics", "Recommended Titles"])
+    log_ws.append_row(["Name", "Selected Topics", "Recommendations"])
 
 # Expanded topic categories with full list
 categories = {
@@ -84,15 +83,15 @@ if st.button("Get Recommendations"):
 
         st.subheader(f"📚 Recommendations for {name}")
         if unique_matches:
+            rec_titles = []
             for item in unique_matches:
                 st.markdown(f"- **{item['Title']}** ({item['Type']})")
                 st.markdown(f"  - {item['Summary']}")
+                rec_titles.append(item['Title'])
 
-            # Log user interaction
-            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            selected_str = ", ".join(selected_topics)
-            recommended_titles = ", ".join([item['Title'] for item in unique_matches])
-            log_ws.append_row([timestamp, name, selected_str, recommended_titles])
+            # Log the interaction (no timestamp)
+            log_ws.append_row([name, ", ".join(selected_topics), ", ".join(rec_titles)])
+
         else:
             st.info("We didn't find any strong matches, but stay tuned for future updates!")
     elif len(selected_topics) < 4:
