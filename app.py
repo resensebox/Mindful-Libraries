@@ -6,6 +6,7 @@ from io import StringIO
 from oauth2client.service_account import ServiceAccountCredentials
 import requests
 from collections import Counter
+import random
 
 # Google Sheets Setup (using secrets)
 scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
@@ -30,11 +31,10 @@ if 'book_counter' not in st.session_state:
     st.session_state['book_counter'] = Counter()
 
 # Logging function using Google Apps Script
-def log_to_google_sheet(name, college, topics, recommendations):
+def log_to_google_sheet(name, topics, recommendations):
     url = "https://script.google.com/macros/s/AKfycbyEjfmz_ngHiw4nTQ08oWfa83EOln2-ZASqqggtVDln2s9PROkXR3-Ejh5m2_WUzQoU/exec"
     payload = {
         "name": name,
-        "college": college,
         "topics": topics,
         "recommendations": recommendations
     }
@@ -65,7 +65,6 @@ st.title("📰 Personalized Reading Recommendations")
 st.write("Select categories and choose **at least 4 topics** total to receive custom reading material suggestions!")
 
 name = st.text_input("Your Name")
-college = st.text_input("College Chapter (Optional)")
 selected_categories = st.multiselect("Choose 1 or more Categories", list(categories.keys()))
 
 # Gather all topics from selected categories
@@ -102,6 +101,8 @@ if st.button("Get Recommendations"):
             for item in unique_matches:
                 st.markdown(f"- **{item['Title']}** ({item['Type']})")
                 st.markdown(f"  - {item['Summary']}")
+                if 'Image' in item and item['Image']:
+                    st.image(item['Image'], width=300)
 
             book_titles = [item['Title'] for item in unique_matches if item['Type'].lower() == 'book']
             st.session_state['book_counter'].update(book_titles)
@@ -110,7 +111,7 @@ if st.button("Get Recommendations"):
             for title, count in st.session_state['book_counter'].items():
                 st.markdown(f"- {title}: {count} times")
 
-            log_to_google_sheet(name, college, selected_topics, [item['Title'] for item in unique_matches])
+            log_to_google_sheet(name, selected_topics, [item['Title'] for item in unique_matches])
         else:
             st.info("We didn't find any strong matches, but stay tuned for future updates!")
     elif len(selected_topics) < 4:
