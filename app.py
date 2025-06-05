@@ -69,13 +69,18 @@ name = st.text_input("Your Name")
 college = st.text_input("College Chapter (Optional)")
 selected_categories = st.multiselect("Choose 1 or more Categories", list(categories.keys()))
 
-# Gather and shuffle all topics from selected categories
-selected_topics_pool = [topic for cat in selected_categories for topic in categories[cat]]
-random.shuffle(selected_topics_pool)
-
 # Preserve already-selected topics
 previously_selected = st.session_state.get("selected_topics", [])
-selected_topics_pool = list(dict.fromkeys(previously_selected + selected_topics_pool))
+
+# Gather topics from selected categories
+all_topics = [topic for cat in selected_categories for topic in categories[cat]]
+
+# Shuffle new topics (excluding previously selected)
+new_topics = [topic for topic in all_topics if topic not in previously_selected]
+random.shuffle(new_topics)
+
+# Combine preserved + shuffled
+selected_topics_pool = list(dict.fromkeys(previously_selected + new_topics))
 selected_topics = st.multiselect("Now choose at least 4 topics from your selected categories:", selected_topics_pool, default=previously_selected)
 st.session_state["selected_topics"] = selected_topics
 
