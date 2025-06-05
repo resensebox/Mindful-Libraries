@@ -75,6 +75,24 @@ def generate_pdf(name, topics, recs):
 
 st.image("https://i.postimg.cc/0yVG4bhN/mindfullibrarieswhite-01.png", width=300)
 st.title("Personalized Reading Recommendations")
+
+admin_mode = st.sidebar.checkbox("🔍 Show Tag Feedback Summary (Admin)")
+if admin_mode:
+    try:
+        sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXJRXcfmxjoj5s')
+        fb_ws = sheet.worksheet('Feedback')
+        fb_data = pd.DataFrame(fb_ws.get_all_records())
+        tag_scores = {}
+        for _, row in fb_data.iterrows():
+            for tag in str(row['Tags']).split(','):
+                tag = tag.strip().lower()
+                tag_scores[tag] = tag_scores.get(tag, 0) + (1 if 'yes' in row['Feedback'].lower() else -1)
+        sorted_scores = sorted(tag_scores.items(), key=lambda x: -x[1])
+        st.sidebar.markdown("### 📊 Tag Effectiveness Scores")
+        for tag, score in sorted_scores:
+            st.sidebar.write(f"**{tag}**: {score:+d}")
+    except Exception as e:
+        st.sidebar.warning("⚠️ Could not load feedback summary.")
 st.write("Answer a few fun questions to get personalized tag suggestions for nostalgic reading material!")
 
 name = st.text_input("Your Name")
@@ -128,7 +146,7 @@ if selected_tags:
     if item['Title'] not in matched_titles and
        item['Type'].lower() == 'book' and
        set(item['tags']) & set(selected_tags)
-] not in matched_titles and item['Type'].lower() == 'book' and set(item['tags']) & set(selected_tags)]
+]
 
     if matched_items:
         st.subheader(f"📚 Recommendations for {name}")
@@ -149,6 +167,21 @@ if selected_tags:
             with cols[1]:
                 st.markdown(f"### {item['Title']} ({item['Type']})")
                 st.markdown(item['Summary'])
+                feedback = st.radio(f"Was this recommendation helpful?", ["✅ Yes", "❌ No"], key=item['Title'])
+                if feedback:
+                    try:
+                        sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXJRXcfmxjoj5s')
+                        feedback_ws = sheet.worksheet('Feedback')
+                        feedback_ws.append_row([
+                            datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                            name,
+                            item['Title'],
+                            item['Type'],
+                            feedback,
+                            ", ".join(item['tags'])
+                        ])
+                    except Exception as e:
+                        st.warning("⚠️ Failed to save feedback.")
                 if 'URL' in item and item['URL']:
                     st.markdown(f"<a class='buy-button' href='{item['URL']}' target='_blank'>Buy Now</a>", unsafe_allow_html=True)
 
