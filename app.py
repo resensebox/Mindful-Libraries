@@ -181,10 +181,6 @@ if 'session_engagement' not in st.session_state:
     st.session_state['session_engagement'] = "Moderately Engaged ⭐⭐"
 if 'session_takeaways' not in st.session_state:
     st.session_state['session_takeaways'] = ""
-if 'session_image_data' not in st.session_state:
-    st.session_state['session_image_data'] = None # Stores bytes from camera/uploader
-if 'session_image_url' not in st.session_state:
-    st.session_state['session_image_url'] = "" # Stores the URL if image were hosted
 
 if 'show_printable_summary' not in st.session_state:
     st.session_state['show_printable_summary'] = False
@@ -220,17 +216,11 @@ def save_user_input(name, jobs, hobbies, decade, selected_topics):
         st.warning(f"Failed to save user data. Error: {e}")
 
 # Function to save session notes to Google Sheet (SessionLogs)
-def save_session_notes_to_gsheet(pair_name, session_date, mood, engagement, takeaways, image_url):
+def save_session_notes_to_gsheet(pair_name, session_date, mood, engagement, takeaways):
     """Saves session notes to the 'SessionLogs' Google Sheet."""
     try:
         sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXJRXcfmxjoj5s')
         session_log_ws = sheet.worksheet('SessionLogs')
-        # Ensure the header row exists and contains 'Image URL'
-        header_row = session_log_ws.row_values(1)
-        if 'Image URL' not in header_row:
-            # If not present, append it to the header
-            session_log_ws.append_row(['Timestamp', 'Pair Name', 'Session Date', 'Mood', 'Engagement', 'Takeaways', 'Image URL'])
-            st.info("Added 'Image URL' column to 'SessionLogs' worksheet.")
         
         session_log_ws.append_row([
             datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -238,8 +228,7 @@ def save_session_notes_to_gsheet(pair_name, session_date, mood, engagement, take
             session_date.strftime("%Y-%m-%d"),
             mood,
             engagement,
-            takeaways,
-            image_url # Save the image URL here
+            takeaways
         ])
         st.success("Session notes saved successfully!")
     except gspread.exceptions.WorksheetNotFound:
@@ -255,18 +244,27 @@ def load_session_logs(pair_name):
     try:
         sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXJRXcfmxjoj5s')
         session_log_ws = sheet.worksheet('SessionLogs')
-        df = pd.DataFrame(session_log_ws.get_all_records())
+        
+        # Define the expected headers for the 'SessionLogs' worksheet
+        expected_headers = ['Timestamp', 'Pair Name', 'Session Date', 'Mood', 'Engagement', 'Takeaways']
+        
+        # Use expected_headers to handle potential issues with the actual header row
+        df = pd.DataFrame(session_log_ws.get_all_records(expected_headers=expected_headers))
+        
         if not df.empty and 'Pair Name' in df.columns:
-            # Ensure 'Image URL' column exists before trying to access it
-            if 'Image URL' not in df.columns:
-                df['Image URL'] = '' # Add it with empty values if missing
             return df[df['Pair Name'].str.lower() == pair_name.lower()].sort_values(by='Timestamp', ascending=False)
         return pd.DataFrame()
     except gspread.exceptions.WorksheetNotFound:
         st.info(f"The 'SessionLogs' worksheet was not found. Please create a sheet named 'SessionLogs' in your Google Sheet to enable session history tracking.")
         return pd.DataFrame()
+    except gspread.exceptions.DuplicateHeaderError as e:
+        st.error(f"Could not load session history for {pair_name}. Error: {e}. "
+                 "This often means there are duplicate or empty headers in your 'SessionLogs' worksheet. "
+                 "Please ensure the first row of your 'SessionLogs' sheet contains unique and clear headers like "
+                 "'Timestamp', 'Pair Name', 'Session Date', 'Mood', 'Engagement', 'Takeaways'.")
+        return pd.DataFrame()
     except Exception as e:
-        st.info(f"Could not load session history for {pair_name}. An unexpected error occurred: {e}")
+        st.error(f"Could not load session history for {pair_name}. An unexpected error occurred: {e}")
         return pd.DataFrame()
 
 @st.cache_data(ttl=3600) # Cache the explanation for an hour
@@ -395,7 +393,7 @@ def generate_activities(_ai_client, active_tags, recommended_titles):
     except Exception as e:
         return [f"Could not generate activity suggestions at this time. Error: {e}"]
 
-def get_printable_summary(user_info, tags, books, newspapers, activities, image_url=""):
+def get_printable_summary(user_info, tags, books, newspapers, activities):
     """Generates a formatted string summary for printing."""
     summary = f"--- Session Plan Summary for {user_info['name'] if user_info['name'] else 'Your Pair'} ---\n\n"
     summary += f"Date: {datetime.now().strftime('%Y-%m-%d')}\n"
@@ -424,12 +422,6 @@ def get_printable_summary(user_info, tags, books, newspapers, activities, image_
     for activity in activities:
         summary += f"{activity}\n"
     
-    if image_url:
-        summary += f"\nSession Photo Captured: Yes (URL: {image_url})\n"
-    else:
-        summary += f"\nSession Photo Captured: No\n"
-
-
     summary += "\n--- End of Summary ---"
     return summary
 
@@ -835,7 +827,7 @@ if st.session_state['active_tags_for_filter']:
     if st.session_state['show_printable_summary']:
         st.subheader("📄 Printable Session Summary:")
         # Generate the summary string
-        printable_summary_content = get_printable_summary(user_info, st.session_state['active_tags_for_filter'], books, newspapers, activities, st.session_state['session_image_url'])
+        printable_summary_content = get_printable_summary(user_info, st.session_state['active_tags_for_filter'], books, newspapers, activities)
         st.text_area("Copy and Print Your Session Plan", value=printable_summary_content, height=300, key="printable_summary_text")
         st.info("You can copy the text above and paste it into a document for printing.")
         st.session_state['show_printable_summary'] = False # Hide after showing once, or make it a toggle
@@ -917,7 +909,6 @@ st.markdown("---")
 st.header("📝 Record Your Session Notes:")
 
 # Input fields for session notes
-# Adjusted column layout for camera/file input
 notes_col1, notes_col2, notes_col3 = st.columns([1, 1, 1])
 with notes_col1:
     session_date = st.date_input("Session Date", value=st.session_state['session_date'], key="session_date_input")
@@ -941,34 +932,6 @@ with notes_col3:
     )
     st.session_state['session_engagement'] = session_engagement
 
-st.markdown("---")
-st.subheader("Add a Photo to Session Notes:")
-# Camera input and file uploader side-by-side
-camera_col, file_col = st.columns(2)
-with camera_col:
-    camera_photo = st.camera_input("Take a photo", key="session_camera_input")
-with file_col:
-    uploaded_file = st.file_uploader("Or upload an image", type=["png", "jpg", "jpeg"], key="session_file_uploader")
-
-# Display the captured/uploaded image and handle its "URL"
-current_image_url = ""
-if camera_photo is not None:
-    # In a real app, you would upload camera_photo.read() to a cloud storage
-    # and get a permanent URL. For this demo, we'll just show it.
-    st.image(camera_photo, caption="Captured Photo", width=200)
-    # Simulate a URL for demonstration purposes
-    current_image_url = "https://example.com/captured_photo_" + datetime.now().strftime("%Y%m%d%H%M%S") + ".png"
-    st.info(f"Photo captured. (In a real app, this would be uploaded to cloud storage. Its URL would be: {current_image_url})")
-elif uploaded_file is not None:
-    # In a real app, you would upload uploaded_file.read() to a cloud storage
-    # and get a permanent URL. For this demo, we'll just show it.
-    st.image(uploaded_file, caption="Uploaded Photo", width=200)
-    # Simulate a URL for demonstration purposes
-    current_image_url = "https://example.com/uploaded_file_" + uploaded_file.name.replace(" ", "_")
-    st.info(f"Photo uploaded. (In a real app, this would be uploaded to cloud storage. Its URL would be: {current_image_url})")
-
-st.session_state['session_image_url'] = current_image_url # Update session state with the "URL"
-
 session_takeaways = st.text_area(
     "Key Takeaways & Observations (e.g., specific topics they responded well to, new memories recalled, challenges faced):",
     value=st.session_state['session_takeaways'],
@@ -984,16 +947,13 @@ if st.button("Save Session Notes"):
             st.session_state['session_date'],
             st.session_state['session_mood'],
             st.session_state['session_engagement'],
-            st.session_state['session_takeaways'],
-            st.session_state['session_image_url'] # Pass the image URL
+            st.session_state['session_takeaways']
         )
         # Clear the input fields after saving, using full strings with emojis
         st.session_state['session_date'] = date.today()
         st.session_state['session_mood'] = "Neutral 😐"
         st.session_state['session_engagement'] = "Moderately Engaged ⭐⭐"
         st.session_state['session_takeaways'] = ""
-        st.session_state['session_image_data'] = None # Clear image data
-        st.session_state['session_image_url'] = "" # Clear image URL
         # Re-run to refresh history display
         st.rerun()
     else:
@@ -1012,9 +972,6 @@ if st.session_state['current_user_name']:
             st.markdown(f"**Pair Name:** {row['Pair Name']}")
             st.markdown(f"**Mood:** {row['Mood']}")
             st.markdown(f"**Engagement:** {row['Engagement']}")
-            if row.get('Image URL'): # Check if 'Image URL' exists and is not empty
-                st.markdown(f"**Photo:**")
-                st.image(row['Image URL'], caption="Session Photo", width=150) # Display the image
             st.markdown(f"**Takeaways:** {row['Takeaways']}")
             st.markdown("---") # Separator for each session entry
     else:
