@@ -257,26 +257,96 @@ if st.session_state['selected_tags']:
 if st.session_state['selected_tags']: # Only show recommendations section if tags exist
     st.markdown("---") # Visual separator
     st.subheader("🔍 Search for a Specific Topic:")
-    search_term = st.text_input("Enter a keyword (e.g., 'adventure', 'history', 'science fiction')")
+    search_term = st.text_input("Enter a keyword (e.g., 'adventure', 'history', 'science fiction', 'actor')")
+
     if search_term:
         st.markdown(f"### Results for '{search_term}'")
-        results = [
-            item for item in content_df.to_dict('records')
-            if (item.get('Title', '').lower() and search_term.lower() in item.get('Title', '').lower()) or \
-               (item.get('Summary', '').lower() and search_term.lower() in item.get('Summary', '').lower()) or \
-               any(search_term.lower() in tag for tag in item.get('tags', set()))
-        ]
+        generated_search_tags = set()
+        if search_term:
+            with st.spinner(f"Expanding search for '{search_term}' with AI..."):
+                content_tags_list = sorted(list(set(tag for tags_set in content_df['tags'] for tag in tags_set)))
+                search_prompt = f"""
+                    Given the user's search query, provide up to 10 relevant and specific tags from the following list that would help find related reading content.
+                    Ensure the tags you return are exactly from the 'Available tags' list.
+                    Available tags:
+                    {", ".join(content_tags_list)}
+
+                    User search query: "{search_term}"
+
+                    Only return comma-separated tags from the list above. Do not include any additional text or formatting.
+                """
+                try:
+                    response = client_ai.chat.completions.create(
+                        model="gpt-3.5-turbo",
+                        messages=[{"role": "user", "content": search_prompt}]
+                    )
+                    ai_tags_output = response.choices[0].message.content.strip()
+                    # Filter AI-generated tags to ensure they are actually in content_tags_list
+                    ai_tags_from_response = {t.strip().lower() for t in ai_tags_output.split(',') if t.strip()}
+                    generated_search_tags = ai_tags_from_response.intersection(set(content_tags_list))
+
+                    if generated_search_tags:
+                        st.info(f"AI-expanded your search to include tags: **{', '.join(generated_search_tags)}**")
+                    else:
+                        st.info("AI did not find specific tags for your search. Searching for direct keyword matches.")
+                except Exception as e:
+                    st.warning(f"Could not expand search with AI. Searching only for direct matches. Error: {e}")
+
+        results = []
+        search_term_lower = search_term.lower()
+
+        for item in content_df.to_dict('records'):
+            item_title_lower = item.get('Title', '').lower()
+            item_summary_lower = item.get('Summary', '').lower()
+            item_tags_set = item.get('tags', set())
+
+            # Criteria 1: Direct keyword match in Title or Summary
+            direct_text_match = search_term_lower in item_title_lower or \
+                                search_term_lower in item_summary_lower
+
+            # Criteria 2: Direct keyword match as an existing tag (e.g., if "actor" is itself a tag in the DB)
+            direct_tag_match = search_term_lower in item_tags_set
+
+            # Criteria 3: Match with any AI-generated tags (exact match against item's tags)
+            ai_tag_found = False
+            for ai_tag in generated_search_tags:
+                if ai_tag in item_tags_set:
+                    ai_tag_found = True
+                    break
+
+            if direct_text_match or direct_tag_match or ai_tag_found:
+                results.append(item)
+
         if results:
             for item in results[:5]: # Display top 5 search results
-                st.markdown(f"**{item.get('Title', 'N/A')}** ({item.get('Type', 'N/A')})")
-                st.markdown(item.get('Summary', 'N/A'))
-                st.markdown(f"_Tags: {', '.join(item.get('tags', set()))}_")
-                if 'URL' in item and item['URL']:
-                    st.markdown(f"<a class='buy-button' href='{item['URL']}' target='_blank'>Buy Now</a>", unsafe_allow_html=True)
+                cols = st.columns([1, 2])
+                with cols[0]:
+                    img_url = None
+                    if item.get('Image', '').startswith("http"):
+                        img_url = item['Image']
+                    elif 'URL' in item and "amazon." in item['URL'] and "/dp/" in item['URL']:
+                        try:
+                            asin = item['URL'].split('/dp/')[-1].split('/')[0].split('?')[0]
+                            img_url = f"https://images-na.ssl-images-amazon.com/images/P/{asin}.01._SL250_.jpg"
+                        except IndexError:
+                            pass
+                    if img_url:
+                        st.image(img_url, width=180)
+                    else:
+                        st.image(f"https://placehold.co/180x250/cccccc/333333?text=No+Image", width=180)
+                with cols[1]:
+                    st.markdown(f"### {item.get('Title', 'N/A')} ({item.get('Type', 'N/A')})")
+                    st.markdown(item.get('Summary', 'N/A'))
+                    item_tags_display = item.get('tags', set())
+                    if item_tags_display:
+                         st.markdown(f"_Tags: {', '.join(item_tags_display)}_")
+
+                    if 'URL' in item and item['URL']:
+                        st.markdown(f"<a class='buy-button' href='{item['URL']}' target='_blank'>Buy Now</a>", unsafe_allow_html=True)
             if len(results) > 5:
                 st.info(f"Showing top 5 results. Found {len(results)} total matches for '{search_term}'.")
         else:
-            st.info(f"No results found for '{search_term}'. Try a different keyword or explore the personalized recommendations below.")
+            st.info(f"No results found for '{search_term}' or its related tags. Try a different keyword or explore the personalized recommendations below.")
 
     st.markdown("---") # Visual separator
     st.subheader(f"📚 Personalized Recommendations for You!")
@@ -413,6 +483,9 @@ if st.session_state['selected_tags']: # Only show recommendations section if tag
                 else:
                     st.image(f"https://placehold.co/120x160/cccccc/333333?text=No+Image", width=120)
                 st.caption(book.get('Title', 'N/A'))
+                # Add the "Buy Now" link for related books
+                if 'URL' in book and book['URL']:
+                    st.markdown(f"<a class='buy-button' href='{book['URL']}' target='_blank'>Buy Now</a>", unsafe_allow_html=True)
     else:
         st.markdown("_No other related books found with your current tags. Try generating new tags or searching for a specific topic!_")
         st.markdown("---")
@@ -426,7 +499,7 @@ if st.session_state['selected_tags']: # Only show recommendations section if tag
                 num_cols_fallback = min(5, len(fallback_books))
                 cols_fallback = st.columns(num_cols_fallback)
                 for i, book in enumerate(fallback_books):
-                    with cols[i % num_cols_fallback]:
+                    with cols_fallback[i % num_cols_fallback]:
                         img_url = None
                         if book.get('Image', '').startswith("http"):
                             img_url = book['Image']
@@ -441,8 +514,10 @@ if st.session_state['selected_tags']: # Only show recommendations section if tag
                         else:
                              st.image(f"https://placehold.co/120x160/cccccc/333333?text=No+Image", width=120)
                         st.caption(book.get('Title', 'N/A'))
+                        # Add the "Buy Now" link for fallback books as well, for consistency
+                        if 'URL' in book and book['URL']:
+                            st.markdown(f"<a class='buy-button' href='{book['URL']}' target='_blank'>Buy Now</a>", unsafe_allow_html=True)
             else:
                 st.markdown("_No books available in the database to recommend._")
         else:
             st.markdown("_No books available in the database to recommend._")
-
