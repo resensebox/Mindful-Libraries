@@ -123,9 +123,13 @@ if selected_tags:
 
     if decade:
         decade_lower = decade.lower()
-        filtered_df = filtered_df[filtered_df['Summary'].str.lower().str.contains(decade_lower, na=False) | filtered_df['Title'].str.lower().str.contains(decade_lower, na=False)]
+        decade_filtered_df = filtered_df[
+            filtered_df['Summary'].str.lower().str.contains(decade_lower, na=False) |
+            filtered_df['Title'].str.lower().str.contains(decade_lower, na=False)
+        ]
+        if not decade_filtered_df.empty:
+            filtered_df = decade_filtered_df
 
-    # Shuffle to ensure diversity in newspaper selection
     filtered_df = filtered_df.sample(frac=1, random_state=42).reset_index(drop=True)
 
     scored = []
@@ -135,7 +139,7 @@ if selected_tags:
     for i, (_, row) in enumerate(filtered_df.iterrows()):
         tags = row['tags']
         match_count = len(tags & normalized_tags)
-        base_score = match_count * 2
+        base_score = match_count * 3
 
         summary = row.get('Summary', '').lower()
         title = row.get('Title', '').lower()
@@ -153,7 +157,6 @@ if selected_tags:
 
         total_score = base_score + decade_boost + historical_boost + actor_boost
         scored.append((row, total_score))
-
         progress_bar.progress((i + 1) / len(filtered_df), text=progress_text)
 
     progress_bar.empty()
@@ -161,42 +164,37 @@ if selected_tags:
     sorted_items = sorted(scored, key=lambda x: -x[1])
     top_matches = [item[0] for item in sorted_items if item[1] > 0]
 
-    books, newspapers, seen_titles = [], [], set()
+    if not top_matches:
+        st.warning("We couldn't find any content that strongly matched your tags. Try adjusting your inputs or picking a different decade.")
+    else:
+        books, newspapers, seen_titles = [], [], set()
+        for item in top_matches:
+            if item['Title'] in seen_titles:
+                continue
+            if item['Type'].lower() == 'book':
+                books.append(item)
+            elif item['Type'].lower() == 'newspaper':
+                newspapers.append(item)
+            seen_titles.add(item['Title'])
 
-    for item in top_matches:
-        if item['Title'] in seen_titles:
-            continue
-        if item['Type'].lower() == 'book':
-            books.append(item)
-        elif item['Type'].lower() == 'newspaper':
-            newspapers.append(item)
-        seen_titles.add(item['Title'])
+        books = books[:2]
+        newspapers = newspapers[:3]
+        unique_matches = books + newspapers
 
-    books = books[:2]
-    newspapers = newspapers[:3]
-    unique_matches = books + newspapers
-
-    st.subheader(f"📚 Recommendations for {name}")
-    if unique_matches:
+        st.subheader(f"\U0001F4DA Recommendations for {name}")
         for item in unique_matches:
             cols = st.columns([1, 2])
             with cols[0]:
-                img_url = None
-                if item.get('Image', '').startswith("http"):
-                    img_url = item['Image']
-                elif 'URL' in item and "amazon." in item['URL'] and "/dp/" in item['URL']:
-                    try:
-                        asin = item['URL'].split('/dp/')[-1].split('/')[0].split('?')[0]
-                        img_url = f"https://images-na.ssl-images-amazon.com/images/P/{asin}.01._SL250_.jpg"
-                    except:
-                        pass
+                img_url = item.get('Image', '')
+                if not img_url.startswith("http") and 'URL' in item and "/dp/" in item['URL']:
+                    asin = item['URL'].split('/dp/')[-1].split('/')[0].split('?')[0]
+                    img_url = f"https://images-na.ssl-images-amazon.com/images/P/{asin}.01._SL250_.jpg"
                 if img_url:
                     st.image(img_url, width=180)
             with cols[1]:
                 st.markdown(f"### {item['Title']} ({item['Type']})")
                 st.markdown(f"{item['Summary']}")
 
-                # Visual "Why I Chose This"
                 reasons = []
                 matched_tags = list(item['tags'] & normalized_tags)
                 if matched_tags:
@@ -210,50 +208,19 @@ if selected_tags:
                             break
 
                 if reasons:
-                    st.markdown("**🌟 Why I Chose This:**")
+                    st.markdown("**\U0001F31F Why I Chose This:**")
                     for reason in reasons:
-                        emoji = "💡"
+                        emoji = "\U0001F4A1"
                         if "interests" in reason.lower():
-                            emoji = "📌"
+                            emoji = "\U0001F4CC"
                         elif "decade" in reason.lower():
-                            emoji = "📅"
+                            emoji = "\U0001F4C5"
                         elif "actor" in reason.lower():
-                            emoji = "🎬"
+                            emoji = "\U0001F3AC"
                         st.markdown(f"{emoji} {reason}")
 
                 if 'URL' in item and item['URL']:
                     st.markdown(f"<a class='buy-button' href='{item['URL']}' target='_blank'>Buy Now</a>", unsafe_allow_html=True)
 
-        if st.download_button("📄 Download My PDF", data=generate_pdf(name, selected_tags, unique_matches).output(dest='S').encode('latin-1'), file_name=f"{name}_recommendations.pdf"):
+        if st.download_button("\U0001F4C4 Download My PDF", data=generate_pdf(name, selected_tags, unique_matches).output(dest='S').encode('latin-1'), file_name=f"{name}_recommendations.pdf"):
             st.success("PDF ready!")
-
-        st.markdown("### 📖 You Might Also Like")
-        related_books = []
-        for _, row in content_df.iterrows():
-            if row['Title'] in [b['Title'] for b in unique_matches]:
-                continue
-            if row['Type'].lower() != 'book':
-                continue
-            if row['tags'] & normalized_tags:
-                related_books.append(row)
-
-        if related_books:
-            cols = st.columns(min(5, len(related_books)))
-            for i, book in enumerate(related_books[:10]):
-                with cols[i % len(cols)]:
-                    img_url = None
-                    if book.get('Image', '').startswith("http"):
-                        img_url = book['Image']
-                    elif 'URL' in book and "amazon." in book['URL'] and "/dp/" in book['URL']:
-                        try:
-                            asin = book['URL'].split('/dp/')[-1].split('/')[0].split('?')[0]
-                            img_url = f"https://images-na.ssl-images-amazon.com/images/P/{asin}.01._SL250_.jpg"
-                        except:
-                            pass
-                    if img_url:
-                        st.image(img_url, width=120)
-                    st.caption(book['Title'])
-        else:
-            st.markdown("_No other related books found._")
-    else:
-        st.warning("No matches found.")
