@@ -40,15 +40,20 @@ if st.button("Get Recommendations"):
         book = next((item[0] for item in sorted_items if item[0]['Type'].lower() == 'book'), None)
         newspaper = next((item[0] for item in sorted_items if item[0]['Type'].lower() == 'newspaper'), None)
 
+        unique_titles = set()
         unique_matches = []
+
         if book is not None:
             unique_matches.append(book)
-        if newspaper is not None and (book is None or newspaper['Title'] != book['Title']):
+            unique_titles.add(book['Title'])
+        if newspaper is not None and newspaper['Title'] not in unique_titles:
             unique_matches.append(newspaper)
+            unique_titles.add(newspaper['Title'])
 
         for item in top_matches:
-            if item not in unique_matches and len(unique_matches) < 3:
+            if item['Title'] not in unique_titles and len(unique_matches) < 3:
                 unique_matches.append(item)
+                unique_titles.add(item['Title'])
 
         st.subheader(f"📚 Recommendations for {name}")
         if unique_matches:
