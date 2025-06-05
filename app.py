@@ -1,11 +1,14 @@
 import streamlit as st
 import pandas as pd
 import gspread
+import json
+from io import StringIO
 from oauth2client.service_account import ServiceAccountCredentials
 
-# Google Sheets Setup
+# Google Sheets Setup (using secrets)
 scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
-creds = ServiceAccountCredentials.from_json_keyfile_name('perfect-pair-app-3524d0d0ffc0.json', scope)
+service_account_info = json.load(StringIO(st.secrets["GOOGLE_SERVICE_JSON"]))
+creds = ServiceAccountCredentials.from_json_keyfile_dict(service_account_info, scope)
 client = gspread.authorize(creds)
 
 # Load content from Google Sheet
@@ -39,3 +42,4 @@ if st.button("Get Recommendations"):
             st.markdown(f"[Read Here]({item['URL']})")
     else:
         st.warning("Please enter both your name and interests.")
+
