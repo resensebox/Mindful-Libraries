@@ -135,7 +135,14 @@ if st.button("Generate My Topics") or reroll:
         scored = []
         for _, row in content_df.iterrows():
             tag_score = sum(2 if tag in interest_set else 0.5 for tag in row['tags'])
-            total_score = tag_score
+
+            if 'christian' in faith.lower() and 'faith & spirituality' in row['tags']:
+                tag_score += 2
+            if 'jewish' in faith.lower() and 'jewish culture' in row['tags']:
+                tag_score += 2
+
+            penalty = st.session_state['book_counter'].get(row['Title'], 0)
+            total_score = tag_score - penalty
             scored.append((row, total_score))
 
         sorted_items = sorted(scored, key=lambda x: -x[1])
