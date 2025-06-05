@@ -31,12 +31,22 @@ if 'book_counter' not in st.session_state:
     st.session_state['book_counter'] = Counter()
 
 # Logging function using Google Apps Script
+
 def log_to_google_sheet(name, topics, recommendations):
     url = "https://script.google.com/macros/s/AKfycbyEjfmz_ngHiw4nTQ08oWfa83EOln2-ZASqqggtVDln2s9PROkXR3-Ejh5m2_WUzQoU/exec"
     payload = {
         "name": name,
         "topics": topics,
-        "recommendations": recommendations
+        "recommendations": [
+            {
+                "title": item["Title"],
+                "type": item["Type"],
+                "summary": item["Summary"],
+                "image": f'=IMAGE("{item["Image"]}")' if item.get("Image") else "",
+                "url": item.get("URL", "")
+            }
+            for item in recommendations
+        ]
     }
     try:
         response = requests.post(url, json=payload)
@@ -103,6 +113,8 @@ if st.button("Get Recommendations"):
                 st.markdown(f"  - {item['Summary']}")
                 if 'Image' in item and item['Image']:
                     st.image(item['Image'], width=300)
+                if 'URL' in item and item['URL']:
+                    st.markdown(f"[Read More]({item['URL']})")
 
             book_titles = [item['Title'] for item in unique_matches if item['Type'].lower() == 'book']
             st.session_state['book_counter'].update(book_titles)
@@ -111,7 +123,7 @@ if st.button("Get Recommendations"):
             for title, count in st.session_state['book_counter'].items():
                 st.markdown(f"- {title}: {count} times")
 
-            log_to_google_sheet(name, selected_topics, [item['Title'] for item in unique_matches])
+            log_to_google_sheet(name, selected_topics, unique_matches)
         else:
             st.info("We didn't find any strong matches, but stay tuned for future updates!")
     elif len(selected_topics) < 4:
