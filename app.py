@@ -72,12 +72,12 @@ st.markdown("""
         padding: 0.7em 1.5em;
         border: none;
         border-radius: 8px; /* More rounded */
-        text-decoration: none;
+        text_decoration: none;
         font-weight: bold;
         margin-top: 15px;
         display: inline-block;
         transition: background-color 0.3s ease, transform 0.2s ease;
-        box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+        box_shadow: 2px 2px 5px rgba(0,0,0,0.2);
     }
     .buy-button:hover {
         background-color: #3367D6; /* Darker blue on hover */
@@ -828,8 +828,16 @@ def generate_discussion_prompts(item, user_info, _ai_client):
     """Generates discussion prompts for a specific recommended item."""
     prompt = f"""
     You are a helpful assistant for a student volunteer working with an individual living with dementia.
-    Given the details of a recommended reading material and the individual's profile, generate 3-5 open-ended discussion questions or prompts.
-    These prompts should encourage memory recall, personal anecdotes, and conversation related to the content, tailored to the individual's life experiences.
+    When communicating with individuals living with dementia, answering questions can be frustrating.
+    For individuals journeying through the later stages of dementia it can be beneficial to offer them “answers” to questions rather than asking them to directly remember.
+    Generate 3-5 open-ended discussion questions or prompts that incorporate this guidance.
+    These prompts should encourage memory recall, personal anecdotes, and conversation related to the content, tailored to the individual's life experiences, but always offer an option or choice.
+
+    Here are examples of the preferred style:
+    - "For a pet did you have a dog or something else?"
+    - "Did you grow up: In a big city like New York or a smaller town?"
+    - "For fun do you prefer being outside like walking or inside like TV?"
+    - "If you have a favorite food would it be something easy like a sandwich or something else?"
 
     Individual's Profile:
     Name: {user_info['name'] if user_info['name'] else 'Not provided'}
@@ -845,7 +853,7 @@ def generate_discussion_prompts(item, user_info, _ai_client):
     Summary: {item.get('Summary', 'N/A')}
     Tags: {', '.join(item.get('tags', set()))}
 
-    Generate questions in a numbered list format. Each question should be clear and encourage reminiscing.
+    Generate questions in a numbered list format. Each question should be clear, encourage reminiscing, and offer choices or hints as described above.
     """
     try:
         response = _ai_client.chat.completions.create(
@@ -856,6 +864,79 @@ def generate_discussion_prompts(item, user_info, _ai_client):
     except Exception as e:
         return [f"Could not generate discussion prompts at this time. Error: {e}"]
 
+@st.cache_data(ttl=3600) # Cache reflection prompts for an hour
+def generate_volunteer_reflection_prompts(session_details, _ai_client):
+    """Generates AI-powered reflection prompts for the volunteer based on session details."""
+    prompt = f"""
+    You are a helpful assistant for a student volunteer. After completing a session with an individual living with dementia,
+    you need to reflect on the experience to improve for next time.
+    Generate 2-3 concise, thought-provoking reflection questions based on the following session details.
+    Focus on encouraging self-assessment, identifying successes, challenges, and areas for growth.
+
+    Session Details:
+    Pair Name: {session_details.get('pair_name', 'N/A')}
+    Mood: {session_details.get('mood', 'N/A')}
+    Engagement: {session_details.get('engagement', 'N/A')}
+    Takeaways: {session_details.get('takeaways', 'No specific takeaways recorded.')}
+    Recommended Materials Used: {', '.join(session_details.get('recommended_materials', ['None']))}
+
+    Generate questions in a numbered list format.
+    """
+    try:
+        response = _ai_client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": prompt}]
+        )
+        return response.choices[0].message.content.strip().split('\n')
+    except Exception as e:
+        return [f"Could not generate reflection prompts at this time. Error: {e}"]
+
+@st.cache_data(ttl=3600) # Cache general history for the day
+def get_this_day_in_history_facts(current_day, current_month, user_info, _ai_client):
+    """Generates famous event, person born, fun fact, and trivia for the current day."""
+    current_date_str = f"{current_month:02d}-{current_day:02d}"
+
+    # Prepare user info for personalization
+    user_profile_summary = ""
+    if user_info['name']: user_profile_summary += f"Pair's Name: {user_info['name']}. "
+    if user_info['jobs']: user_profile_summary += f"Past Jobs: {user_info['jobs']}. "
+    if user_info['hobbies']: user_profile_summary += f"Hobbies: {user_info['hobbies']}. "
+    if user_info['decade']: user_profile_summary += f"Favorite Decade: {user_info['decade']}. "
+    if user_info['life_experiences']: user_profile_summary += f"Life Experiences: {user_info['life_experiences']}. "
+    if user_info['college_chapter']: user_profile_summary += f"College Chapter: {user_info['college_chapter']}. "
+
+    prompt = f"""
+    You are an expert historical archivist and a compassionate assistant for student volunteers working with individuals living with dementia.
+    For today's date, {current_date_str}, provide the following information:
+
+    1.  **A famous event** that happened on this day in the past (between 1900 and 1965). Describe it in 2-3 sentences.
+    2.  **A famous person born on this day** (between 1850 and 1960). Try to pick someone that the user's pair (a person living with dementia) might be interested in, based on their profile. Include a brief description of who they are/what they are famous for.
+        User's Pair Profile: {user_profile_summary if user_profile_summary else 'No specific profile details provided. Try to pick a broadly recognizable figure.'}
+    3.  **A fun fact** related to this day in history.
+    4.  **Three easy trivia questions** about general knowledge or common historical facts that would be simple for individuals with dementia. For each question, provide a clear, simple answer. These questions should not require direct memory recall of specific dates or complex details, but rather general recognition or common sense.
+
+    Format your response strictly as follows:
+    Event: [Event Title] - [Year]
+    [Event Description]
+
+    Born on this Day: [Person's Name]
+    [Person's Description]
+
+    Fun Fact: [Your fun fact]
+
+    Trivia Questions:
+    1. [Question 1]? (Answer: [Answer 1])
+    2. [Question 2]? (Answer: [Answer 2])
+    3. [Question 3]? (Answer: [Answer 3])
+    """
+    try:
+        response = _ai_client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": prompt}]
+        )
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        return f"Could not retrieve 'This Day in History' facts. Error: {e}"
 
 def get_printable_summary(user_info, tags, session_topic, books, newspapers, activities, volunteer_username):
     """Generates a formatted string summary for printing."""
@@ -1041,6 +1122,7 @@ if st.session_state['is_authenticated']:
             "Session Notes": "session_notes",
             "Session History": "session_history",
             "Decade Summary": "decade_summary",
+            "This Day in History": "this_day_in_history" # New page
         }
 
         # Create sidebar buttons
@@ -1052,6 +1134,11 @@ if st.session_state['is_authenticated']:
             # Disable Session Plan if no active pair or tags
             if label == "Session Plan" and (not st.session_state['current_user_name'] or not st.session_state['active_tags_for_filter']):
                 disabled_state = True
+            
+            # Disable This Day in History if no active pair
+            if label == "This Day in History" and not st.session_state['current_user_name']:
+                disabled_state = True
+
 
             # Check if the current button is the active page
             is_active = (st.session_state['current_page'] == page_key)
@@ -1578,7 +1665,6 @@ if st.session_state['is_authenticated']:
 
 
     elif st.session_state['current_page'] == 'session_notes':
-        # Removed the custom anchor tag: st.markdown('<a name="session_notes_section"></a>', unsafe_allow_html=True)
         st.header("📝 Record Your Session Notes:")
 
         notes_col1, notes_col2, notes_col3 = st.columns([1, 1, 1])
@@ -1629,13 +1715,31 @@ if st.session_state['is_authenticated']:
                     recommended_materials_json,
                     st.session_state['logged_in_username']
                 )
+                
+                # After saving, generate reflection prompts
+                session_details_for_reflection = {
+                    'pair_name': st.session_state['current_user_name'],
+                    'mood': st.session_state['session_mood'],
+                    'engagement': st.session_state['session_engagement'],
+                    'takeaways': st.session_state['session_takeaways'],
+                    'recommended_materials': all_recommended_titles
+                }
+                with st.spinner("Generating reflection prompts for you..."):
+                    reflection_prompts = generate_volunteer_reflection_prompts(session_details_for_reflection, client_ai)
+                    st.markdown("---")
+                    st.subheader("💡 Your Reflection Prompts:")
+                    st.info("Here are some questions to help you reflect on this session and prepare for the next:")
+                    for prompt_text in reflection_prompts:
+                        st.markdown(prompt_text)
+
+                # Clear session notes inputs after saving and generating prompts
                 st.session_state['session_date'] = date.today()
                 st.session_state['session_mood'] = "Neutral 😐"
                 st.session_state['session_engagement'] = "Moderately Engaged ⭐⭐"
                 st.session_state['session_takeaways'] = ""
                 st.session_state['recommended_books_current_session'] = []
                 st.session_state['recommended_newspapers_current_session'] = []
-                st.rerun()
+                # No rerun here, so the prompts stay visible until the next interaction.
             else:
                 st.warning("Please enter a 'Pair's Name' at the top to save session notes.")
 
@@ -1680,3 +1784,74 @@ if st.session_state['is_authenticated']:
                 st.info(historical_context)
         else:
             st.info("Please set a 'Favorite Decade' in the Pair Profile to view a historical summary.")
+
+    elif st.session_state['current_page'] == 'this_day_in_history':
+        st.header("🗓️ This Day in History!")
+        
+        if not st.session_state['current_user_name']:
+            st.info("Please select a 'Pair's Name' on the Dashboard to get 'This Day in History' insights.")
+        else:
+            today = date.today()
+            current_day = today.day
+            current_month = today.month
+
+            st.markdown(f"### Today is: {today.strftime('%B %d, %Y')}")
+
+            with st.spinner("Fetching historical insights for today..."):
+                history_facts_raw = get_this_day_in_history_facts(current_day, current_month, user_info, client_ai)
+
+                # Parse the raw text response from the AI
+                event_section = ""
+                born_section = ""
+                fun_fact_section = ""
+                trivia_section = []
+
+                sections = history_facts_raw.split('\n\n') # Split by double newline for sections
+
+                for section in sections:
+                    if section.startswith("Event:"):
+                        event_section = section.replace("Event:", "").strip()
+                    elif section.startswith("Born on this Day:"):
+                        born_section = section.replace("Born on this Day:", "").strip()
+                    elif section.startswith("Fun Fact:"):
+                        fun_fact_section = section.replace("Fun Fact:", "").strip()
+                    elif section.startswith("Trivia Questions:"):
+                        trivia_lines = section.replace("Trivia Questions:", "").strip().split('\n')
+                        trivia_section = [line.strip() for line in trivia_lines if line.strip()]
+                
+                st.markdown("---")
+                st.subheader("Significant Event:")
+                if event_section:
+                    st.info(event_section)
+                else:
+                    st.info("No famous event found for this day in the specified era.")
+
+                st.markdown("---")
+                st.subheader("Famous Person Born Today:")
+                if born_section:
+                    person_name_match = born_section.split('\n')[0] if '\n' in born_section else born_section
+                    st.markdown(f"**{person_name_match}**")
+                    # Use a placeholder image with the person's name
+                    # Encode name for URL: replace spaces with +
+                    person_name_for_url = person_name_match.split('-')[0].strip().replace(' ', '+') # Just the name, before description
+                    img_url_placeholder = f"https://placehold.co/150x150/8d8d8d/ffffff?text={person_name_for_url}"
+                    st.image(img_url_placeholder, width=150, caption=person_name_match)
+                    st.markdown(born_section)
+                else:
+                    st.info("No famous person found for this day in the specified era or tailored to the profile.")
+
+                st.markdown("---")
+                st.subheader("Fun Fact:")
+                if fun_fact_section:
+                    st.info(fun_fact_section)
+                else:
+                    st.info("No fun fact available for this day.")
+
+                st.markdown("---")
+                st.subheader("Trivia Time! (with answers for the volunteer):")
+                if trivia_section:
+                    for i, trivia_item in enumerate(trivia_section):
+                        st.markdown(f"{trivia_item}")
+                else:
+                    st.info("No trivia questions generated for this day.")
+
