@@ -29,7 +29,7 @@ st.markdown("""
         padding: 2rem; /* Increased padding inside the main content area */
         margin: 1.5rem auto; /* Adjusted top/bottom margin, and auto left/right for centering */
         max-width: 900px; /* Limit width for better floating effect */
-        min-height: 85vh; /* Ensure it takes up enough vertical space */
+        min-height: auto; /* Allows content area to shrink when content is sparse */
         box-sizing: border-box; /* Include padding in the element's total width and height */
     }
 
@@ -966,25 +966,26 @@ if st.session_state['is_authenticated']:
             is_active = (st.session_state['current_page'] == page_key)
             
             # Apply custom class for active state
-            button_class = "active-nav-button" if is_active else ""
+            # Note: Streamlit's internal rendering applies classes dynamically.
+            # This CSS injection is a common workaround to ensure active state styling is applied.
+            active_style = ""
+            if is_active:
+                active_style = """
+                    <style>
+                        /* This targets the specific button that Streamlit marks as active */
+                        .stSidebar button[data-testid="stSidebarNav"] > div > div > button[kind="secondary"][aria-selected="true"] {
+                            background-color: #007bff !important;
+                            color: white !important;
+                            box-shadow: 0 4px 8px rgba(0,0,0,0.2) !important;
+                        }
+                    </style>
+                """
+                st.markdown(active_style, unsafe_allow_html=True)
+
 
             if st.button(label, key=f"sidebar_btn_{page_key}", disabled=disabled_state, help=f"Go to {label}"):
                 st.session_state['current_page'] = page_key
                 st.rerun() # Rerun to switch page
-            
-            # This is a workaround to apply the active class, as Streamlit doesn't directly support it on st.button
-            # It's less robust than direct CSS pseudo-classes but works by rerunning and applying a markdown class
-            # This part is illustrative, the actual active state CSS needs more complex targeting if direct st.button class application fails.
-            if is_active:
-                st.markdown(f"""
-                <style>
-                    button[data-testid="stSidebarNav"] > div > div > button[kind="secondary"].st-emotion-cache-k3g09m {{
-                        background-color: #007bff;
-                        color: white;
-                        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-                    }}
-                </style>
-                """, unsafe_allow_html=True)
 
 
     # --- Main Content Area Wrapper ---
@@ -1188,7 +1189,6 @@ if st.session_state['is_authenticated']:
                 else:
                     st.info("AI did not find specific tags for your search. Searching for direct keyword matches.")
 
-
             results = []
             search_term_lower = search_term.lower()
 
@@ -1213,24 +1213,26 @@ if st.session_state['is_authenticated']:
 
             if results:
                 for item in results[:5]:
-                    st.markdown('<div class="content-card">', unsafe_allow_html=True) # Start card
-                    cols = st.columns([1, 2])
-                    with cols[0]:
-                        img_url = get_image_url(item) # Use the new helper function
-                        st.markdown('<div class="content-card-image-col">', unsafe_allow_html=True)
-                        st.image(img_url, width=180) # Always display image using the determined URL
-                        st.markdown('</div>', unsafe_allow_html=True) # End content-card-image-col
+                    # Only render content-card if there's meaningful content
+                    if item.get('Title') or item.get('Summary') or item.get('Image') or item.get('URL'):
+                        st.markdown('<div class="content-card">', unsafe_allow_html=True) # Start card
+                        cols = st.columns([1, 2])
+                        with cols[0]:
+                            img_url = get_image_url(item) # Use the new helper function
+                            st.markdown('<div class="content-card-image-col">', unsafe_allow_html=True)
+                            st.image(img_url, width=180) # Always display image using the determined URL
+                            st.markdown('</div>', unsafe_allow_html=True) # End content-card-image-col
 
-                    with cols[1]:
-                        st.markdown(f"### {item.get('Title', 'N/A')} ({item.get('Type', 'N/A')})")
-                        st.markdown(item.get('Summary', 'N/A'))
-                        item_tags_display = item.get('tags', set())
-                        if item_tags_display:
-                             st.markdown(f"_Tags: {', '.join(item_tags_display)}_")
+                        with cols[1]:
+                            st.markdown(f"### {item.get('Title', 'N/A')} ({item.get('Type', 'N/A')})")
+                            st.markdown(item.get('Summary', 'N/A'))
+                            item_tags_display = item.get('tags', set())
+                            if item_tags_display:
+                                 st.markdown(f"_Tags: {', '.join(item_tags_display)}_")
 
-                        if 'URL' in item and item['URL']:
-                            st.markdown(f"<a class='buy-button' href='{item['URL']}' target='_blank'>Buy Now</a>", unsafe_allow_html=True)
-                    st.markdown('</div>', unsafe_allow_html=True) # End card
+                            if 'URL' in item and item['URL']:
+                                st.markdown(f"<a class='buy-button' href='{item['URL']}' target='_blank'>Buy Now</a>", unsafe_allow_html=True)
+                        st.markdown('</div>', unsafe_allow_html=True) # End card
                 if len(results) > 5:
                     st.info(f"Showing top 5 results. Found {len(results)} total matches for '{search_term}'.")
             else:
@@ -1271,57 +1273,59 @@ if st.session_state['is_authenticated']:
 
             if books or newspapers:
                 for item in books + newspapers:
-                    st.markdown('<div class="content-card">', unsafe_allow_html=True) # Start card
-                    cols = st.columns([1, 2])
-                    with cols[0]:
-                        img_url = get_image_url(item) # Use the new helper function
-                        st.markdown('<div class="content-card-image-col">', unsafe_allow_html=True)
-                        st.image(img_url, width=180) # Always display image using the determined URL
-                        st.markdown('</div>', unsafe_allow_html=True) # End content-card-image-col
+                    # Only render content-card if there's meaningful content
+                    if item.get('Title') or item.get('Summary') or item.get('Image') or item.get('URL'):
+                        st.markdown('<div class="content-card">', unsafe_allow_html=True) # Start card
+                        cols = st.columns([1, 2])
+                        with cols[0]:
+                            img_url = get_image_url(item) # Use the new helper function
+                            st.markdown('<div class="content-card-image-col">', unsafe_allow_html=True)
+                            st.image(img_url, width=180) # Always display image using the determined URL
+                            st.markdown('</div>', unsafe_allow_html=True) # End content-card-image-col
 
-                    with cols[1]:
-                        st.markdown(f"### {item.get('Title', 'N/A')} ({item.get('Type', 'N/A')})")
-                        st.markdown(item.get('Summary', 'N/A'))
-                        original_tag_matches = item.get('tags', set()) & set(st.session_state['active_tags_for_filter'])
-                        if original_tag_matches:
-                             st.markdown(f"**Why this was recommended:** Matched tags — **{', '.join(original_tag_matches)}**")
-                        else:
-                            st.markdown("_No direct tag matches found for this recommendation._")
+                        with cols[1]:
+                            st.markdown(f"### {item.get('Title', 'N/A')} ({item.get('Type', 'N/A')})")
+                            st.markdown(item.get('Summary', 'N/A'))
+                            original_tag_matches = item.get('tags', set()) & set(st.session_state['active_tags_for_filter'])
+                            if original_tag_matches:
+                                 st.markdown(f"**Why this was recommended:** Matched tags — **{', '.join(original_tag_matches)}**")
+                            else:
+                                st.markdown("_No direct tag matches found for this recommendation._")
 
-                        with st.expander("Why this recommendation is great for your pair:"):
-                            with st.spinner("Generating personalized insights..."):
-                                explanation = generate_recommendation_explanation(item, user_info, st.session_state['active_tags_for_filter'], client_ai)
-                                st.markdown(explanation)
+                            with st.expander("Why this recommendation is great for your pair:"):
+                                with st.spinner("Generating personalized insights..."):
+                                    explanation = generate_recommendation_explanation(item, user_info, st.session_state['active_tags_for_filter'], client_ai)
+                                    st.markdown(explanation)
 
-                        feedback_key = f"feedback_{item.get('Title', 'NoTitle')}_{item.get('Type', 'NoType')}"
-                        feedback = st.radio(
-                            f"Was this recommendation helpful?",
-                            ["Select an option", "✅ Yes", "❌ No"],
-                            index=0,
-                            key=feedback_key
-                        )
+                            feedback_key = f"feedback_{item.get('Title', 'NoTitle')}_{item.get('Type', 'NoType')}"
+                            feedback = st.radio(
+                                f"Was this recommendation helpful?",
+                                ["Select an option", "✅ Yes", "❌ No"],
+                                index=0,
+                                key=feedback_key
+                            )
 
-                        if feedback != "Select an option" and not st.session_state.get(f"feedback_submitted_{feedback_key}", False):
-                            try:
-                                # Corrected Google Sheet URL for feedback
-                                sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXJRXcfmxjoj5s')
-                                feedback_ws = sheet.worksheet('Feedback')
-                                feedback_ws.append_row([
-                                    datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                                    st.session_state['current_user_name'], # Use the current pair's name
-                                    item.get('Title', 'N/A'),
-                                    item.get('Type', 'N/A'),
-                                    feedback,
-                                    ", ".join(item.get('tags', set()))
-                                ])
-                                st.session_state[f"feedback_submitted_{feedback_key}"] = True
-                                st.success("✅ Feedback submitted! Thank you for helping us improve.")
-                            except Exception as e:
-                                st.warning(f"⚠️ Failed to save feedback. Error: {e}")
+                            if feedback != "Select an option" and not st.session_state.get(f"feedback_submitted_{feedback_key}", False):
+                                try:
+                                    # Corrected Google Sheet URL for feedback
+                                    sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXJRXcfmxjoj5s')
+                                    feedback_ws = sheet.worksheet('Feedback')
+                                    feedback_ws.append_row([
+                                        datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                                        st.session_state['current_user_name'], # Use the current pair's name
+                                        item.get('Title', 'N/A'),
+                                        item.get('Type', 'N/A'),
+                                        feedback,
+                                        ", ".join(item.get('tags', set()))
+                                    ])
+                                    st.session_state[f"feedback_submitted_{feedback_key}"] = True
+                                    st.success("✅ Feedback submitted! Thank you for helping us improve.")
+                                except Exception as e:
+                                    st.warning(f"⚠️ Failed to save feedback. Error: {e}")
 
-                        if 'URL' in item and item['URL']:
-                            st.markdown(f"<a class='buy-button' href='{item['URL']}' target='_blank'>Buy Now</a>", unsafe_allow_html=True)
-                    st.markdown('</div>', unsafe_allow_html=True) # End card
+                            if 'URL' in item and item['URL']:
+                                st.markdown(f"<a class='buy-button' href='{item['URL']}' target='_blank'>Buy Now</a>", unsafe_allow_html=True)
+                        st.markdown('</div>', unsafe_allow_html=True) # End card
                 if not (books or newspapers):
                     st.markdown("_No primary recommendations found based on your current tags. Please try adjusting your input or generating new tags._")
             else:
@@ -1381,21 +1385,23 @@ if st.session_state['is_authenticated']:
             num_cols = min(5, len(related_books))
             cols = st.columns(num_cols)
             for i, book in enumerate(related_books):
-                # Using a column for each related book to arrange them in a grid-like manner
-                with cols[i % num_cols]:
-                    st.markdown('<div class="content-card" style="padding: 1rem; margin-bottom: 1rem; height: auto;">', unsafe_allow_html=True) # Smaller card for related books, auto height
-                    img_url = get_image_url(book) # Use the new helper function
-                    st.image(img_url, width=120) # Always display image using the determined URL
-                    st.caption(book.get('Title', 'N/A'))
+                # Only render content-card if there's meaningful content
+                if book.get('Title') or book.get('Summary') or book.get('Image') or book.get('URL'):
+                    # Using a column for each related book to arrange them in a grid-like manner
+                    with cols[i % num_cols]:
+                        st.markdown('<div class="content-card" style="padding: 1rem; margin-bottom: 1rem; height: auto;">', unsafe_allow_html=True) # Smaller card for related books, auto height
+                        img_url = get_image_url(book) # Use the new helper function
+                        st.image(img_url, width=120) # Always display image using the determined URL
+                        st.caption(book.get('Title', 'N/A'))
 
-                    with st.expander("Why this recommendation is great for your pair:"):
-                        with st.spinner("Generating personalized insights..."):
-                            explanation = generate_recommendation_explanation(book, user_info, st.session_state['active_tags_for_filter'], client_ai)
-                            st.markdown(explanation)
+                        with st.expander("Why this recommendation is great for your pair:"):
+                            with st.spinner("Generating personalized insights..."):
+                                explanation = generate_recommendation_explanation(book, user_info, st.session_state['active_tags_for_filter'], client_ai)
+                                st.markdown(explanation)
 
-                    if 'URL' in book and book['URL']:
-                        st.markdown(f"<a class='buy-button' href='{book['URL']}' target='_blank'>Buy Now</a>", unsafe_allow_html=True)
-                    st.markdown('</div>', unsafe_allow_html=True) # End content-card
+                        if 'URL' in book and book['URL']:
+                            st.markdown(f"<a class='buy-button' href='{book['URL']}' target='_blank'>Buy Now</a>", unsafe_allow_html=True)
+                        st.markdown('</div>', unsafe_allow_html=True) # End content-card
         else:
             st.markdown("_No other related materials found with your current tags. Try generating new tags or searching for a specific topic!_") # Changed text here
             st.markdown("---")
@@ -1404,17 +1410,18 @@ if st.session_state['is_authenticated']:
             if not content_df.empty and 'Type' in content_df.columns:
                 fallback_books_df = content_df[content_df['Type'].str.lower() == 'book']
                 if not fallback_books_df.empty:
-                    fallback_books = fallback_books_df.sample(min(5, len(fallback_books_df)), random_state=1).to_dict('records')
-                    num_cols_fallback = st.columns(min(5, len(fallback_books)))
-                    for i, book in enumerate(fallback_books):
-                        with num_cols_fallback[i % len(num_cols_fallback)]:
-                            st.markdown('<div class="content-card" style="padding: 1rem; margin-bottom: 1rem; height: auto;">', unsafe_allow_html=True) # Smaller card for fallback books, auto height
-                            img_url = get_image_url(book) # Use the new helper function
-                            st.image(img_url, width=120) # Always display image using the determined URL
-                            st.caption(book.get('Title', 'N/A'))
-                            if 'URL' in book and book['URL']:
-                                st.markdown(f"<a class='buy-button' href='{book['URL']}' target='_blank'>Buy Now</a>", unsafe_allow_html=True)
-                            st.markdown('</div>', unsafe_allow_html=True) # End content-card
+                    num_cols_fallback = st.columns(min(5, len(fallback_books_df)))
+                    for i, book in enumerate(fallback_books_df.sample(min(5, len(fallback_books_df)), random_state=1).to_dict('records')):
+                        # Only render content-card if there's meaningful content
+                        if book.get('Title') or book.get('Summary') or book.get('Image') or book.get('URL'):
+                            with num_cols_fallback[i % len(num_cols_fallback)]:
+                                st.markdown('<div class="content-card" style="padding: 1rem; margin-bottom: 1rem; height: auto;">', unsafe_allow_html=True) # Smaller card for fallback books, auto height
+                                img_url = get_image_url(book) # Use the new helper function
+                                st.image(img_url, width=120) # Always display image using the determined URL
+                                st.caption(book.get('Title', 'N/A'))
+                                if 'URL' in book and book['URL']:
+                                    st.markdown(f"<a class='buy-button' href='{book['URL']}' target='_blank'>Buy Now</a>", unsafe_allow_html=True)
+                                st.markdown('</div>', unsafe_allow_html=True) # End content-card
                 else:
                     st.markdown("_No books available in the database to recommend._")
             else:
