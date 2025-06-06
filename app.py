@@ -8,7 +8,6 @@ from collections import Counter
 from openai import OpenAI
 from fpdf import FPDF
 from datetime import datetime, date
-from Google Search import Google Search # Corrected import for Google Search
 
 st.set_option('client.showErrorDetails', True)
 
