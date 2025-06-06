@@ -812,6 +812,7 @@ if st.session_state['is_authenticated']:
             st.session_state['current_user_hobbies'] = ""
             st.session_state['current_user_decade'] = ""
             st.session_state['current_user_college_chapter'] = ""
+            st.success("📝 Form ready! Scroll down to 'Add New Pair Profile' to fill in the details.") # Explicit message
             st.rerun()
 
     # Logic when a pair is selected from the dropdown (or after "Add New Pair" button click reruns)
@@ -1070,14 +1071,15 @@ if st.session_state['is_authenticated']:
                                     img_url = f"https://images-na.ssl-images-amazon.com/images/P/{asin}.01._SL250_.jpg"
                                 except IndexError:
                                     pass
-                            if img_url:
-                                st.image(img_url, width=180)
+                        if img_url:
+                            st.image(img_url, width=180)
+                        else:
+                            item_type = item.get('Type', '').lower()
+                            if item_type == 'newspaper':
+                                st.image("https://placehold.co/180x250/007bff/ffffff?text=Newspaper", width=180, caption=item.get('Title', 'N/A'))
+                                # Updated placeholder for Newspaper to better reflect its type
                             else:
-                                item_type = item.get('Type', '').lower()
-                                if item_type == 'newspaper':
-                                    st.image("https://placehold.co/180x250/007bff/ffffff?text=Newspaper", width=180, caption=item.get('Title', 'N/A'))
-                                else:
-                                    st.image(f"https://placehold.co/180x250/cccccc/333333?text=No+Image", width=180)
+                                st.image(f"https://placehold.co/180x250/cccccc/333333?text=No+Image", width=180)
                         with cols[1]:
                             st.markdown(f"### {item.get('Title', 'N/A')} ({item.get('Type', 'N/A')})")
                             st.markdown(item.get('Summary', 'N/A'))
@@ -1306,7 +1308,7 @@ if st.session_state['is_authenticated']:
             session_mood = st.radio(
                 "Pair's Overall Mood During Session:",
                 ["Happy 😊", "Calm 😌", "Neutral 😐", "Agitated 😠", "Sad 😢"],
-                index=["Happy 😊", "Calm 😌", "Neutral 😐", "Agitated 😠", "Sad 😢"].index(st.session_state['session_mood']),
+                index=["Happy 😊", "Calm 😌", "Neutral �", "Agitated 😠", "Sad 😢"].index(st.session_state['session_mood']),
                 key="session_mood_input"
             )
             st.session_state['session_mood'] = session_mood
@@ -1380,3 +1382,4 @@ if st.session_state['is_authenticated']:
             st.info("Select a 'Pair's Name' above to view their session history.")
     else:
         st.info("Please select or add a pair above to continue.")
+�
