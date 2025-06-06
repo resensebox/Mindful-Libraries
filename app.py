@@ -780,30 +780,44 @@ if st.session_state['is_authenticated']:
     st.markdown("---")
     st.header("👥 Manage Your Pairs:")
 
-    # Get the list of pair names for the logged-in volunteer
-    pair_names = list(PAIRS_DATA.keys())
-    
-    # Add an option to add a new pair
-    pair_options = ["Add New Pair"] + sorted(pair_names)
+    col_select_pair, col_add_pair_btn = st.columns([3, 1])
 
-    # Use a selectbox to choose the pair, pre-selecting if already in session state
-    selected_option_index = 0
-    if st.session_state['selected_pair_name'] and st.session_state['selected_pair_name'] in pair_names:
-        selected_option_index = pair_names.index(st.session_state['selected_pair_name']) + 1 # +1 for "Add New Pair"
-    elif st.session_state['selected_pair_name'] == "Add New Pair":
-        selected_option_index = 0 # Explicitly set to "Add New Pair" if that was the last selection
-    
-    selected_pair_ui = st.selectbox(
-        "Select an existing pair or add a new one:",
-        options=pair_options,
-        index=selected_option_index,
-        key="pair_selector"
-    )
+    with col_select_pair:
+        # Get the list of pair names for the logged-in volunteer
+        pair_names = list(PAIRS_DATA.keys())
+        
+        # Add an option to add a new pair to the selectbox for initial selection
+        pair_options_selectbox = ["Add New Pair"] + sorted(pair_names)
 
-    # Logic when a pair is selected from the dropdown
+        # Determine the initial index for the selectbox
+        selected_option_index = 0 # Default to "Add New Pair"
+        if st.session_state['selected_pair_name'] and st.session_state['selected_pair_name'] in pair_names:
+            selected_option_index = pair_names.index(st.session_state['selected_pair_name']) + 1 # +1 for "Add New Pair" option
+        
+        selected_pair_ui = st.selectbox(
+            "Select an existing pair:",
+            options=pair_options_selectbox,
+            index=selected_option_index,
+            key="pair_selector"
+        )
+
+    with col_add_pair_btn:
+        st.markdown("<br>", unsafe_allow_html=True) # Add some spacing
+        if st.button("✨ Add New Pair", key="add_new_pair_button"):
+            st.session_state['selected_pair_name'] = "Add New Pair"
+            # Clear all current pair data in session state to prepare for new input
+            st.session_state['current_user_name'] = ""
+            st.session_state['current_user_jobs'] = ""
+            st.session_state['current_user_life_experiences'] = ""
+            st.session_state['current_user_hobbies'] = ""
+            st.session_state['current_user_decade'] = ""
+            st.session_state['current_user_college_chapter'] = ""
+            st.rerun()
+
+    # Logic when a pair is selected from the dropdown (or after "Add New Pair" button click reruns)
+    # This block now primarily handles the state update from the selectbox
     if selected_pair_ui != st.session_state['selected_pair_name']:
         st.session_state['selected_pair_name'] = selected_pair_ui
-        # If an existing pair is selected, load its data
         if selected_pair_ui != "Add New Pair":
             selected_pair_info = PAIRS_DATA.get(selected_pair_ui, {})
             st.session_state['current_user_name'] = selected_pair_ui
@@ -811,15 +825,18 @@ if st.session_state['is_authenticated']:
             st.session_state['current_user_life_experiences'] = selected_pair_info.get('life_experiences', '')
             st.session_state['current_user_hobbies'] = selected_pair_info.get('hobbies', '')
             st.session_state['current_user_decade'] = selected_pair_info.get('decade', '')
-            st.session_state['current_user_college_chapter'] = selected_pair_info.get('college_chapter', '') # Populate new field
-        else: # "Add New Pair" is selected, clear existing pair data for new input
+            st.session_state['current_user_college_chapter'] = selected_pair_info.get('college_chapter', '')
+        else: # This path is now mostly for when "Add New Pair" is selected *from the dropdown*
+              # If the button was pressed, session state is already cleared.
+              # This ensures consistency even if dropdown is used for "Add New Pair"
             st.session_state['current_user_name'] = ""
             st.session_state['current_user_jobs'] = ""
             st.session_state['current_user_life_experiences'] = ""
             st.session_state['current_user_hobbies'] = ""
             st.session_state['current_user_decade'] = ""
-            st.session_state['current_user_college_chapter'] = "" # Clear new field
+            st.session_state['current_user_college_chapter'] = ""
         st.rerun() # Rerun to update the input fields immediately
+
 
     # Display the pair details input form
     st.markdown("---")
@@ -1363,4 +1380,3 @@ if st.session_state['is_authenticated']:
             st.info("Select a 'Pair's Name' above to view their session history.")
     else:
         st.info("Please select or add a pair above to continue.")
-
