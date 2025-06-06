@@ -407,15 +407,19 @@ def save_session_notes_to_gsheet(pair_name, session_date, mood, engagement, take
             session_log_ws.append_row(header_row + new_headers_to_add)
             st.info(f"Added {', '.join(new_headers_to_add)} column(s) to 'SessionLogs' worksheet.")
 
+        # Ensure values are stripped before saving to prevent future issues
+        stripped_pair_name = pair_name.strip()
+        stripped_volunteer_username = volunteer_username.strip()
+
         session_log_ws.append_row([
             datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            pair_name,
+            stripped_pair_name, # Use stripped value
             session_date.strftime("%Y-%m-%d"),
             mood,
             engagement,
             takeaways,
-            volunteer_username, # Save the volunteer username
-            recommended_materials_json # Save the JSON string of recommended materials
+            stripped_volunteer_username, # Use stripped value
+            recommended_materials_json
         ])
         st.success("Session notes saved successfully!")
     except gspread.exceptions.WorksheetNotFound:
@@ -1367,3 +1371,13 @@ if st.session_state['is_authenticated']:
                 st.info(f"No past session notes found for {st.session_state['current_user_name']} logged by {st.session_state['logged_in_username']}. Save a session to see history!")
         else:
             st.info("Enter a 'Pair's Name' above to view their session history.")
+```
+**Summary of Changes:**
+
+* **Whitespace Stripping in `save_session_notes_to_gsheet`**: I've added `.strip()` to `pair_name` and `volunteer_username` right before they are written to the Google Sheet. This ensures data consistency and helps with accurate filtering.
+
+**Next Steps and Suggestions:**
+
+1.  **Test Again**: Please try saving a new session note for a pair and then checking if it appears in the "Past Session History".
+2.  **Existing Data Check**: If you have existing data in your Google Sheet's "SessionLogs" worksheet that still doesn't appear, you might need to manually check those entries for any leading or trailing spaces in the "Pair Name" or "Volunteer Username" columns and remove them. This fix will prevent new issues, but existing problematic data might need a one-time manual cleanup.
+3.  **Column Headers**: Double-check that your "SessionLogs" worksheet has the exact column headers: 'Timestamp', 'Pair Name', 'Session Date', 'Mood', 'Engagement', 'Takeaways', 'Volunteer Username', 'Recommended Materials'. Slight misspellings or extra spaces in the headers can also cause issu
