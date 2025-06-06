@@ -311,7 +311,7 @@ def load_users():
     """Loads user credentials from the 'Users' Google Sheet."""
     users_dict = {}
     try:
-        sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXJRXcfmxjoj5s')
+        sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXRcfmxjoj5s')
         users_ws = sheet.worksheet('Users')
         records = users_ws.get_all_records()
         for record in records:
@@ -332,7 +332,7 @@ def load_pairs(volunteer_username):
     if not volunteer_username:
         return pairs_dict
     try:
-        sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXJRXcfmxjoj5s')
+        sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXRcfmxjoj5s')
         pairs_ws = sheet.worksheet('Pairs')
         records = pairs_ws.get_all_records()
         for record in records:
@@ -360,7 +360,7 @@ if st.session_state['is_authenticated'] and st.session_state['logged_in_username
 def save_new_user(username, password):
     """Saves a new user to the 'Users' Google Sheet."""
     try:
-        sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXJRXcfmxjoj5s')
+        sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXRcfmxjoj5s')
         users_ws = sheet.worksheet('Users')
         
         header_row = users_ws.row_values(1)
@@ -384,7 +384,7 @@ def save_pair_details(volunteer_username, pair_name, jobs, life_experiences, hob
     global PAIRS_DATA # Declare global at the very beginning of the function
     """Saves or updates pair details in the 'Pairs' Google Sheet."""
     try:
-        sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXJRXcfmxjoj5s')
+        sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXRcfmxjoj5s')
         pairs_ws = sheet.worksheet('Pairs')
 
         # Add 'College Chapter' to expected headers
@@ -462,7 +462,7 @@ def generate_pdf(name, topics, recs):
 def save_user_input(name, jobs, hobbies, decade, selected_topics, volunteer_username, college_chapter):
     """Saves user input to the 'Logs' Google Sheet."""
     try:
-        sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXJRXcfmxjoj5s')
+        sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXRcfmxjoj5s')
         log_ws = sheet.worksheet('Logs')
         # Check if 'Volunteer Username' and 'College Chapter' column exists, if not, add it
         header_row = log_ws.row_values(1)
@@ -499,7 +499,7 @@ def save_user_input(name, jobs, hobbies, decade, selected_topics, volunteer_user
 def save_session_notes_to_gsheet(pair_name, session_date, mood, engagement, takeaways, recommended_materials_json, volunteer_username):
     """Saves session notes to the 'SessionLogs' Google Sheet."""
     try:
-        sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXJRXcfmxjoj5s')
+        sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXRcfmxjoj5s')
         session_log_ws = sheet.worksheet('SessionLogs')
         # Check if 'Volunteer Username' and 'Recommended Materials' columns exist, if not, add them
         header_row = session_log_ws.row_values(1)
@@ -540,7 +540,7 @@ def load_session_logs(pair_name, volunteer_username):
         return pd.DataFrame()
     
     try:
-        sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXJRXcfmxjoj5s')
+        sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXRcfmxjoj5s')
         session_log_ws = sheet.worksheet('SessionLogs')
         
         all_values = session_log_ws.get_all_values()
@@ -693,7 +693,7 @@ def load_feedback_tag_scores():
     """Loads tag scores from the 'Feedback' Google Sheet for reweighting."""
     feedback_scores = {}
     try:
-        sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXJRXcfmxjoj5s')
+        sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXRcfmxjoj5s')
         fb_ws = sheet.worksheet('Feedback')
         fb_data = pd.DataFrame(fb_ws.get_all_records())
         for _, row in fb_data.iterrows():
@@ -1078,7 +1078,7 @@ else: # User is authenticated
                                         if st.button("👍 Yes", key=f"like_{feedback_key}"):
                                             # Update Feedback sheet with positive feedback
                                             try:
-                                                sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXJRXcfmxjoj5s')
+                                                sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXRcfmxjoj5s')
                                                 fb_ws = sheet.worksheet('Feedback')
                                                 fb_ws.append_row([book.get('Title', ''), ", ".join(book.get('tags', [])), "Yes"])
                                                 st.success("Feedback recorded!")
@@ -1089,7 +1089,7 @@ else: # User is authenticated
                                         if st.button("👎 No", key=f"dislike_{feedback_key}"):
                                             # Update Feedback sheet with negative feedback
                                             try:
-                                                sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXJRXcfmxjoj5s')
+                                                sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXRcfmxjoj5s')
                                                 fb_ws = sheet.worksheet('Feedback')
                                                 fb_ws.append_row([book.get('Title', ''), ", ".join(book.get('tags', [])), "No"])
                                                 st.success("Feedback recorded!")
@@ -1139,7 +1139,7 @@ else: # User is authenticated
                                         if st.button("👍 Yes", key=f"like_{feedback_key}"):
                                             # Update Feedback sheet with positive feedback
                                             try:
-                                                sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXJRXcfmxjoj5s')
+                                                sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXRcfmxjoj5s')
                                                 fb_ws = sheet.worksheet('Feedback')
                                                 fb_ws.append_row([newspaper.get('Title', ''), ", ".join(newspaper.get('tags', [])), "Yes"])
                                                 st.success("Feedback recorded!")
@@ -1150,7 +1150,7 @@ else: # User is authenticated
                                         if st.button("👎 No", key=f"dislike_{feedback_key}"):
                                             # Update Feedback sheet with negative feedback
                                             try:
-                                                sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXJRXcfmxjoj5s')
+                                                sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXRcfmxjoj5s')
                                                 fb_ws = sheet.worksheet('Feedback')
                                                 fb_ws.append_row([newspaper.get('Title', ''), ", ".join(newspaper.get('tags', [])), "No"])
                                                 st.success("Feedback recorded!")
@@ -1161,8 +1161,6 @@ else: # User is authenticated
                                 st.session_state['book_counter'][newspaper.get('Title', 'N/A')] += 1 # Increment interaction count
                     else:
                         st.info("No newspaper recommendations based on selected topics.")
-                else:
-                    st.info("No recommendations generated yet. Select topics and click 'Generate Reading Recommendations'.")
                 
                 st.markdown("---")
                 st.subheader("Suggested Activities:")
@@ -1308,8 +1306,8 @@ else: # User is authenticated
                                 # Optional: Add URL if available
                                 if item.get('URL'):
                                     st.markdown(f"  [View Material]({item.get('URL')})")
-                        except json.JSONDecodeError:
-                            st.markdown("_Error loading recommended materials. Data format may be incorrect._")
+                    except json.JSONDecodeError:
+                        st.markdown("_Error loading recommended materials. Data format may be incorrect._")
                     st.markdown("---") # Add a separator between history items
             else:
                 st.info(f"No past session notes found for {st.session_state['current_user_name']} logged by {st.session_state['logged_in_username']}. Save a session to see history!")
