@@ -1022,11 +1022,15 @@ if st.session_state['is_authenticated']:
                             if item.get('Image', '').startswith("http"):
                                 img_url = item['Image']
                             elif 'URL' in item and "amazon." in item['URL'] and "/dp/" in item['URL']:
-                                try:
-                                    asin = item['URL'].split('/dp/')[-1].split('/')[0].split('?')[0]
-                                    img_url = f"https://images-na.ssl-images-amazon.com/images/P/{asin}.01._SL250_.jpg"
-                            except IndexError:
-                                    pass
+                                # Safely extract ASIN if URL is from Amazon and contains '/dp/'
+                                parts_dp = item['URL'].split('/dp/')
+                                if len(parts_dp) > 1:
+                                    remaining_url = parts_dp[1]
+                                    parts_slash = remaining_url.split('/')
+                                    if len(parts_slash) > 0:
+                                        asin_with_params = parts_slash[0]
+                                        asin = asin_with_params.split('?')[0]
+                                        img_url = f"https://images-na.ssl-images-amazon.com/images/P/{asin}.01._SL250_.jpg"
                         if img_url:
                             st.image(img_url, width=180)
                         else:
@@ -1108,11 +1112,15 @@ if st.session_state['is_authenticated']:
                         if item.get('Image', '').startswith("http"):
                             img_url = item['Image']
                         elif 'URL' in item and "amazon." in item['URL'] and "/dp/" in item['URL']:
-                            try:
-                                asin = item['URL'].split('/dp/')[-1].split('/')[0].split('?')[0]
-                                img_url = f"https://images-na.ssl-images-amazon.com/images/P/{asin}.01._SL250_.jpg"
-                            except IndexError:
-                                pass
+                            # Safely extract ASIN if URL is from Amazon and contains '/dp/'
+                            parts_dp = item['URL'].split('/dp/')
+                            if len(parts_dp) > 1:
+                                remaining_url = parts_dp[1]
+                                parts_slash = remaining_url.split('/')
+                                if len(parts_slash) > 0:
+                                    asin_with_params = parts_slash[0]
+                                    asin = asin_with_params.split('?')[0]
+                                    img_url = f"https://images-na.ssl-images-amazon.com/images/P/{asin}.01._SL250_.jpg"
                         if img_url:
                             st.image(img_url, width=180)
                         else:
@@ -1202,11 +1210,15 @@ if st.session_state['is_authenticated']:
                         if book.get('Image', '').startswith("http"):
                             img_url = book['Image']
                         elif 'URL' in book and "amazon." in book['URL'] and "/dp/" in book['URL']:
-                            try:
-                                asin = book['URL'].split('/dp/')[-1].split('/')[0].split('?')[0]
-                                img_url = f"https://images-na.ssl-images-amazon.com/images/P/{asin}.01._SL250_.jpg"
-                            except IndexError:
-                                pass
+                            # Safely extract ASIN if URL is from Amazon and contains '/dp/'
+                            parts_dp = book['URL'].split('/dp/')
+                            if len(parts_dp) > 1:
+                                remaining_url = parts_dp[1]
+                                parts_slash = remaining_url.split('/')
+                                if len(parts_slash) > 0:
+                                    asin_with_params = parts_slash[0]
+                                    asin = asin_with_params.split('?')[0]
+                                    img_url = f"https://images-na.ssl-images-amazon.com/images/P/{asin}.01._SL250_.jpg"
                         if img_url:
                             st.image(img_url, width=120)
                         else:
@@ -1240,11 +1252,15 @@ if st.session_state['is_authenticated']:
                                 if book.get('Image', '').startswith("http"):
                                     img_url = book['Image']
                                 elif 'URL' in book and "amazon." in book['URL'] and "/dp/" in book['URL']:
-                                    try:
-                                        asin = book['URL'].split('/dp/')[-1].split('/')[0].split('?')[0]
-                                        img_url = f"https://images-na.ssl-images-amazon.com/images/P/{asin}.01._SL250_.jpg"
-                                    except IndexError:
-                                        pass
+                                    # Safely extract ASIN if URL is from Amazon and contains '/dp/'
+                                    parts_dp = book['URL'].split('/dp/')
+                                    if len(parts_dp) > 1:
+                                        remaining_url = parts_dp[1]
+                                        parts_slash = remaining_url.split('/')
+                                        if len(parts_slash) > 0:
+                                            asin_with_params = parts_slash[0]
+                                            asin = asin_with_params.split('?')[0]
+                                            img_url = f"https://images-na.ssl-images-amazon.com/images/P/{asin}.01._SL250_.jpg"
                                 if img_url:
                                     st.image(img_url, width=120)
                                 else:
@@ -1268,7 +1284,7 @@ if st.session_state['is_authenticated']:
         with notes_col2:
             session_mood = st.radio(
                 "Pair's Overall Mood During Session:",
-                ["Happy 😊", "Calm 😌", "Neutral 😐", "Agitated 😠", "Sad 😢"],
+                ["Happy 😊", "Calm �", "Neutral 😐", "Agitated 😠", "Sad 😢"],
                 index=["Happy 😊", "Calm 😌", "Neutral 😐", "Agitated 😠", "Sad 😢"].index(st.session_state['session_mood']),
                 key="session_mood_input"
             )
