@@ -456,10 +456,6 @@ def load_session_logs(pair_name, volunteer_username):
 
         df_raw = pd.DataFrame(data_rows, columns=cleaned_headers)
 
-        # DEBUG: Show the raw DataFrame loaded from the sheet
-        st.info(f"DEBUG: Raw DataFrame loaded from SessionLogs (before filtering):")
-        st.write(df_raw)
-
         # Updated expected headers - Add 'College Chapter' here for loading
         expected_headers = ['Timestamp', 'Pair Name', 'Session Date', 'Mood', 'Engagement', 'Takeaways', 'Volunteer Username', 'Recommended Materials']
         
@@ -476,16 +472,11 @@ def load_session_logs(pair_name, volunteer_username):
             else:
                 df_final[col] = '' # Add missing column with empty string
 
-        # DEBUG: Show the pair_name and volunteer_username being used for filtering
-        st.info(f"DEBUG: Attempting to load history for Pair Name: '{pair_name}' (lower: '{pair_name.lower()}') and Volunteer Username: '{volunteer_username}' (lower: '{volunteer_username.lower()}')")
-
         # Filter by both Pair Name and Volunteer Username
         filtered_df = df_final[
             (df_final['Pair Name'].str.lower() == pair_name.lower()) &
             (df_final['Volunteer Username'].str.lower() == volunteer_username.lower())
         ].sort_values(by='Timestamp', ascending=False)
-
-        st.info(f"DEBUG: Filtered DataFrame row count: {len(filtered_df)}")
         
         return filtered_df
 
@@ -1034,7 +1025,7 @@ if st.session_state['is_authenticated']:
                                 try:
                                     asin = item['URL'].split('/dp/')[-1].split('/')[0].split('?')[0]
                                     img_url = f"https://images-na.ssl-images-amazon.com/images/P/{asin}.01._SL250_.jpg"
-                                except IndexError:
+                            except IndexError:
                                     pass
                         if img_url:
                             st.image(img_url, width=180)
@@ -1301,9 +1292,6 @@ if st.session_state['is_authenticated']:
 
         if st.button("Save Session Notes", key="save_session_notes_btn"):
             if st.session_state['current_user_name']:
-                # DEBUG: Show the Pair Name and Volunteer Username before saving
-                st.info(f"DEBUG: Saving session notes for Pair Name: '{st.session_state['current_user_name']}' and Volunteer Username: '{st.session_state['logged_in_username']}'")
-                
                 # Extract only titles for logging in a list of strings
                 recommended_book_titles = [book.get('Title', 'N/A') for book in st.session_state['recommended_books_current_session']]
                 recommended_newspaper_titles = [newspaper.get('Title', 'N/A') for newspaper in st.session_state['recommended_newspapers_current_session']]
