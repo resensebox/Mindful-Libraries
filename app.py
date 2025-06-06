@@ -25,19 +25,19 @@ st.markdown("""
     .main-content-wrapper {
         background-color: #ffffff; /* White background for the main content area */
         border-radius: 16px; /* More rounded corners for the main container */
-        box-shadow: 0 8px 24px rgba(0,0,0,0.1); /* Stronger, more noticeable shadow */
+        box-shadow: 0 8px 24px rgba(0,0,0,0.15); /* Stronger, more noticeable shadow */
         padding: 2rem; /* Increased padding inside the main content area */
-        margin: 2rem auto; /* Top/bottom margin, and auto left/right for centering */
+        margin: 1.5rem auto; /* Adjusted top/bottom margin, and auto left/right for centering */
         max-width: 900px; /* Limit width for better floating effect */
-        min-height: 80vh; /* Ensure it takes up enough vertical space */
+        min-height: 85vh; /* Ensure it takes up enough vertical space */
         box-sizing: border-box; /* Include padding in the element's total width and height */
     }
 
     /* App-like Header (remains at the top of the main content area) */
-    /* Adjusting Streamlit's default header container to remove extra padding/margin */
-    .st-emotion-cache-vk3357.e1nzilvr1 { /* Targeting the header container in Streamlit */
+    /* Targeting the header container in Streamlit and adjusting its appearance */
+    .st-emotion-cache-vk3357.e1nzilvr1 {
         background-color: #ffffff; /* White background for header */
-        padding: 1rem 1.5rem; /* More padding */
+        padding: 0.8rem 1.5rem; /* Adjusted padding */
         border-bottom: 1px solid #e0e0e0; /* Subtle border at the bottom */
         box-shadow: 0 2px 8px rgba(0,0,0,0.1); /* Clearer shadow for depth */
         border-radius: 0 0 12px 12px; /* Rounded bottom corners for the header */
@@ -47,13 +47,24 @@ st.markdown("""
         position: sticky;
         top: 0;
         z-index: 1000;
-        margin-bottom: 0; /* Remove margin-bottom from here */
+        margin-bottom: 0; /* No margin-bottom here to reduce gap */
         width: 100%; /* Ensure header spans full width */
     }
 
     /* Adjust the main page title for a cleaner look */
     .st-emotion-cache-l9bizv.e1nzilvr5 h1 { /* Targeting specific h1 in Streamlit */
         display: none; /* Hide default Streamlit title */
+    }
+
+    /* Custom main app title to replace Streamlit's default h1 */
+    h1 {
+        text-align: center;
+        color: #333333;
+        margin-top: 1rem; /* Reduced top margin */
+        margin-bottom: 1.5rem; /* Slightly reduced bottom margin */
+        font-size: 2.5em; /* Make it stand out */
+        font-weight: 700;
+        letter-spacing: -0.02em;
     }
 
     /* Logo styling */
@@ -89,7 +100,7 @@ st.markdown("""
         border-radius: 8px;
         font-weight: bold;
         transition: background-color 0.3s ease, transform 0.2s ease;
-        box_shadow: 2px 2px 4px rgba(0,0,0,0.2); /* Reduced shadow */
+        box-shadow: 2px 2px 4px rgba(0,0,0,0.2); /* Reduced shadow */
     }
     .stButton>button:hover {
         background-color: #45a049;
@@ -147,9 +158,9 @@ st.markdown("""
         color: #444;
     }
 
-    /* Sidebar Navigation Links - Styling for buttons */
+    /* Sidebar Navigation Button Styling */
     .stSidebar button { /* Target all buttons in the sidebar */
-        width: 100%; /* Make them fill the sidebar width */
+        width: calc(100% - 10px); /* Adjust width to account for padding */
         text-align: left; /* Align text to the left */
         margin-bottom: 0.5rem; /* Space between buttons */
         background-color: #f0f2f6; /* Light grey for inactive buttons */
@@ -159,6 +170,7 @@ st.markdown("""
         padding: 0.8em 1.2em;
         font-weight: bold;
         transition: background-color 0.3s ease, color 0.3s ease, transform 0.2s ease;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05); /* Subtle shadow for button depth */
     }
 
     .stSidebar button:hover {
@@ -167,16 +179,14 @@ st.markdown("""
         transform: translateX(3px); /* Slight slide effect on hover */
     }
 
-    /* Style for the active navigation button */
-    .stSidebar button[data-testid="stSidebarNav"] { /* This data-testid might not be present or specific enough */
-        /* It's tricky to directly target active Streamlit buttons with CSS for navigation state
-           because Streamlit's internal rendering applies classes dynamically.
-           A common workaround is to use the `st.radio` approach with custom CSS classes
-           or manage active state with `st.markdown` as previously tried.
-           For now, we'll rely on the Python logic to keep the page consistent.
-        */
+    /* Specific styling for the active navigation button to make it stand out */
+    /* This targets Streamlit's internal element responsible for highlighting the active button */
+    .stSidebar button[data-testid="stSidebarNav"] div[data-testid="stVerticalBlock"] > div:nth-child(even) > div > button {
+        background-color: #007bff; /* Blue background for active button */
+        color: white; /* White text for active button */
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2); /* More pronounced shadow */
     }
-    
+
     /* Content Cards */
     .content-card {
         background-color: #ffffff;
@@ -851,8 +861,9 @@ if st.session_state['is_authenticated']:
         st.rerun()
 st.markdown('</div>', unsafe_allow_html=True)
 
-# Main title (only visible if not using custom header title)
-st.markdown("<h1 style='text-align: center; color: #333333; margin-top: 0; margin-bottom: 2rem;'>Discover Your Next Nostalgic Read!</h1>", unsafe_allow_html=True)
+# Main title that replaces Streamlit's default h1
+st.markdown("<h1 style='text-align: center; color: #333333; margin-top: 1rem; margin-bottom: 1.5rem; font-size: 2.5em; font-weight: 700; letter-spacing: -0.02em;'>Discover Your Next Nostalgic Read!</h1>", unsafe_allow_html=True)
+
 
 # --- Login / Register Section ---
 if not st.session_state['is_authenticated']:
@@ -951,9 +962,30 @@ if st.session_state['is_authenticated']:
             if label == "Decade Summary" and not st.session_state['current_user_decade']:
                 disabled_state = True # Disable if no decade is set
 
-            if st.button(label, key=f"sidebar_btn_{page_key}", disabled=disabled_state):
+            # Check if the current button is the active page
+            is_active = (st.session_state['current_page'] == page_key)
+            
+            # Apply custom class for active state
+            button_class = "active-nav-button" if is_active else ""
+
+            if st.button(label, key=f"sidebar_btn_{page_key}", disabled=disabled_state, help=f"Go to {label}"):
                 st.session_state['current_page'] = page_key
                 st.rerun() # Rerun to switch page
+            
+            # This is a workaround to apply the active class, as Streamlit doesn't directly support it on st.button
+            # It's less robust than direct CSS pseudo-classes but works by rerunning and applying a markdown class
+            # This part is illustrative, the actual active state CSS needs more complex targeting if direct st.button class application fails.
+            if is_active:
+                st.markdown(f"""
+                <style>
+                    button[data-testid="stSidebarNav"] > div > div > button[kind="secondary"].st-emotion-cache-k3g09m {{
+                        background-color: #007bff;
+                        color: white;
+                        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+                    }}
+                </style>
+                """, unsafe_allow_html=True)
+
 
     # --- Main Content Area Wrapper ---
     # This div will act as the "floating rectangle"
