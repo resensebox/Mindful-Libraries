@@ -8,7 +8,7 @@ from collections import Counter
 from openai import OpenAI
 from fpdf import FPDF
 from datetime import datetime, date
-from Google Search import Google Search # New import for Google Search
+from Google Search import Google Search # Corrected import for Google Search
 
 st.set_option('client.showErrorDetails', True)
 
@@ -818,7 +818,7 @@ def generate_location_based_activities(_ai_client, _Google Search_client, city, 
             model="gpt-3.5-turbo",
             messages=[{"role": "user", "content": prompt}]
         )
-        generated_activities = response.choices[0].message.strip().split('\n')
+        generated_activities = response.choices[0].message.content.strip().split('\n')
         clean_activities = [activity.strip() for activity in generated_activities if activity.strip()]
         return clean_activities[:10]
     except Exception as e:
@@ -949,7 +949,7 @@ if not st.session_state['is_authenticated']:
 else:
     # Sidebar navigation
     st.sidebar.image("https://i.ibb.co/q17Y0r7/Logo.png", use_column_width=True)
-    st.sidebar.title(f"Hello, {st.session_state['logged_in_username']}!")
+    st.sidebar.title(f"Hello, {st.session_state['logged_in_username']豪華}")
 
     if st.sidebar.button("Dashboard"):
         st.session_state['current_page'] = 'dashboard'
