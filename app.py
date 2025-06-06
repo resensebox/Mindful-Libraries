@@ -556,35 +556,50 @@ def save_user_input(name, jobs, hobbies, decade, selected_topics, volunteer_user
     try:
         sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXJRXcfmxjoj5s')
         log_ws = sheet.worksheet('Logs')
-        # Check if 'Volunteer Username', 'College Chapter', and 'Recommended Books (Titles)' columns exist, if not, add them
-        header_row = log_ws.row_values(1)
-        new_log_headers_to_add = []
-        if 'Volunteer Username' not in header_row:
-            new_log_headers_to_add.append('Volunteer Username')
-        if 'College Chapter' not in header_row:
-            new_log_headers_to_add.append('College Chapter')
-        if 'Recommended Books (Titles)' not in header_row: # New column for recommended titles
-            new_log_headers_to_add.append('Recommended Books (Titles)')
-
-        if new_log_headers_to_add:
-            log_ws.append_row(header_row + new_log_headers_to_add) # Append new headers
-            st.info(f"Added {', '.join(new_log_headers_to_add)} column(s) to 'Logs' worksheet.")
-            header_row = log_ws.row_values(1) # Reload headers after adding
-
-        # Prepare values to update, ensuring correct order based on header_row
-        log_col_map = {header_name: i for i, header_name in enumerate(header_row)}
-        log_update_values = [''] * len(header_row) # Initialize with empty strings
         
-        # Populate values based on mapped positions
+        # Define all expected headers in their desired order
+        expected_log_headers = [
+            'Timestamp', 'Name', 'Jobs', 'Life Experiences', 'Hobbies',
+            'Decade', 'Selected Topics', 'Volunteer Username', 'College Chapter', 'Recommended Books (Titles)'
+        ]
+
+        header_row = log_ws.row_values(1)
+        
+        # Identify and add missing headers
+        missing_headers = [h for h in expected_log_headers if h not in header_row]
+        if missing_headers:
+            # If header_row is empty or contains only empty strings, set it to expected_log_headers
+            if not header_row or not any(header_row.strip() for header in header_row):
+                log_ws.append_row(expected_log_headers)
+                st.info(f"Created all missing headers in 'Logs' worksheet: {', '.join(expected_log_headers)}.")
+            else:
+                # Find the next available column to append new headers
+                num_existing_columns = len(header_row)
+                # Append only the truly missing headers
+                log_ws.append_row([''] * num_existing_columns + missing_headers)
+                st.info(f"Added new column(s) to 'Logs' worksheet: {', '.join(missing_headers)}.")
+
+            # Reload headers after modification to ensure accurate column mapping
+            header_row = log_ws.row_values(1)
+
+
+        # Create a mapping from header name to its 0-based index
+        log_col_map = {header_name: i for i, header_name in enumerate(header_row)}
+        
+        # Prepare values to update, ensuring correct order and filling based on expected headers
+        log_update_values = [''] * len(header_row) 
+        
+        # Populate values based on mapped positions for all expected headers
         if 'Timestamp' in log_col_map: log_update_values[log_col_map['Timestamp']] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         if 'Name' in log_col_map: log_update_values[log_col_map['Name']] = name
         if 'Jobs' in log_col_map: log_update_values[log_col_map['Jobs']] = jobs
+        if 'Life Experiences' in log_col_map: log_update_values[log_col_map['Life Experiences']] = life_experiences
         if 'Hobbies' in log_col_map: log_update_values[log_col_map['Hobbies']] = hobbies
         if 'Decade' in log_col_map: log_update_values[log_col_map['Decade']] = decade
         if 'Selected Topics' in log_col_map: log_update_values[log_col_map['Selected Topics']] = ", ".join(selected_topics)
         if 'Volunteer Username' in log_col_map: log_update_values[log_col_map['Volunteer Username']] = volunteer_username
-        if 'College Chapter' in log_col_map: log_update_values[log_col_map['College Chapter']] = college_chapter # Save new field
-        if 'Recommended Books (Titles)' in log_col_map: # Save recommended titles if provided
+        if 'College Chapter' in log_col_map: log_update_values[log_col_map['College Chapter']] = college_chapter 
+        if 'Recommended Books (Titles)' in log_col_map:
             log_update_values[log_col_map['Recommended Books (Titles)']] = ", ".join(recommended_materials_titles) if recommended_materials_titles else ""
 
 
