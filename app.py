@@ -278,6 +278,9 @@ if 'current_user_decade' not in st.session_state:
 if 'current_user_college_chapter' not in st.session_state:
     st.session_state['current_user_college_chapter'] = ""
 
+# New session state for AI-generated session topic
+if 'generated_session_topic' not in st.session_state:
+    st.session_state['generated_session_topic'] = ""
 
 # Session state for session notes
 if 'session_date' not in st.session_state:
@@ -334,7 +337,52 @@ def load_pairs(volunteer_username):
     try:
         sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXJRXcfmxjoj5s')
         pairs_ws = sheet.worksheet('Pairs')
-        records = pairs_ws.get_all_records()
+        
+        # Get all values including headers
+        all_values = pairs_ws.get_all_values()
+        
+        if not all_values:
+            st.info("No data found in the 'Pairs' worksheet. The sheet might be empty or the data is not in the expected format.")
+            return pd.DataFrame().to_dict(orient='records') # Return empty dict for consistency
+
+        raw_headers = [str(h).strip() for h in all_values[0]]
+        
+        cleaned_headers = []
+        header_name_counts = Counter()
+        for header in raw_headers:
+            if not header:
+                header_name_counts['Unnamed'] += 1
+                cleaned_headers.append(f'Unnamed_{header_name_counts["Unnamed"]}')
+            elif header in cleaned_headers:
+                header_name_counts[header] += 1
+                cleaned_headers.append(f'{header}_{header_name_counts[header]}')
+            else:
+                cleaned_headers.append(header)
+
+        data_rows = all_values[1:]
+
+        # Create a DataFrame with cleaned headers
+        df_raw = pd.DataFrame(data_rows, columns=cleaned_headers)
+
+        # Define the exact expected headers for the final DataFrame
+        expected_headers = ['Pair Name', 'Jobs', 'Life Experiences', 'Hobbies', 'Decade', 'College Chapter', 'Volunteer Username']
+        
+        df_final = pd.DataFrame()
+        for col in expected_headers:
+            # Find the best match for the expected column name, considering potential numbered duplicates
+            found_col_name = None
+            for df_col in df_raw.columns:
+                if df_col == col or (df_col.startswith(f"{col}_") and df_col[len(col):].replace('_', '').isdigit()):
+                    found_col_name = df_col
+                    break
+            
+            if found_col_name and found_col_name in df_raw.columns:
+                df_final[col] = df_raw[found_col_name]
+            else:
+                df_final[col] = '' # Add missing column with empty string
+
+        records = df_final.to_dict(orient='records') # Convert DataFrame back to list of dictionaries
+
         for record in records:
             if record.get('Volunteer Username', '').lower() == volunteer_username.lower():
                 pair_name = record.get('Pair Name')
@@ -344,12 +392,12 @@ def load_pairs(volunteer_username):
                         'life_experiences': record.get('Life Experiences', ''),
                         'hobbies': record.get('Hobbies', ''),
                         'decade': record.get('Decade', ''),
-                        'college_chapter': record.get('College Chapter', '') # Load new field
+                        'college_chapter': record.get('College Chapter', '')
                     }
     except gspread.exceptions.WorksheetNotFound:
         st.warning("The 'Pairs' worksheet was not found. Please create a sheet named 'Pairs' with 'Pair Name', 'Jobs', 'Life Experiences', 'Hobbies', 'Decade', 'College Chapter', and 'Volunteer Username' columns.")
     except Exception as e:
-        st.error(f"Failed to load pair data. Error: {e}")
+        st.error(f"Failed to load pair data. Error: {e}. This often happens if there are empty or duplicate column headers in your 'Pairs' worksheet, or if the column names do not exactly match. Please ensure the first row of your 'Pairs' sheet contains unique and clear headers like 'Pair Name', 'Jobs', 'Life Experiences', 'Hobbies', 'Decade', 'College Chapter', 'Volunteer Username'. Also, check for any entirely blank leading columns that might be causing issues.")
     return pairs_dict
 
 # Load users and pairs at the start of the app (after client is authorized)
@@ -737,7 +785,79 @@ def generate_activities(_ai_client, active_tags, recommended_titles):
     except Exception as e:
         return [f"Could not generate activity suggestions at this time. Error: {e}"]
 
-def get_printable_summary(user_info, tags, books, newspapers, activities, volunteer_username):
+@st.cache_data(ttl=3600) # Cache the session topic for an hour
+def generate_session_topic(user_info, active_tags, _ai_client):
+    """Generates a cohesive session topic/theme based on user profile and active tags."""
+    profile_details = []
+    if user_info['name']: profile_details.append(f"Pair's Name: {user_info['name']}")
+    if user_info['jobs']: profile_details.append(f"Jobs: {user_info['jobs']}")
+    if user_info['life_experiences']: profile_details.append(f"Life Experiences: {user_info['life_experiences']}")
+    if user_info['hobbies']: profile_details.append(f"Hobbies: {user_info['hobbies']}")
+    if user_info['decade']: profile_details.append(f"Favorite Decade: {user_info['decade']}")
+    if user_info['college_chapter']: profile_details.append(f"College Chapter: {user_info['college_chapter']}")
+
+    prompt = f"""
+    You are a helpful assistant for a student volunteer working with an individual living with dementia.
+    Based on the following information about the individual and their interests, propose a cohesive and engaging session topic or theme.
+    This topic should serve as a central idea for a reading session, aimed at sparking positive memories and facilitating conversation.
+    Also, suggest 2-3 specific discussion points or sub-themes related to the main topic.
+
+    Individual's Profile:
+    {'\n'.join(profile_details) if profile_details else 'No specific profile details provided.'}
+
+    Key Interest Tags: {', '.join(active_tags) if active_tags else 'No specific tags selected.'}
+
+    Format your response as:
+    Main Session Topic: [Your proposed topic]
+    Discussion Points:
+    - [Point 1]
+    - [Point 2]
+    - [Point 3]
+    """
+    try:
+        response = _ai_client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": prompt}]
+        )
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        return f"Could not generate a session topic at this time. Error: {e}"
+
+@st.cache_data(ttl=3600) # Cache discussion prompts for an hour
+def generate_discussion_prompts(item, user_info, _ai_client):
+    """Generates discussion prompts for a specific recommended item."""
+    prompt = f"""
+    You are a helpful assistant for a student volunteer working with an individual living with dementia.
+    Given the details of a recommended reading material and the individual's profile, generate 3-5 open-ended discussion questions or prompts.
+    These prompts should encourage memory recall, personal anecdotes, and conversation related to the content, tailored to the individual's life experiences.
+
+    Individual's Profile:
+    Name: {user_info['name'] if user_info['name'] else 'Not provided'}
+    Job: {user_info['jobs'] if user_info['jobs'] else 'Not provided'}
+    Hobbies: {user_info['hobbies'] if user_info['hobbies'] else 'Not provided'}
+    Favorite Decade: {user_info['decade'] if user_info['decade'] else 'Not provided'}
+    Life Experiences: {user_info['life_experiences'] if user_info['life_experiences'] else 'Not provided'}
+    College Chapter: {user_info['college_chapter'] if user_info['college_chapter'] else 'Not provided'}
+
+    Recommended Item:
+    Title: {item.get('Title', 'N/A')}
+    Type: {item.get('Type', 'N/A')}
+    Summary: {item.get('Summary', 'N/A')}
+    Tags: {', '.join(item.get('tags', set()))}
+
+    Generate questions in a numbered list format. Each question should be clear and encourage reminiscing.
+    """
+    try:
+        response = _ai_client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": prompt}]
+        )
+        return response.choices[0].message.content.strip().split('\n')
+    except Exception as e:
+        return [f"Could not generate discussion prompts at this time. Error: {e}"]
+
+
+def get_printable_summary(user_info, tags, session_topic, books, newspapers, activities, volunteer_username):
     """Generates a formatted string summary for printing."""
     summary = f"--- Session Plan Summary for {user_info['name'] if user_info['name'] else 'Your Pair'} ---\n\n"
     summary += f"Date: {datetime.now().strftime('%Y-%m-%d')}\n"
@@ -751,6 +871,10 @@ def get_printable_summary(user_info, tags, books, newspapers, activities, volunt
 
 
     summary += f"Personalized Tags:\n- {', '.join(tags)}\n\n"
+    
+    if session_topic:
+        summary += f"Main Session Topic:\n{session_topic}\n\n"
+
 
     if books:
         summary += "Recommended Books:\n"
@@ -814,6 +938,7 @@ if st.session_state['is_authenticated']:
         st.session_state['selected_tags'] = []
         st.session_state['active_tags_for_filter'] = []
         st.session_state['tag_checkbox_states'] = {}
+        st.session_state['generated_session_topic'] = "" # Clear generated session topic
         st.session_state['session_date'] = date.today()
         st.session_state['session_mood'] = "Neutral 😐"
         st.session_state['session_engagement'] = "Moderately Engaged ⭐⭐"
@@ -854,6 +979,7 @@ if not st.session_state['is_authenticated']:
                     st.session_state['current_user_hobbies'] = ""
                     st.session_state['current_user_decade'] = ""
                     st.session_state['current_user_college_chapter'] = ""
+                    st.session_state['generated_session_topic'] = "" # Clear generated session topic
                     st.rerun()
                 else:
                     st.error("Invalid username or password")
@@ -886,6 +1012,7 @@ if not st.session_state['is_authenticated']:
                         st.session_state['current_user_hobbies'] = ""
                         st.session_state['current_user_decade'] = ""
                         st.session_state['current_user_college_chapter'] = ""
+                        st.session_state['generated_session_topic'] = "" # Clear generated session topic
                         st.rerun()
 
 # --- Main App Content (visible only if authenticated) ---
@@ -910,9 +1037,7 @@ if st.session_state['is_authenticated']:
         page_options = {
             "Dashboard": "dashboard",
             "Search Content": "search",
-            "My Recommendations": "recommendations",
-            "Activities": "activities",
-            "Related Materials": "related_books",
+            "Session Plan": "session_plan", # New unified page
             "Session Notes": "session_notes",
             "Session History": "session_history",
             "Decade Summary": "decade_summary",
@@ -923,6 +1048,10 @@ if st.session_state['is_authenticated']:
             disabled_state = False
             if label == "Decade Summary" and not st.session_state['current_user_decade']:
                 disabled_state = True # Disable if no decade is set
+            
+            # Disable Session Plan if no active pair or tags
+            if label == "Session Plan" and (not st.session_state['current_user_name'] or not st.session_state['active_tags_for_filter']):
+                disabled_state = True
 
             # Check if the current button is the active page
             is_active = (st.session_state['current_page'] == page_key)
@@ -1100,6 +1229,9 @@ if st.session_state['is_authenticated']:
                             st.session_state['active_tags_for_filter'] = list(st.session_state['selected_tags'])
                             st.success("✨ Tags generated!")
                             save_user_input(st.session_state['current_user_name'], st.session_state['current_user_jobs'], st.session_state['current_user_hobbies'], st.session_state['current_user_decade'], st.session_state['selected_tags'], st.session_state['logged_in_username'], st.session_state['current_user_college_chapter'])
+                            # Automatically navigate to Session Plan after generating tags
+                            st.session_state['current_page'] = 'session_plan'
+                            st.rerun()
                         except Exception as e:
                             st.error(f"Failed to generate tags using OpenAI. Please check your API key and try again. Error: {e}")
                     else:
@@ -1131,8 +1263,24 @@ if st.session_state['is_authenticated']:
 
                 if st.button("Apply Tag Filters & Update Recommendations", key="apply_filter_btn_dashboard"):
                     st.success("Recommendations updated based on your selected tags!")
+                
+                st.markdown("---")
+                st.subheader("🎯 Generate Session Topic:")
+                if st.button("Generate a Session Topic for this Pair", key="generate_session_topic_btn"):
+                    if st.session_state['current_user_name'] and st.session_state['active_tags_for_filter']:
+                        with st.spinner("Generating a unique session topic..."):
+                            topic = generate_session_topic(user_info, st.session_state['active_tags_for_filter'], client_ai)
+                            st.session_state['generated_session_topic'] = topic
+                            st.success("Session topic generated!")
+                    else:
+                        st.warning("Please ensure a Pair Name is entered and tags are selected to generate a session topic.")
+                
+                if st.session_state['generated_session_topic']:
+                    st.markdown(f"**Proposed Session Topic:**")
+                    st.info(st.session_state['generated_session_topic'])
 
-                st.markdown("Now, select 'My Recommendations' from the sidebar to view your tailored recommendations!")
+
+                st.markdown("Now, select 'Session Plan' from the sidebar to view your tailored recommendations and prepare for your session!")
 
     elif st.session_state['current_page'] == 'search':
         # Removed the custom anchor tag: st.markdown('<a name="search_section"></a>', unsafe_allow_html=True)
@@ -1215,13 +1363,33 @@ if st.session_state['is_authenticated']:
             else:
                 st.info(f"No results found for '{search_term}' or its related tags. Try a different keyword or explore the personalized recommendations below.")
 
-    elif st.session_state['current_page'] == 'recommendations':
-        # Removed the custom anchor tag: st.markdown('<a name="personalized_recommendations"></a>', unsafe_allow_html=True)
-        st.header(f"📚 Personalized Recommendations for You!")
+    elif st.session_state['current_page'] == 'session_plan':
+        st.header("✨ Your Personalized Session Plan!")
 
-        if not st.session_state['active_tags_for_filter']:
-            st.info("Please generate personalized tags on the Dashboard first to see recommendations.")
+        if not st.session_state['current_user_name'] or not st.session_state['active_tags_for_filter']:
+            st.info("Please set up a 'Pair's Name' and generate 'Personalized Tags' on the Dashboard to create a session plan.")
         else:
+            st.subheader(f"Session Plan for: **{st.session_state['current_user_name']}**")
+            st.markdown(f"**Volunteer:** {st.session_state['logged_in_username']}")
+            st.markdown(f"**Personalized Tags:** {', '.join(st.session_state['active_tags_for_filter'])}")
+            
+            st.markdown("---")
+            st.subheader("🎯 Main Session Topic:")
+            if not st.session_state['generated_session_topic']:
+                if st.button("Generate Session Topic", key="generate_session_topic_from_plan"):
+                    with st.spinner("Generating a unique session topic..."):
+                        topic = generate_session_topic(user_info, st.session_state['active_tags_for_filter'], client_ai)
+                        st.session_state['generated_session_topic'] = topic
+                        st.success("Session topic generated!")
+            
+            if st.session_state['generated_session_topic']:
+                st.info(st.session_state['generated_session_topic'])
+            else:
+                st.info("Click 'Generate Session Topic' above to get a central theme for your session.")
+
+            st.markdown("---")
+            st.subheader("📚 Recommended Materials:")
+            
             feedback_tag_scores = load_feedback_tag_scores()
             books_candidates = []
             newspapers_candidates = []
@@ -1250,7 +1418,6 @@ if st.session_state['is_authenticated']:
 
             if books or newspapers:
                 for item in books + newspapers:
-                    # Only render content if it has a meaningful title OR meaningful summary/image/URL
                     has_content = (
                         bool(item.get('Title', '').strip()) or
                         bool(item.get('Summary', '').strip()) or
@@ -1258,12 +1425,11 @@ if st.session_state['is_authenticated']:
                         bool(item.get('URL', '').strip())
                     )
                     if has_content:
-                        # Removed the custom 'content-card' div
+                        st.markdown("---")
                         cols = st.columns([1, 2])
                         with cols[0]:
-                            img_url = get_image_url(item) # Use the new helper function
-                            # Removed the custom 'content-card-image-col' div
-                            st.image(img_url, width=180) # Always display image using the determined URL
+                            img_url = get_image_url(item)
+                            st.image(img_url, width=180)
 
                         with cols[1]:
                             display_title = item.get('Title', '').strip()
@@ -1271,13 +1437,13 @@ if st.session_state['is_authenticated']:
                             if display_title:
                                 st.markdown(f"### {display_title} ({display_type if display_type else 'N/A'})")
                             else:
-                                st.markdown("### _No Title Available_") # Explicit message
+                                st.markdown("### _No Title Available_")
 
                             summary_to_display = item.get('Summary', '').strip()
                             if summary_to_display:
                                 st.markdown(summary_to_display)
                             else:
-                                st.markdown("_No summary available._") # Explicit message
+                                st.markdown("_No summary available._")
 
                             original_tag_matches = item.get('tags', set()) & set(st.session_state['active_tags_for_filter'])
                             if original_tag_matches:
@@ -1289,6 +1455,12 @@ if st.session_state['is_authenticated']:
                                 with st.spinner("Generating personalized insights..."):
                                     explanation = generate_recommendation_explanation(item, user_info, st.session_state['active_tags_for_filter'], client_ai)
                                     st.markdown(explanation)
+                            
+                            with st.expander("Spark Conversation: Discussion Prompts"):
+                                with st.spinner("Generating discussion prompts..."):
+                                    prompts = generate_discussion_prompts(item, user_info, client_ai)
+                                    for prompt_text in prompts:
+                                        st.markdown(prompt_text)
 
                             feedback_key = f"feedback_{item.get('Title', 'NoTitle')}_{item.get('Type', 'NoType')}"
                             feedback = st.radio(
@@ -1300,12 +1472,11 @@ if st.session_state['is_authenticated']:
 
                             if feedback != "Select an option" and not st.session_state.get(f"feedback_submitted_{feedback_key}", False):
                                 try:
-                                    # Corrected Google Sheet URL for feedback
                                     sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXJRXcfmxjoj5s')
                                     feedback_ws = sheet.worksheet('Feedback')
                                     feedback_ws.append_row([
                                         datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                                        st.session_state['current_user_name'], # Use the current pair's name
+                                        st.session_state['current_user_name'],
                                         item.get('Title', 'N/A'),
                                         item.get('Type', 'N/A'),
                                         feedback,
@@ -1323,158 +1494,88 @@ if st.session_state['is_authenticated']:
             else:
                 st.markdown("_No primary recommendations found based on your current tags. Please try adjusting your input or generating new tags._")
 
-    
-    elif st.session_state['current_page'] == 'activities':
-        st.header("💡 Recommended Activities:")
-
-        recommended_titles_for_activities = [item.get('Title', 'N/A') for item in st.session_state['recommended_books_current_session'] + st.session_state['recommended_newspapers_current_session']]
-
-        with st.spinner("Generating activity suggestions..."):
-            activities = generate_activities(client_ai, st.session_state['active_tags_for_filter'], recommended_titles_for_activities)
-            for i, activity in enumerate(activities):
-                st.markdown(f"{activity}")
-
-                if any(keyword in activity.lower() for keyword in ['bake', 'cookies', 'cake', 'brownies', 'cook']):
-                    recipe = """**Cookie Baking Guide**
-
-**Shopping List:**
-- 2 1/4 cups all-purpose flour
-- 1 tsp baking soda
-- 1 tsp salt
-- 1 cup (2 sticks) butter, softened
-- 3/4 cup sugar
-- 3/4 cup brown sugar
-- 1 tsp vanilla extract
-- 2 large eggs
-- 2 cups chocolate chips
-
-**Steps:**
-1. Preheat oven to 375°F (190°C).
-2. Combine flour, baking soda, and salt in a small bowl.
-3. Beat butter, sugar, brown sugar, and vanilla in a large bowl.
-4. Add eggs one at a time, beating well after each.
-5. Gradually mix in flour mixture. Stir in chocolate chips.
-6. Drop by rounded tablespoons onto baking sheets.
-7. Bake for 9-11 minutes or until golden brown.
-8. Cool on baking sheets for 2 minutes, then transfer to wire racks.
-"""
-                    st.download_button(
-                        label="🍪 Download Cookie Recipe + Shopping List",
-                        data=recipe,
-                        file_name=f"cookie_recipe_{i+1}.txt",
-                        mime="text/plain"
-                    )
-
-        st.markdown("---")
-        if st.button("Prepare Printable Session Summary", key="printable_summary_btn_activities"):
-            st.session_state['show_printable_summary'] = True
-
-        if st.session_state['show_printable_summary']:
-            st.subheader("📄 Printable Session Summary:")
-            printable_summary_content = get_printable_summary(user_info, st.session_state['active_tags_for_filter'], st.session_state['recommended_books_current_session'], st.session_state['recommended_newspapers_current_session'], activities, st.session_state['logged_in_username'])
-            st.text_area("Copy and Print Your Session Plan", value=printable_summary_content, height=300, key="printable_summary_text_activities")
-            st.info("You can copy the text above and paste it into a document for printing.")
-            st.session_state['show_printable_summary'] = False
-
-            st.subheader("📄 Printable Session Summary:")
-            printable_summary_content = get_printable_summary(user_info, st.session_state['active_tags_for_filter'], st.session_state['recommended_books_current_session'], st.session_state['recommended_newspapers_current_session'], activities, st.session_state['logged_in_username'])
-            st.text_area("Copy and Print Your Session Plan", value=printable_summary_content, height=300, key="printable_summary_text_activities")
-            st.info("You can copy the text above and paste it into a document for printing.")
-            st.session_state['show_printable_summary'] = False
-
-
-    
-    elif st.session_state['current_page'] == 'related_books':
-        st.header("📖 You Might Also Like:")
-
-        feedback_tag_scores = load_feedback_tag_scores()
-        primary_recommended_titles = {item.get('Title') for item in st.session_state['recommended_books_current_session'] + st.session_state['recommended_newspapers_current_session'] if item.get('Title')}
-
-        related_books = []
-        all_relevant_tags = set(st.session_state['active_tags_for_filter'])
-        for item in st.session_state['recommended_books_current_session'] + st.session_state['recommended_newspapers_current_session']:
-            all_relevant_tags.update(item.get('tags', set()))
-
-        temp_related_books_candidates = []
-        for item in content_df.to_dict('records'):
-            if item.get('Title') not in primary_recommended_titles and item.get('Type', '').lower() == 'book':
-                common_tags = set(item.get('tags', set())) & all_relevant_tags
-                if len(common_tags) > 0:
-                    temp_related_books_candidates.append((len(common_tags), item))
-
-        temp_related_books_candidates.sort(key=lambda x: x[0], reverse=True)
-        related_books = [book_dict for _, book_dict in temp_related_books_candidates][:10]
-
-        if related_books:
-            st.markdown("Based on your interests, here are a few more materials you might enjoy.")
-            for book in related_books:
-                has_content = (
-                    bool(book.get('Title', '').strip()) or
-                    bool(book.get('Summary', '').strip()) or
-                    bool(book.get('Image', '').strip()) or
-                    bool(book.get('URL', '').strip())
-                )
-                if has_content:
-                    st.markdown("---")
-                    cols = st.columns([1, 3])
-                    with cols[0]:
-                        img_url = get_image_url(book)
-                        st.image(img_url, width=120)
-                    with cols[1]:
-                        display_title = book.get('Title', '').strip()
-                        display_summary = book.get('Summary', '').strip()
-                        st.markdown(f"### {display_title if display_title else '_No Title Available_'}")
-                        if display_summary:
-                            st.markdown(display_summary)
-
-                        matched_tags = set(book.get('tags', set())) & set(st.session_state['active_tags_for_filter'])
-                        if matched_tags:
-                            st.markdown(f"**Why this was recommended:** Matched tags — **{', '.join(matched_tags)}**")
-
-                        with st.expander("💡 Why this recommendation is great for your pair:", expanded=True):
-                            with st.spinner("Generating insights..."):
-                                explanation = generate_recommendation_explanation(book, user_info, st.session_state['active_tags_for_filter'], client_ai)
-                                st.markdown(explanation)
-
-                        if 'URL' in book and book['URL']:
-                            st.markdown(f"<a class='buy-button' href='{book['URL']}' target='_blank'>Buy Now</a>", unsafe_allow_html=True)
-        else:
-            st.markdown("_No other related materials found with your current tags. Try adding more details or updating your preferences._")
-
-            st.markdown("_No other related materials found with your current tags. Try generating new tags or searching for a specific topic!_") # Changed text here
             st.markdown("---")
-            st.subheader("✨ Or, explore some popular titles:")
-            st.markdown("Here are some widely appreciated books to get you started.")
-            if not content_df.empty and 'Type' in content_df.columns:
-                fallback_books_df = content_df[content_df['Type'].str.lower() == 'book']
-                if not fallback_books_df.empty:
-                    num_cols_fallback = st.columns(min(5, len(fallback_books_df)))
-                    for i, book in enumerate(fallback_books_df.sample(min(5, len(fallback_books_df)), random_state=1).to_dict('records')):
-                        # Only render content if it has a meaningful title OR meaningful summary/image/URL
-                        has_content = (
-                            bool(book.get('Title', '').strip()) or
-                            bool(book.get('Summary', '').strip()) or
-                            bool(book.get('Image', '').strip()) or
-                            bool(book.get('URL', '').strip())
-                        )
-                        if has_content:
-                            with num_cols_fallback[i % len(num_cols_fallback)]:
-                                # Removed the custom 'content-card' div
-                                img_url = get_image_url(book) # Use the new helper function
-                                st.image(img_url, width=120) # Always display image using the determined URL
-                                
-                                display_title = book.get('Title', '').strip()
-                                if display_title:
-                                    st.caption(display_title)
-                                else:
-                                    st.caption("_No Title Available_") # Explicit message
+            st.subheader("📖 You Might Also Like (Related Materials):")
 
-                                if 'URL' in book and book['URL']:
-                                    st.markdown(f"<a class='buy-button' href='{book['URL']}' target='_blank'>Buy Now</a>", unsafe_allow_html=True)
-                else:
-                    st.markdown("_No books available in the database to recommend._")
+            primary_recommended_titles = {item.get('Title') for item in st.session_state['recommended_books_current_session'] + st.session_state['recommended_newspapers_current_session'] if item.get('Title')}
+            related_books = []
+            all_relevant_tags = set(st.session_state['active_tags_for_filter'])
+            for item in st.session_state['recommended_books_current_session'] + st.session_state['recommended_newspapers_current_session']:
+                all_relevant_tags.update(item.get('tags', set()))
+
+            temp_related_books_candidates = []
+            for item in content_df.to_dict('records'):
+                if item.get('Title') not in primary_recommended_titles and item.get('Type', '').lower() == 'book':
+                    common_tags = set(item.get('tags', set())) & all_relevant_tags
+                    if len(common_tags) > 0:
+                        temp_related_books_candidates.append((len(common_tags), item))
+
+            temp_related_books_candidates.sort(key=lambda x: x[0], reverse=True)
+            related_books = [book_dict for _, book_dict in temp_related_books_candidates][:5] # Limit to 5 for brevity on combined page
+
+            if related_books:
+                st.markdown("Based on your interests, here are a few more materials you might enjoy:")
+                for book in related_books:
+                    has_content = (
+                        bool(book.get('Title', '').strip()) or
+                        bool(book.get('Summary', '').strip()) or
+                        bool(book.get('Image', '').strip()) or
+                        bool(book.get('URL', '').strip())
+                    )
+                    if has_content:
+                        st.markdown("---")
+                        cols = st.columns([1, 3])
+                        with cols[0]:
+                            img_url = get_image_url(book)
+                            st.image(img_url, width=120)
+                        with cols[1]:
+                            display_title = book.get('Title', '').strip()
+                            display_summary = book.get('Summary', '').strip()
+                            st.markdown(f"### {display_title if display_title else '_No Title Available_'}")
+                            if display_summary:
+                                st.markdown(display_summary)
+
+                            matched_tags = set(book.get('tags', set())) & set(st.session_state['active_tags_for_filter'])
+                            if matched_tags:
+                                st.markdown(f"**Why this was recommended:** Matched tags — **{', '.join(matched_tags)}**")
+
+                            with st.expander("💡 Why this recommendation is great for your pair:"):
+                                with st.spinner("Generating insights..."):
+                                    explanation = generate_recommendation_explanation(book, user_info, st.session_state['active_tags_for_filter'], client_ai)
+                                    st.markdown(explanation)
+                            
+                            with st.expander("Spark Conversation: Discussion Prompts"):
+                                with st.spinner("Generating discussion prompts..."):
+                                    prompts = generate_discussion_prompts(book, user_info, client_ai)
+                                    for prompt_text in prompts:
+                                        st.markdown(prompt_text)
+
+                            if 'URL' in book and book['URL']:
+                                st.markdown(f"<a class='buy-button' href='{book['URL']}' target='_blank'>Buy Now</a>", unsafe_allow_html=True)
             else:
-                st.markdown("_No books available in the database to recommend._")
+                st.markdown("_No other related materials found with your current tags. Try generating new tags or searching for a specific topic!_")
+
+            st.markdown("---")
+            st.subheader("💡 Recommended Activities:")
+            recommended_titles_for_activities = [item.get('Title', 'N/A') for item in st.session_state['recommended_books_current_session'] + st.session_state['recommended_newspapers_current_session']]
+
+            with st.spinner("Generating activity suggestions..."):
+                activities = generate_activities(client_ai, st.session_state['active_tags_for_filter'], recommended_titles_for_activities)
+                for activity in activities:
+                    st.markdown(activity)
+            
+            st.markdown("---")
+            if st.button("Prepare Printable Session Summary", key="printable_summary_btn_session_plan"):
+                st.session_state['show_printable_summary'] = True
+
+            if st.session_state['show_printable_summary']:
+                st.subheader("📄 Printable Session Summary:")
+                printable_summary_content = get_printable_summary(user_info, st.session_state['active_tags_for_filter'], st.session_state['generated_session_topic'], st.session_state['recommended_books_current_session'], st.session_state['recommended_newspapers_current_session'], activities, st.session_state['logged_in_username'])
+                st.text_area("Copy and Print Your Session Plan", value=printable_summary_content, height=300, key="printable_summary_text_session_plan")
+                st.info("You can copy the text above and paste it into a document for printing.")
+                # After displaying, reset this to allow regenerating if needed later
+                st.session_state['show_printable_summary'] = False
+
 
     elif st.session_state['current_page'] == 'session_notes':
         # Removed the custom anchor tag: st.markdown('<a name="session_notes_section"></a>', unsafe_allow_html=True)
@@ -1488,7 +1589,7 @@ if st.session_state['is_authenticated']:
             session_mood = st.radio(
                 "Pair's Overall Mood During Session:",
                 ["Happy 😊", "Calm 😌", "Neutral 😐", "Agitated 😠", "Sad 😢"],
-                index=["Happy 😊", "Calm 😌", "Neutral 😐", "Agitated �", "Sad 😢"].index(st.session_state['session_mood']),
+                index=["Happy 😊", "Calm 😌", "Neutral 😐", "Agitated 😠", "Sad 😢"].index(st.session_state['session_mood']),
                 key="session_mood_input"
             )
             st.session_state['session_mood'] = session_mood
@@ -1579,4 +1680,3 @@ if st.session_state['is_authenticated']:
                 st.info(historical_context)
         else:
             st.info("Please set a 'Favorite Decade' in the Pair Profile to view a historical summary.")
-
