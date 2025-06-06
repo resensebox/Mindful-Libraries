@@ -930,7 +930,7 @@ if not st.session_state['is_authenticated']:
 else:
     # Sidebar navigation
     st.sidebar.image("https://i.ibb.co/q17Y0r7/Logo.png", use_column_width=True)
-    st.sidebar.title(f"Hello, {st.session_state['logged_in_username']豪華}")
+    st.sidebar.title(f"Hello, {st.session_state['logged_in_username']}")
 
     if st.sidebar.button("Dashboard"):
         st.session_state['current_page'] = 'dashboard'
