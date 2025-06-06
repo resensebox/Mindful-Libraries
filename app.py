@@ -1217,9 +1217,13 @@ if st.session_state['is_authenticated']:
 
             if results:
                 for item in results[:5]:
-                    # Only render content-card if there's meaningful content (stricter check)
-                    if item.get('Title', '').strip() and \
-                       (item.get('Summary', '').strip() or item.get('Image', '').strip() or item.get('URL', '').strip()):
+                    # Only render content-card if it has a meaningful title OR meaningful summary/image/URL
+                    has_title = bool(item.get('Title', '').strip())
+                    has_summary = bool(item.get('Summary', '').strip())
+                    has_image = bool(item.get('Image', '').strip())
+                    has_url = bool(item.get('URL', '').strip())
+
+                    if has_title or has_summary or has_image or has_url: # Render if any content exists
                         st.markdown('<div class="content-card">', unsafe_allow_html=True) # Start card
                         cols = st.columns([1, 2])
                         with cols[0]:
@@ -1229,8 +1233,19 @@ if st.session_state['is_authenticated']:
                             st.markdown('</div>', unsafe_allow_html=True) # End content-card-image-col
 
                         with cols[1]:
-                            st.markdown(f"### {item.get('Title', 'N/A')} ({item.get('Type', 'N/A')})")
-                            st.markdown(item.get('Summary', 'N/A'))
+                            display_title = item.get('Title', '').strip()
+                            display_type = item.get('Type', '').strip()
+                            if display_title:
+                                st.markdown(f"### {display_title} ({display_type if display_type else 'N/A'})")
+                            else:
+                                st.markdown("### _No Title Available_") # Explicit message
+
+                            summary_to_display = item.get('Summary', '').strip()
+                            if summary_to_display:
+                                st.markdown(summary_to_display)
+                            else:
+                                st.markdown("_No summary available._") # Explicit message
+
                             item_tags_display = item.get('tags', set())
                             if item_tags_display:
                                  st.markdown(f"_Tags: {', '.join(item_tags_display)}_")
@@ -1278,9 +1293,13 @@ if st.session_state['is_authenticated']:
 
             if books or newspapers:
                 for item in books + newspapers:
-                    # Only render content-card if there's meaningful content (stricter check)
-                    if item.get('Title', '').strip() and \
-                       (item.get('Summary', '').strip() or item.get('Image', '').strip() or item.get('URL', '').strip()):
+                    # Only render content-card if it has a meaningful title OR meaningful summary/image/URL
+                    has_title = bool(item.get('Title', '').strip())
+                    has_summary = bool(item.get('Summary', '').strip())
+                    has_image = bool(item.get('Image', '').strip())
+                    has_url = bool(item.get('URL', '').strip())
+
+                    if has_title or has_summary or has_image or has_url: # Render if any content exists
                         st.markdown('<div class="content-card">', unsafe_allow_html=True) # Start card
                         cols = st.columns([1, 2])
                         with cols[0]:
@@ -1290,8 +1309,19 @@ if st.session_state['is_authenticated']:
                             st.markdown('</div>', unsafe_allow_html=True) # End content-card-image-col
 
                         with cols[1]:
-                            st.markdown(f"### {item.get('Title', 'N/A')} ({item.get('Type', 'N/A')})")
-                            st.markdown(item.get('Summary', 'N/A'))
+                            display_title = item.get('Title', '').strip()
+                            display_type = item.get('Type', '').strip()
+                            if display_title:
+                                st.markdown(f"### {display_title} ({display_type if display_type else 'N/A'})")
+                            else:
+                                st.markdown("### _No Title Available_") # Explicit message
+
+                            summary_to_display = item.get('Summary', '').strip()
+                            if summary_to_display:
+                                st.markdown(summary_to_display)
+                            else:
+                                st.markdown("_No summary available._") # Explicit message
+
                             original_tag_matches = item.get('tags', set()) & set(st.session_state['active_tags_for_filter'])
                             if original_tag_matches:
                                  st.markdown(f"**Why this was recommended:** Matched tags — **{', '.join(original_tag_matches)}**")
@@ -1391,15 +1421,24 @@ if st.session_state['is_authenticated']:
             num_cols = min(5, len(related_books))
             cols = st.columns(num_cols)
             for i, book in enumerate(related_books):
-                # Only render content-card if there's meaningful content (stricter check)
-                if book.get('Title', '').strip() and \
-                   (book.get('Summary', '').strip() or book.get('Image', '').strip() or book.get('URL', '').strip()):
+                # Only render content-card if it has a meaningful title OR meaningful summary/image/URL
+                has_title = bool(item.get('Title', '').strip())
+                has_summary = bool(item.get('Summary', '').strip())
+                has_image = bool(item.get('Image', '').strip())
+                has_url = bool(item.get('URL', '').strip())
+
+                if has_title or has_summary or has_image or has_url: # Render if any content exists
                     # Using a column for each related book to arrange them in a grid-like manner
                     with cols[i % num_cols]:
                         st.markdown('<div class="content-card" style="padding: 1rem; margin-bottom: 1rem; height: auto;">', unsafe_allow_html=True) # Smaller card for related books, auto height
                         img_url = get_image_url(book) # Use the new helper function
                         st.image(img_url, width=120) # Always display image using the determined URL
-                        st.caption(book.get('Title', 'N/A'))
+                        
+                        display_title = book.get('Title', '').strip()
+                        if display_title:
+                            st.caption(display_title)
+                        else:
+                            st.caption("_No Title Available_") # Explicit message
 
                         with st.expander("Why this recommendation is great for your pair:"):
                             with st.spinner("Generating personalized insights..."):
@@ -1419,14 +1458,24 @@ if st.session_state['is_authenticated']:
                 if not fallback_books_df.empty:
                     num_cols_fallback = st.columns(min(5, len(fallback_books_df)))
                     for i, book in enumerate(fallback_books_df.sample(min(5, len(fallback_books_df)), random_state=1).to_dict('records')):
-                        # Only render content-card if there's meaningful content (stricter check)
-                        if book.get('Title', '').strip() and \
-                           (book.get('Summary', '').strip() or book.get('Image', '').strip() or book.get('URL', '').strip()):
+                        # Only render content-card if it has a meaningful title OR meaningful summary/image/URL
+                        has_title = bool(item.get('Title', '').strip())
+                        has_summary = bool(item.get('Summary', '').strip())
+                        has_image = bool(item.get('Image', '').strip())
+                        has_url = bool(item.get('URL', '').strip())
+
+                        if has_title or has_summary or has_image or has_url: # Render if any content exists
                             with num_cols_fallback[i % len(num_cols_fallback)]:
                                 st.markdown('<div class="content-card" style="padding: 1rem; margin-bottom: 1rem; height: auto;">', unsafe_allow_html=True) # Smaller card for fallback books, auto height
                                 img_url = get_image_url(book) # Use the new helper function
                                 st.image(img_url, width=120) # Always display image using the determined URL
-                                st.caption(book.get('Title', 'N/A'))
+                                
+                                display_title = book.get('Title', '').strip()
+                                if display_title:
+                                    st.caption(display_title)
+                                else:
+                                    st.caption("_No Title Available_") # Explicit message
+
                                 if 'URL' in book and book['URL']:
                                     st.markdown(f"<a class='buy-button' href='{book['URL']}' target='_blank'>Buy Now</a>", unsafe_allow_html=True)
                                 st.markdown('</div>', unsafe_allow_html=True) # End content-card
@@ -1447,7 +1496,7 @@ if st.session_state['is_authenticated']:
             session_mood = st.radio(
                 "Pair's Overall Mood During Session:",
                 ["Happy 😊", "Calm 😌", "Neutral 😐", "Agitated 😠", "Sad 😢"],
-                index=["Happy 😊", "Calm 😌", "Neutral 😐", "Agitated 😠", "Sad 😢"].index(st.session_state['session_mood']),
+                index=["Happy 😊", "Calm 😌", "Neutral 😐", "Agitated �", "Sad 😢"].index(st.session_state['session_mood']),
                 key="session_mood_input"
             )
             st.session_state['session_mood'] = session_mood
@@ -1541,3 +1590,4 @@ if st.session_state['is_authenticated']:
 
     # --- End of Main Content Area Wrapper ---
     st.markdown('</div>', unsafe_allow_html=True)
+�
