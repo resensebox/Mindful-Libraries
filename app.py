@@ -159,7 +159,6 @@ if 'tag_checkbox_states' not in st.session_state:
     st.session_state['tag_checkbox_states'] = {}
 
 # --- Pair Management Session State ---
-# 'selected_pair_name' no longer serves a direct selection purpose in the UI
 if 'current_user_name' not in st.session_state: # This will now be the pair's name
     st.session_state['current_user_name'] = ""
 if 'current_user_jobs' not in st.session_state:
@@ -170,7 +169,6 @@ if 'current_user_hobbies' not in st.session_state:
     st.session_state['current_user_hobbies'] = ""
 if 'current_user_decade' not in st.session_state:
     st.session_state['current_user_decade'] = ""
-# New session state for college chapter
 if 'current_user_college_chapter' not in st.session_state:
     st.session_state['current_user_college_chapter'] = ""
 
@@ -757,68 +755,81 @@ if st.session_state['is_authenticated']:
     st.markdown("---")
     st.header("👥 Manage Your Pair's Profile:")
 
+    # Callback function to load existing pair data when pair name input changes
+    def load_existing_pair_data_callback():
+        typed_pair_name = st.session_state.get('pair_name_input_external', '').strip()
+        if typed_pair_name and typed_pair_name in PAIRS_DATA:
+            pair_info = PAIRS_DATA[typed_pair_name]
+            st.session_state['current_user_name'] = typed_pair_name
+            st.session_state['current_user_jobs'] = pair_info.get('jobs', '')
+            st.session_state['current_user_life_experiences'] = pair_info.get('life_experiences', '')
+            st.session_state['current_user_hobbies'] = pair_info.get('hobbies', '')
+            st.session_state['current_user_decade'] = pair_info.get('decade', '')
+            st.session_state['current_user_college_chapter'] = pair_info.get('college_chapter', '')
+        elif typed_pair_name: # If a new name is typed, clear other fields
+            if st.session_state['current_user_name'] != typed_pair_name: # Only clear if name actually changed to a new one
+                st.session_state['current_user_jobs'] = ""
+                st.session_state['current_user_life_experiences'] = ""
+                st.session_state['current_user_hobbies'] = ""
+                st.session_state['current_user_decade'] = ""
+                st.session_state['current_user_college_chapter'] = ""
+            st.session_state['current_user_name'] = typed_pair_name # Update current_user_name with the typed name
+        else: # Clear all if input is empty
+            st.session_state['current_user_name'] = ""
+            st.session_state['current_user_jobs'] = ""
+            st.session_state['current_user_life_experiences'] = ""
+            st.session_state['current_user_hobbies'] = ""
+            st.session_state['current_user_decade'] = ""
+            st.session_state['current_user_college_chapter'] = ""
+
+    # External text input for Pair's Name
+    pair_name_input_external = st.text_input(
+        "Enter Pair's Name (e.g., 'Grandma Smith', 'John Doe')",
+        value=st.session_state['current_user_name'],
+        key="pair_name_input_external",
+        on_change=load_existing_pair_data_callback, # Callback is now allowed here
+        help="Type a name to load existing details or create a new profile."
+    )
+    # Ensure current_user_name always reflects the external input
+    st.session_state['current_user_name'] = pair_name_input_external
+
+
     # Display the pair details input form within an expander that is always expanded
     with st.expander("✨ Pair Profile Details", expanded=True):
         st.subheader("Edit Pair Profile")
-        st.info("Enter the pair's name. If the name exists, their details will load. Otherwise, you're creating a new profile.")
+        st.info("Complete the details below for the active pair. Click 'Save Pair Details' to update.")
 
         with st.form("pair_details_form"):
-            # Use a callback for on_change of pair_name_input to load existing data
-            def load_existing_pair_data():
-                typed_pair_name = st.session_state.get('pair_name_input', '').strip()
-                if typed_pair_name and typed_pair_name in PAIRS_DATA:
-                    pair_info = PAIRS_DATA[typed_pair_name]
-                    st.session_state['current_user_name'] = typed_pair_name
-                    st.session_state['current_user_jobs'] = pair_info.get('jobs', '')
-                    st.session_state['current_user_life_experiences'] = pair_info.get('life_experiences', '')
-                    st.session_state['current_user_hobbies'] = pair_info.get('hobbies', '')
-                    st.session_state['current_user_decade'] = pair_info.get('decade', '')
-                    st.session_state['current_user_college_chapter'] = pair_info.get('college_chapter', '')
-                elif typed_pair_name: # If a new name is typed, clear other fields
-                    if st.session_state['current_user_name'] != typed_pair_name: # Only clear if name actually changed to a new one
-                        st.session_state['current_user_jobs'] = ""
-                        st.session_state['current_user_life_experiences'] = ""
-                        st.session_state['current_user_hobbies'] = ""
-                        st.session_state['current_user_decade'] = ""
-                        st.session_state['current_user_college_chapter'] = ""
-                    st.session_state['current_user_name'] = typed_pair_name # Update current_user_name with the typed name
-
-            pair_name_input = st.text_input(
-                "Pair's Name (Required)",
-                value=st.session_state['current_user_name'],
-                key="pair_name_input",
-                on_change=load_existing_pair_data # Load data when name changes
-            )
-            
-            jobs_input = st.text_input("What did they used to do for a living? (e.g., Teacher, Engineer, Homemaker)", value=st.session_state['current_user_jobs'], key="pair_jobs_input")
-            life_experiences_input = st.text_input("What are some significant life experiences or memorable events they often talk about? (e.g., specific projects at work, historical events they lived through, family milestones)", value=st.session_state['current_user_life_experiences'], key="pair_life_experiences_input")
-            hobbies_input = st.text_input("What are their hobbies or favorite activities? (e.g., Gardening, Reading, Music, Sports)", value=st.session_state['current_user_hobbies'], key="pair_hobbies_input")
-            decade_input = st.text_input("What is their favorite decade or era? (e.g., 1950s, 1970s, Victorian era)", value=st.session_state['current_user_decade'], key="pair_decade_input")
-            college_chapter_input = st.text_input("College Chapter (e.g., Alpha Beta Gamma, 1965-1969)", value=st.session_state['current_user_college_chapter'], key="pair_college_chapter_input")
+            # Use current_user_name (from external input) as initial value, and update on form submission
+            jobs_input = st.text_input("What did they used to do for a living? (e.g., Teacher, Engineer, Homemaker)", value=st.session_state['current_user_jobs'], key="form_pair_jobs_input")
+            life_experiences_input = st.text_input("What are some significant life experiences or memorable events they often talk about? (e.g., specific projects at work, historical events they lived through, family milestones)", value=st.session_state['current_user_life_experiences'], key="form_pair_life_experiences_input")
+            hobbies_input = st.text_input("What are their hobbies or favorite activities? (e.g., Gardening, Reading, Music, Sports)", value=st.session_state['current_user_hobbies'], key="form_pair_hobbies_input")
+            decade_input = st.text_input("What is their favorite decade or era? (e.g., 1950s, 1970s, Victorian era)", value=st.session_state['current_user_decade'], key="form_pair_decade_input")
+            college_chapter_input = st.text_input("College Chapter (e.g., Alpha Beta Gamma, 1965-1969)", value=st.session_state['current_user_college_chapter'], key="form_pair_college_chapter_input")
 
 
             save_pair_button = st.form_submit_button("Save Pair Details")
 
             if save_pair_button:
-                if not pair_name_input:
-                    st.error("Pair's Name is required.")
+                if not st.session_state['current_user_name']: # Check the external input's value
+                    st.error("Pair's Name is required. Please enter a name in the field above the 'Pair Profile Details' section.")
                 else:
                     if save_pair_details(
                         st.session_state['logged_in_username'],
-                        pair_name_input,
+                        st.session_state['current_user_name'], # Use the value from the external input
                         jobs_input,
                         life_experiences_input,
                         hobbies_input,
                         decade_input,
                         college_chapter_input
                     ):
-                        st.session_state['current_user_name'] = pair_name_input # Update current_user_name
+                        # Update session state with the new values from the form to ensure consistency
                         st.session_state['current_user_jobs'] = jobs_input
                         st.session_state['current_user_life_experiences'] = life_experiences_input
                         st.session_state['current_user_hobbies'] = hobbies_input
                         st.session_state['current_user_decade'] = decade_input
                         st.session_state['current_user_college_chapter'] = college_chapter_input
-                        st.rerun() # Rerun to refresh UI with saved data and potentially new pair in dropdown
+                        st.rerun() # Rerun to refresh UI with saved data
 
     # Display the current active pair's details outside the form
     if st.session_state['current_user_name']:
