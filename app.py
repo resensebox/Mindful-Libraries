@@ -279,6 +279,7 @@ def save_new_user(username, password):
         return False
 
 def save_pair_details(volunteer_username, pair_name, jobs, life_experiences, hobbies, decade):
+    global PAIRS_DATA # Declare global at the very beginning of the function
     """Saves or updates pair details in the 'Pairs' Google Sheet."""
     try:
         sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXJRXcfmxjoj5s')
@@ -327,8 +328,7 @@ def save_pair_details(volunteer_username, pair_name, jobs, life_experiences, hob
             st.session_state['selected_pair_name'] = pair_name # Auto-select new pair
 
         st.cache_data(load_pairs).clear()
-        global PAIRS_DATA # Update global PAIRS_DATA at the end of the function
-        PAIRS_DATA = load_pairs(volunteer_username)
+        PAIRS_DATA = load_pairs(volunteer_username) # This assignment is now valid after global declaration
         return True
     except gspread.exceptions.WorksheetNotFound:
         st.error("Cannot save pair: 'Pairs' worksheet not found. Please create a sheet named 'Pairs' in your Google Sheet.")
@@ -1108,6 +1108,7 @@ if st.session_state['is_authenticated']:
                             item_type = item.get('Type', '').lower()
                             if item_type == 'newspaper':
                                 st.image("https://placehold.co/180x250/007bff/ffffff?text=Newspaper", width=180, caption=item.get('Title', 'N/A'))
+                                # Updated placeholder for Newspaper to better reflect its type
                             else:
                                 st.image(f"https://placehold.co/180x250/cccccc/333333?text=No+Image", width=180)
                     with cols[1]:
@@ -1251,7 +1252,7 @@ if st.session_state['is_authenticated']:
         with notes_col2:
             session_mood = st.radio(
                 "Pair's Overall Mood During Session:",
-                ["Happy 😊", "Calm 😌", "Neutral 😐", "Agitated 😠", "Sad 😢"],
+                ["Happy 😊", "Calm 😌", "Neutral �", "Agitated 😠", "Sad 😢"],
                 index=["Happy 😊", "Calm 😌", "Neutral 😐", "Agitated 😠", "Sad 😢"].index(st.session_state['session_mood']),
                 key="session_mood_input"
             )
@@ -1326,3 +1327,4 @@ if st.session_state['is_authenticated']:
             st.info("Select a 'Pair's Name' above to view their session history.")
     else:
         st.info("Please select or add a pair above to continue.")
+�
