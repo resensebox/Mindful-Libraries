@@ -27,12 +27,14 @@ st.markdown("""
         border-radius: 16px; /* More rounded corners for the main container */
         box-shadow: 0 8px 24px rgba(0,0,0,0.1); /* Stronger, more noticeable shadow */
         padding: 2rem; /* Increased padding inside the main content area */
-        margin-top: 2rem; /* Space from the header */
-        margin-bottom: 2rem; /* Space at the bottom */
+        margin: 2rem auto; /* Top/bottom margin, and auto left/right for centering */
+        max-width: 900px; /* Limit width for better floating effect */
+        min-height: 80vh; /* Ensure it takes up enough vertical space */
+        box-sizing: border-box; /* Include padding in the element's total width and height */
     }
 
-
     /* App-like Header (remains at the top of the main content area) */
+    /* Adjusting Streamlit's default header container to remove extra padding/margin */
     .st-emotion-cache-vk3357.e1nzilvr1 { /* Targeting the header container in Streamlit */
         background-color: #ffffff; /* White background for header */
         padding: 1rem 1.5rem; /* More padding */
@@ -45,7 +47,8 @@ st.markdown("""
         position: sticky;
         top: 0;
         z-index: 1000;
-        margin-bottom: 0; /* Remove margin-bottom as the wrapper will handle spacing */
+        margin-bottom: 0; /* Remove margin-bottom from here */
+        width: 100%; /* Ensure header spans full width */
     }
 
     /* Adjust the main page title for a cleaner look */
@@ -144,71 +147,36 @@ st.markdown("""
         color: #444;
     }
 
-    /* Sidebar Navigation Links */
-    .sidebar .st-emotion-cache-1jmveo.e1nzilvr5 p { /* Target text within sidebar link */
-        font-size: 1.1em;
-        font-weight: bold;
-        color: #333; /* Darker text for links */
-        padding: 0.5rem 0;
-        margin: 0;
-    }
-
-    .sidebar .st-emotion-cache-1jmveo.e1nzilvr5 div[data-testid="stSidebarNav"] a {
-        color: #333; /* Default link color */
-        text-decoration: none;
-        padding: 10px 15px;
-        margin: 5px 0;
+    /* Sidebar Navigation Links - Styling for buttons */
+    .stSidebar button { /* Target all buttons in the sidebar */
+        width: 100%; /* Make them fill the sidebar width */
+        text-align: left; /* Align text to the left */
+        margin-bottom: 0.5rem; /* Space between buttons */
+        background-color: #f0f2f6; /* Light grey for inactive buttons */
+        color: #333; /* Darker text */
+        border: none;
         border-radius: 8px;
-        transition: background-color 0.3s ease, color 0.3s ease;
-    }
-    .sidebar .st-emotion-cache-1jmveo.e1nzilvr5 div[data-testid="stSidebarNav"] a:hover {
-        background-color: #e0e0e0; /* Light grey on hover */
-        color: #007bff; /* Blue on hover */
-    }
-    .sidebar .st-emotion-cache-1jmveo.e1nzilvr5 div[data-testid="stSidebarNav"] a.active {
-        background-color: #007bff; /* Active background */
-        color: white !important; /* Active text color */
-        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-    }
-    .sidebar .st-emotion-cache-1jmveo.e1nzilvr5 div[data-testid="stSidebarNav"] a.disabled {
-        background-color: #f0f0f0; /* Grey for disabled links */
-        color: #999 !important;
-        cursor: not-allowed;
-        opacity: 0.7;
-        box-shadow: none;
-    }
-    .sidebar .st-emotion-cache-1jmveo.e1nzilvr5 div[data-testid="stSidebarNav"] a.disabled:hover {
-        background-color: #f0f0f0; /* No change on hover for disabled */
-        color: #999 !important;
-        transform: none;
+        padding: 0.8em 1.2em;
+        font-weight: bold;
+        transition: background-color 0.3s ease, color 0.3s ease, transform 0.2s ease;
     }
 
-    /* Hide the entire Streamlit radio button widget more aggressively */
-    .stRadio {
-        display: none !important;
-        visibility: hidden !important;
-        height: 0 !important;
-        width: 0 !important;
-        overflow: hidden !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        position: absolute !important; /* Take it out of normal flow */
-        left: -9999px !important; /* Move it far off-screen */
-        top: -9999px !important;
-    }
-    /* Also ensure no space is taken by its container or label */
-    .stRadio > label,
-    .stRadio > div,
-    .stRadio .st-cr { /* Targeting common internal Streamlit classes for radio elements */
-        display: none !important;
-        visibility: hidden !important;
-        height: 0 !important;
-        width: 0 !important;
-        overflow: hidden !important;
-        margin: 0 !important;
-        padding: 0 !important;
+    .stSidebar button:hover {
+        background-color: #e0e0e0; /* Slightly darker grey on hover */
+        color: #007bff; /* Blue text on hover */
+        transform: translateX(3px); /* Slight slide effect on hover */
     }
 
+    /* Style for the active navigation button */
+    .stSidebar button[data-testid="stSidebarNav"] { /* This data-testid might not be present or specific enough */
+        /* It's tricky to directly target active Streamlit buttons with CSS for navigation state
+           because Streamlit's internal rendering applies classes dynamically.
+           A common workaround is to use the `st.radio` approach with custom CSS classes
+           or manage active state with `st.markdown` as previously tried.
+           For now, we'll rely on the Python logic to keep the page consistent.
+        */
+    }
+    
     /* Content Cards */
     .content-card {
         background-color: #ffffff;
@@ -884,7 +852,7 @@ if st.session_state['is_authenticated']:
 st.markdown('</div>', unsafe_allow_html=True)
 
 # Main title (only visible if not using custom header title)
-st.markdown("<h1 style='text-align: center; color: #333333; margin-top: 2rem; margin-bottom: 2rem;'>Discover Your Next Nostalgic Read!</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align: center; color: #333333; margin-top: 0; margin-bottom: 2rem;'>Discover Your Next Nostalgic Read!</h1>", unsafe_allow_html=True)
 
 # --- Login / Register Section ---
 if not st.session_state['is_authenticated']:
@@ -965,52 +933,27 @@ if st.session_state['is_authenticated']:
         st.markdown("---")
         st.subheader("App Navigation")
 
-        # Set active page based on sidebar selection
+        # Define page options and their corresponding session state values
         page_options = {
             "Dashboard": "dashboard",
             "Search Content": "search",
             "My Recommendations": "recommendations",
             "Activities": "activities",
-            "Related Materials": "related_books", # Changed label here
+            "Related Materials": "related_books",
             "Session Notes": "session_notes",
             "Session History": "session_history",
+            "Decade Summary": "decade_summary",
         }
 
-        # Dynamically add disabled class to 'Decade Summary' if no decade is set
-        decade_summary_class = "nav-button-link disabled" if not st.session_state['current_user_decade'] else "nav-button-link"
-        
-        # Manually create sidebar links to apply custom styling and 'active' state
-        st.markdown(f"""
-            <div class="sidebar">
-                <div data-testid="stSidebarNav">
-                    <a href="#dashboard" onclick="parent.postMessage({{streamlit: {{command: 'setPage', args: ['dashboard']}}}}, '*');" class="{'active' if st.session_state['current_page'] == 'dashboard' else ''}">Dashboard</a>
-                    <a href="#search_section" onclick="parent.postMessage({{streamlit: {{command: 'setPage', args: ['search']}}}}, '*');" class="{'active' if st.session_state['current_page'] == 'search' else ''}">Search Content</a>
-                    <a href="#personalized_recommendations" onclick="parent.postMessage({{streamlit: {{command: 'setPage', args: ['recommendations']}}}}, '*');" class="{'active' if st.session_state['current_page'] == 'recommendations' else ''}">My Recommendations</a>
-                    <a href="#activities_section" onclick="parent.postMessage({{streamlit: {{command: 'setPage', args: ['activities']}}}}, '*');" class="{'active' if st.session_state['current_page'] == 'activities' else ''}">Activities</a>
-                    <a href="#you_might_also_like" onclick="parent.postMessage({{streamlit: {{command: 'setPage', args: ['related_books']}}}}, '*');" class="{'active' if st.session_state['current_page'] == 'related_books' else ''}">Related Materials</a>
-                    <a href="#session_notes_section" onclick="parent.postMessage({{streamlit: {{command: 'setPage', args: ['session_notes']}}}}, '*');" class="{'active' if st.session_state['current_page'] == 'session_notes' else ''}">Session Notes</a>
-                    <a href="#session_history_section" onclick="parent.postMessage({{streamlit: {{command: 'setPage', args: ['session_history']}}}}, '*');" class="{'active' if st.session_state['current_page'] == 'session_history' else ''}">Session History</a>
-                    <a href="#decade_summary" onclick="{ "return false;" if not st.session_state['current_user_decade'] else "parent.postMessage({{streamlit: {{command: 'setPage', args: ['decade_summary']}}}}, '*');"}" class="{decade_summary_class}">Decade Summary</a>
-                </div>
-            </div>
-        """, unsafe_allow_html=True)
+        # Create sidebar buttons
+        for label, page_key in page_options.items():
+            disabled_state = False
+            if label == "Decade Summary" and not st.session_state['current_user_decade']:
+                disabled_state = True # Disable if no decade is set
 
-        # Using a hidden radio button to control the 'current_page' based on clicks
-        # This is a workaround for custom Streamlit navigation to tie into session_state
-        # and ensure only one "page" is active at a time.
-        # Ensure the radio button is completely hidden
-        st.radio(
-            "Navigation",
-            options=list(page_options.keys()),
-            format_func=lambda x: x,
-            key="_sidebar_radio",
-            label_visibility="hidden",
-            on_change=lambda: st.session_state.__setitem__('current_page', page_options[st.session_state._sidebar_radio])
-        )
-
-        # Update current_page based on the radio selection
-        if "_sidebar_radio" in st.session_state:
-            st.session_state['current_page'] = page_options[st.session_state._sidebar_radio]
+            if st.button(label, key=f"sidebar_btn_{page_key}", disabled=disabled_state):
+                st.session_state['current_page'] = page_key
+                st.rerun() # Rerun to switch page
 
     # --- Main Content Area Wrapper ---
     # This div will act as the "floating rectangle"
@@ -1406,8 +1349,9 @@ if st.session_state['is_authenticated']:
             num_cols = min(5, len(related_books))
             cols = st.columns(num_cols)
             for i, book in enumerate(related_books):
-                st.markdown('<div class="content-card" style="padding: 1rem; margin-bottom: 1rem;">', unsafe_allow_html=True) # Smaller card for related books
+                # Using a column for each related book to arrange them in a grid-like manner
                 with cols[i % num_cols]:
+                    st.markdown('<div class="content-card" style="padding: 1rem; margin-bottom: 1rem; height: auto;">', unsafe_allow_html=True) # Smaller card for related books, auto height
                     img_url = get_image_url(book) # Use the new helper function
                     st.image(img_url, width=120) # Always display image using the determined URL
                     st.caption(book.get('Title', 'N/A'))
@@ -1419,7 +1363,7 @@ if st.session_state['is_authenticated']:
 
                     if 'URL' in book and book['URL']:
                         st.markdown(f"<a class='buy-button' href='{book['URL']}' target='_blank'>Buy Now</a>", unsafe_allow_html=True)
-                st.markdown('</div>', unsafe_allow_html=True) # End card
+                    st.markdown('</div>', unsafe_allow_html=True) # End content-card
         else:
             st.markdown("_No other related materials found with your current tags. Try generating new tags or searching for a specific topic!_") # Changed text here
             st.markdown("---")
@@ -1432,11 +1376,13 @@ if st.session_state['is_authenticated']:
                     num_cols_fallback = st.columns(min(5, len(fallback_books)))
                     for i, book in enumerate(fallback_books):
                         with num_cols_fallback[i % len(num_cols_fallback)]:
+                            st.markdown('<div class="content-card" style="padding: 1rem; margin-bottom: 1rem; height: auto;">', unsafe_allow_html=True) # Smaller card for fallback books, auto height
                             img_url = get_image_url(book) # Use the new helper function
                             st.image(img_url, width=120) # Always display image using the determined URL
                             st.caption(book.get('Title', 'N/A'))
                             if 'URL' in book and book['URL']:
                                 st.markdown(f"<a class='buy-button' href='{book['URL']}' target='_blank'>Buy Now</a>", unsafe_allow_html=True)
+                            st.markdown('</div>', unsafe_allow_html=True) # End content-card
                 else:
                     st.markdown("_No books available in the database to recommend._")
             else:
