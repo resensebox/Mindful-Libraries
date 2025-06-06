@@ -1388,7 +1388,7 @@ else:
         # Removed the custom anchor tag: st.markdown('<a name=\"decade_summary\"></a>', unsafe_allow_html=True)
         st.header(f"🕰️ A Glimpse into the {st.session_state['current_user_decade']}:")
         if st.session_state['current_user_decade']:\
-            with st.spinner(f"Generating context for the {st.session_state['current_user_decade']}..."):
+            st.spinner(f"Generating context for the {st.session_state['current_user_decade']}..."):
                 historical_context = generate_historical_context(st.session_state['current_user_decade'], client_ai)
                 st.info(historical_context)
         else:
