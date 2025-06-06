@@ -232,27 +232,6 @@ except Exception as e:
 
 
 @st.cache_data(ttl=3600)
-
-@st.cache_data(ttl=3600)
-def generate_activity_guide(activity_description, _ai_client):
-    """Generates a downloadable plan with steps and a shopping or supply list for an activity."""
-    prompt = f"""
-    You are a helpful assistant. Based on the following activity description, create a detailed step-by-step guide including:
-    - A supply list (or shopping list if applicable)
-    - Clear, numbered instructions
-
-    Activity Description: "{activity_description}"
-
-    Format the response in markdown.
-    """
-    try:
-        response = _ai_client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[{"role": "user", "content": prompt}]
-        )
-        return response.choices[0].message.content.strip()
-    except Exception as e:
-        return f"Could not generate activity guide. Error: {e}"
 def load_content():
     """Loads content data from Google Sheet and processes tags."""
     try:
@@ -1344,23 +1323,59 @@ if st.session_state['is_authenticated']:
             else:
                 st.markdown("_No primary recommendations found based on your current tags. Please try adjusting your input or generating new tags._")
 
+    
     elif st.session_state['current_page'] == 'activities':
-        # Removed the custom anchor tag: st.markdown('<a name="activities_section"></a>', unsafe_allow_html=True)
         st.header("💡 Recommended Activities:")
-        
-        # user_info is now defined at a higher scope
+
         recommended_titles_for_activities = [item.get('Title', 'N/A') for item in st.session_state['recommended_books_current_session'] + st.session_state['recommended_newspapers_current_session']]
 
         with st.spinner("Generating activity suggestions..."):
             activities = generate_activities(client_ai, st.session_state['active_tags_for_filter'], recommended_titles_for_activities)
-            for activity in activities:
-                st.markdown(activity)
-        
+            for i, activity in enumerate(activities):
+                st.markdown(f"{activity}")
+
+                if any(keyword in activity.lower() for keyword in ['bake', 'cookies', 'cake', 'brownies', 'cook']):
+                    recipe = """**Cookie Baking Guide**
+
+**Shopping List:**
+- 2 1/4 cups all-purpose flour
+- 1 tsp baking soda
+- 1 tsp salt
+- 1 cup (2 sticks) butter, softened
+- 3/4 cup sugar
+- 3/4 cup brown sugar
+- 1 tsp vanilla extract
+- 2 large eggs
+- 2 cups chocolate chips
+
+**Steps:**
+1. Preheat oven to 375°F (190°C).
+2. Combine flour, baking soda, and salt in a small bowl.
+3. Beat butter, sugar, brown sugar, and vanilla in a large bowl.
+4. Add eggs one at a time, beating well after each.
+5. Gradually mix in flour mixture. Stir in chocolate chips.
+6. Drop by rounded tablespoons onto baking sheets.
+7. Bake for 9-11 minutes or until golden brown.
+8. Cool on baking sheets for 2 minutes, then transfer to wire racks.
+"""
+                    st.download_button(
+                        label="🍪 Download Cookie Recipe + Shopping List",
+                        data=recipe,
+                        file_name=f"cookie_recipe_{i+1}.txt",
+                        mime="text/plain"
+                    )
+
         st.markdown("---")
         if st.button("Prepare Printable Session Summary", key="printable_summary_btn_activities"):
             st.session_state['show_printable_summary'] = True
 
         if st.session_state['show_printable_summary']:
+            st.subheader("📄 Printable Session Summary:")
+            printable_summary_content = get_printable_summary(user_info, st.session_state['active_tags_for_filter'], st.session_state['recommended_books_current_session'], st.session_state['recommended_newspapers_current_session'], activities, st.session_state['logged_in_username'])
+            st.text_area("Copy and Print Your Session Plan", value=printable_summary_content, height=300, key="printable_summary_text_activities")
+            st.info("You can copy the text above and paste it into a document for printing.")
+            st.session_state['show_printable_summary'] = False
+
             st.subheader("📄 Printable Session Summary:")
             printable_summary_content = get_printable_summary(user_info, st.session_state['active_tags_for_filter'], st.session_state['recommended_books_current_session'], st.session_state['recommended_newspapers_current_session'], activities, st.session_state['logged_in_username'])
             st.text_area("Copy and Print Your Session Plan", value=printable_summary_content, height=300, key="printable_summary_text_activities")
@@ -1564,3 +1579,4 @@ if st.session_state['is_authenticated']:
                 st.info(historical_context)
         else:
             st.info("Please set a 'Favorite Decade' in the Pair Profile to view a historical summary.")
+
