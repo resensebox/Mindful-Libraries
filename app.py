@@ -760,7 +760,7 @@ def generate_activities(_ai_client, active_tags, recommended_titles):
     Suggest activities in a numbered list format. Each activity should be a short, actionable sentence.
     """
     try:
-        response = _ai_client.chat.completions.create(
+        response = _ai_ai.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[{"role": "user", "content": prompt}]
         )
@@ -776,36 +776,18 @@ def generate_activities(_ai_client, active_tags, recommended_titles):
         return [f"Could not generate activity suggestions at this time. Error: {e}"]
 
 @st.cache_data(ttl=3600) # Cache the activity suggestions for an hour
-def generate_location_based_activities(_ai_client, _Google Search_client, city, state, pair_hobbies, pair_decade):
-    """Generates location-based activity suggestions using Google Search and AI."""
+def generate_location_based_activities(_ai_client, city, state, pair_hobbies, pair_decade):
+    """Generates location-based activity suggestions using AI (without Google Search)."""
     if not city or not state:
         return ["Please enter the Pair's City and State in the Pair Profile to get location-based suggestions."]
-
-    search_query_hobbies = f"activities in {city}, {state} for {pair_hobbies}" if pair_hobbies else f"activities in {city}, {state}"
-    search_query_decade = f"things to do in {city}, {state} related to {pair_decade} era" if pair_decade else ""
-
-    search_queries = [search_query_hobbies]
-    if search_query_decade:
-        search_queries.append(search_query_decade)
-
-    search_results = []
-    try:
-        for query in search_queries:
-            results = _Google Search_client.search(queries=[query])
-            if results and results[0].results:
-                for res in results[0].results:
-                    search_results.append(res.snippet)
-    except Exception as e:
-        st.warning(f"Google Search failed: {e}")
 
     combined_info = f"City: {city}, State: {state}\n"
     if pair_hobbies: combined_info += f"Pair Hobbies: {pair_hobbies}\n"
     if pair_decade: combined_info += f"Pair Favorite Decade: {pair_decade}\n"
-    combined_info += "Relevant search results from Google:\n" + "\n".join(search_results[:5]) # Limit to top 5 snippets
 
     prompt = f"""
     You are a helpful assistant for a student volunteer working with an individual living with dementia.
-    Given the following location and pair interests, suggest 5-10 gentle and engaging activities that are available locally or can be related to the local area, suitable for individuals with dementia. Focus on activities that can spark positive memories, facilitate conversation, and provide calming engagement.
+    Given the following location and pair interests, suggest 5-10 gentle and engaging activities that are available locally or can be related to the local area, suitable for individuals with dementia. Focus on activities that can spark positive memories, facilitate conversation, and provide calming engagement. Since direct search is not available, provide general but relevant ideas for the specified city/state and interests.
 
     Information:
     {combined_info}
@@ -1252,7 +1234,6 @@ else:
                     else: # Location-Based Activities
                         activities = generate_location_based_activities(
                             client_ai,
-                            Google Search, # Pass the Google Search client
                             st.session_state['current_user_city'],
                             st.session_state['current_user_state'],
                             st.session_state['current_user_hobbies'],
@@ -1404,9 +1385,9 @@ else:
             st.info("Enter a 'Pair's Name' above to view their session history.")
 
     elif st.session_state['current_page'] == 'decade_summary':
-        # Removed the custom anchor tag: st.markdown('<a name="decade_summary"></a>', unsafe_allow_html=True)
+        # Removed the custom anchor tag: st.markdown('<a name=\"decade_summary\"></a>', unsafe_allow_html=True)
         st.header(f"🕰️ A Glimpse into the {st.session_state['current_user_decade']}:")
-        if st.session_state['current_user_decade']:
+        if st.session_state['current_user_decade']:\
             with st.spinner(f"Generating context for the {st.session_state['current_user_decade']}..."):
                 historical_context = generate_historical_context(st.session_state['current_user_decade'], client_ai)
                 st.info(historical_context)
