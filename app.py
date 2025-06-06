@@ -20,6 +20,36 @@ st.markdown("""
         background-color: #f0f2f6; /* Light gray background */
         font-family: 'Inter', sans-serif;
     }
+
+    /* App-like Header */
+    .st-emotion-cache-vk3357.e1nzilvr1 { /* Targeting the header container in Streamlit */
+        background-color: #ffffff; /* White background for header */
+        padding: 1rem 1.5rem; /* More padding */
+        border-bottom: 1px solid #e0e0e0; /* Subtle border at the bottom */
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1); /* Clearer shadow for depth */
+        border-radius: 0 0 12px 12px; /* Rounded bottom corners for the header */
+        display: flex;
+        align-items: center;
+        justify-content: space-between; /* Space between logo and logout */
+        position: sticky;
+        top: 0;
+        z-index: 1000;
+        margin-bottom: 2rem; /* Add space below header */
+    }
+
+    /* Adjust the main page title for a cleaner look */
+    .st-emotion-cache-l9bizv.e1nzilvr5 h1 { /* Targeting specific h1 in Streamlit */
+        display: none; /* Hide default Streamlit title */
+    }
+
+    /* Logo styling */
+    .stImage > img {
+        margin-left: 0; /* Align logo to the left */
+        border-radius: 8px; /* Rounded corners for the logo */
+        box-shadow: 1px 1px 3px rgba(0,0,0,0.1);
+    }
+
+    /* Buttons */
     .buy-button {
         background-color: #FFA500; /* Orange */
         color: white;
@@ -30,11 +60,12 @@ st.markdown("""
         font-weight: bold;
         margin-top: 15px;
         display: inline-block;
-        transition: background-color 0.3s ease;
+        transition: background-color 0.3s ease, transform 0.2s ease;
         box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
     }
     .buy-button:hover {
         background-color: #FF8C00; /* Darker orange on hover */
+        transform: translateY(-2px);
     }
     .stButton>button {
         background-color: #4CAF50; /* Green button for generation */
@@ -50,27 +81,59 @@ st.markdown("""
         background-color: #45a049;
         transform: translateY(-2px);
     }
+    
+    /* Text Inputs and Radios */
     .stTextInput>div>div>input {
         border-radius: 8px;
         padding: 10px;
         border: 1px solid #ccc;
+        box-shadow: inset 0 1px 2px rgba(0,0,0,0.05); /* Inner shadow for input */
+        transition: border-color 0.2s ease;
+    }
+    .stTextInput>div>div>input:focus {
+        border-color: #4CAF50; /* Highlight on focus */
+        outline: none;
     }
     .stRadio>label {
         font-weight: bold;
+        color: #555;
     }
+
+    /* Headings and Spinners */
     .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 {
         color: #333333; /* Darker headings */
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid #eeeeee; /* Subtle line under subheaders */
     }
     .stSpinner>div>div>span {
         color: #4CAF50 !important; /* Spinner color */
     }
+
+    /* Alerts and Checkboxes */
     .stAlert {
         border-radius: 8px;
+        background-color: #e6f7ff; /* Light blue for info alerts */
+        border-color: #91d5ff;
+        color: #004085;
+    }
+    .stAlert.success {
+        background-color: #f6ffed; /* Light green for success */
+        border-color: #b7eb8f;
+        color: #1890ff;
+    }
+    .stAlert.warning {
+        background-color: #fffbe6; /* Light yellow for warning */
+        border-color: #ffe58f;
+        color: #faad14;
     }
     .stCheckbox span { /* Style for checkbox labels */
         font-size: 1.1em;
         margin-left: 5px;
+        color: #444;
     }
+
+    /* Navigation Buttons */
     .nav-button-link {
         background-color: #007bff; /* A nice blue for navigation */
         color: white !important; /* !important to override default link color */
@@ -90,15 +153,69 @@ st.markdown("""
         background-color: #0056b3; /* Darker blue on hover */
         transform: translateY(-1px);
     }
-    /* New style for sticky navigation */
     .sticky-navbar {
         position: sticky;
         top: 0;
-        z-index: 1000; /* Ensures it stays on top of other content */
-        background-color: #f0f2f6; /* Match body background or choose a contrasting one */
-        padding: 10px 0; /* Add some padding around the buttons */
-        border-bottom: 1px solid #e0e0e0; /* Optional: a subtle line at the bottom */
-        box-shadow: 0 2px 5px rgba(0,0,0,0.1); /* Optional: subtle shadow */
+        z-index: 1000;
+        background-color: #f0f2f6;
+        padding: 10px 0;
+        border-bottom: 1px solid #e0e0e0;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        border-radius: 0 0 12px 12px; /* Rounded bottom corners */
+    }
+
+    /* Content Cards */
+    .content-card {
+        background-color: #ffffff;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08); /* More pronounced shadow */
+        padding: 1.5rem;
+        margin-bottom: 2rem; /* Space between cards */
+        display: flex;
+        flex-direction: column; /* Stack elements inside card */
+        transition: transform 0.2s ease;
+    }
+    .content-card:hover {
+        transform: translateY(-5px); /* Lift effect on hover */
+    }
+
+    .content-card-image-col {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding-right: 1.5rem; /* Space between image and text */
+    }
+
+    /* Specific image styling within cards */
+    .content-card img {
+        border-radius: 8px;
+        width: 100%; /* Make image responsive within its column */
+        height: auto;
+        max-width: 180px; /* Max width for images */
+        box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+
+    /* Session History Items */
+    .session-history-item {
+        background-color: #ffffff;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06); /* Lighter shadow for history items */
+        padding: 1.2rem;
+        margin-bottom: 1.5rem; /* Space between history items */
+        border-left: 5px solid #4CAF50; /* Accent border */
+    }
+
+    .session-history-item strong {
+        color: #333;
+    }
+
+    /* Print Summary Text Area */
+    .stTextArea > div > div {
+        border-radius: 8px;
+        border: 1px solid #ddd;
+        padding: 10px;
+        background-color: #f8f8f8;
+        box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
     }
     </style>
 """, unsafe_allow_html=True)
@@ -667,12 +784,40 @@ def get_printable_summary(user_info, tags, books, newspapers, activities, volunt
     return summary
 
 # --- Streamlit UI ---
-st.image("https://i.postimg.cc/0yVG4bhN/mindfullibrarieswhite-01.png", width=300)
-st.title("Discover Your Next Nostalgic Read!")
+# Custom header area with logo and logout button
+st.markdown('<div class="st-emotion-cache-vk3357 e1nzilvr1">', unsafe_allow_html=True)
+st.image("https://i.postimg.cc/0yVG4bhN/mindfullibrarieswhite-01.png", width=180) # Adjust width as needed
+if st.session_state['is_authenticated']:
+    if st.button("Log Out"):
+        st.session_state['is_authenticated'] = False
+        st.session_state['logged_in_username'] = ""
+        # Clear all pair-related session state on logout
+        st.session_state['current_user_name'] = ""
+        st.session_state['current_user_jobs'] = ""
+        st.session_state['current_user_life_experiences'] = ""
+        st.session_state['current_user_hobbies'] = ""
+        st.session_state['current_user_decade'] = ""
+        st.session_state['current_user_college_chapter'] = ""
+        st.session_state['selected_tags'] = []
+        st.session_state['active_tags_for_filter'] = []
+        st.session_state['tag_checkbox_states'] = {}
+        st.session_state['session_date'] = date.today()
+        st.session_state['session_mood'] = "Neutral 😐"
+        st.session_state['session_engagement'] = "Moderately Engaged ⭐⭐"
+        st.session_state['session_takeaways'] = ""
+        st.session_state['recommended_books_current_session'] = []
+        st.session_state['recommended_newspapers_current_session'] = []
+        st.session_state['show_printable_summary'] = False
+        PAIRS_DATA = {} # Clear global PAIRS_DATA on logout
+        st.rerun()
+st.markdown('</div>', unsafe_allow_html=True)
 
-# --- Login / Logout / Register Section ---
+# Main title (only visible if not using custom header title)
+st.markdown("<h1 style='text-align: center; color: #333333; margin-top: 2rem; margin-bottom: 2rem;'>Discover Your Next Nostalgic Read!</h1>", unsafe_allow_html=True)
+
+# --- Login / Register Section ---
 if not st.session_state['is_authenticated']:
-    st.markdown("Please log in or register to use the Mindful Libraries app.")
+    st.info("Please log in or register to use the Mindful Libraries app.")
 
     # Toggles between login and registration forms
     login_tab, register_tab = st.tabs(["Log In", "Register"])
@@ -730,31 +875,6 @@ if not st.session_state['is_authenticated']:
                         st.session_state['current_user_decade'] = ""
                         st.session_state['current_user_college_chapter'] = ""
                         st.rerun()
-
-else: # If authenticated
-    st.markdown(f"Welcome, **{st.session_state['logged_in_username']}**!")
-    if st.button("Log Out"):
-        st.session_state['is_authenticated'] = False
-        st.session_state['logged_in_username'] = ""
-        # Clear all pair-related session state on logout
-        st.session_state['current_user_name'] = ""
-        st.session_state['current_user_jobs'] = ""
-        st.session_state['current_user_life_experiences'] = ""
-        st.session_state['current_user_hobbies'] = ""
-        st.session_state['current_user_decade'] = ""
-        st.session_state['current_user_college_chapter'] = ""
-        st.session_state['selected_tags'] = []
-        st.session_state['active_tags_for_filter'] = []
-        st.session_state['tag_checkbox_states'] = {}
-        st.session_state['session_date'] = date.today()
-        st.session_state['session_mood'] = "Neutral 😐" # Changed to consistent emoji
-        st.session_state['session_engagement'] = "Moderately Engaged ⭐⭐"
-        st.session_state['session_takeaways'] = ""
-        st.session_state['recommended_books_current_session'] = []
-        st.session_state['recommended_newspapers_current_session'] = []
-        st.session_state['show_printable_summary'] = False
-        PAIRS_DATA = {} # Clear global PAIRS_DATA on logout
-        st.rerun()
 
 # --- Main App Content (visible only if authenticated) ---
 if st.session_state['is_authenticated']:
@@ -1028,6 +1148,7 @@ if st.session_state['is_authenticated']:
 
                 if results:
                     for item in results[:5]:
+                        st.markdown('<div class="content-card">', unsafe_allow_html=True) # Start card
                         cols = st.columns([1, 2])
                         with cols[0]:
                             img_url = None
@@ -1043,15 +1164,19 @@ if st.session_state['is_authenticated']:
                                         asin_with_params = parts_slash[0]
                                         asin = asin_with_params.split('?')[0]
                                         img_url = f"https://images-na.ssl-images-amazon.com/images/P/{asin}.01._SL250_.jpg"
-                        if img_url:
-                            st.image(img_url, width=180)
-                        else:
-                            item_type = item.get('Type', '').lower()
-                            if item_type == 'newspaper':
-                                st.image("https://placehold.co/180x250/007bff/ffffff?text=Newspaper", width=180, caption=item.get('Title', 'N/A'))
-                                # Updated placeholder for Newspaper to better reflect its type
+                            
+                            # Use content-card-image-col for centering and padding
+                            st.markdown('<div class="content-card-image-col">', unsafe_allow_html=True)
+                            if img_url:
+                                st.image(img_url, width=180)
                             else:
-                                st.image(f"https://placehold.co/180x250/cccccc/333333?text=No+Image", width=180)
+                                item_type = item.get('Type', '').lower()
+                                if item_type == 'newspaper':
+                                    st.image("https://placehold.co/180x250/007bff/ffffff?text=Newspaper", width=180, caption=item.get('Title', 'N/A'))
+                                else:
+                                    st.image(f"https://placehold.co/180x250/cccccc/333333?text=No+Image", width=180)
+                            st.markdown('</div>', unsafe_allow_html=True) # End content-card-image-col
+
                         with cols[1]:
                             st.markdown(f"### {item.get('Title', 'N/A')} ({item.get('Type', 'N/A')})")
                             st.markdown(item.get('Summary', 'N/A'))
@@ -1061,6 +1186,7 @@ if st.session_state['is_authenticated']:
 
                             if 'URL' in item and item['URL']:
                                 st.markdown(f"<a class='buy-button' href='{item['URL']}' target='_blank'>Buy Now</a>", unsafe_allow_html=True)
+                        st.markdown('</div>', unsafe_allow_html=True) # End card
                     if len(results) > 5:
                         st.info(f"Showing top 5 results. Found {len(results)} total matches for '{search_term}'.")
                 else:
@@ -1118,6 +1244,7 @@ if st.session_state['is_authenticated']:
 
             if books or newspapers:
                 for item in books + newspapers:
+                    st.markdown('<div class="content-card">', unsafe_allow_html=True) # Start card
                     cols = st.columns([1, 2])
                     with cols[0]:
                         img_url = None
@@ -1133,57 +1260,62 @@ if st.session_state['is_authenticated']:
                                     asin_with_params = parts_slash[0]
                                     asin = asin_with_params.split('?')[0]
                                     img_url = f"https://images-na.ssl-images-amazon.com/images/P/{asin}.01._SL250_.jpg"
+                        
+                        # Use content-card-image-col for centering and padding
+                        st.markdown('<div class="content-card-image-col">', unsafe_allow_html=True)
                         if img_url:
                             st.image(img_url, width=180)
                         else:
                             item_type = item.get('Type', '').lower()
                             if item_type == 'newspaper':
                                 st.image("https://placehold.co/180x250/007bff/ffffff?text=Newspaper", width=180, caption=item.get('Title', 'N/A'))
-                                # Updated placeholder for Newspaper to better reflect its type
                             else:
                                 st.image(f"https://placehold.co/180x250/cccccc/333333?text=No+Image", width=180)
-                        with cols[1]:
-                            st.markdown(f"### {item.get('Title', 'N/A')} ({item.get('Type', 'N/A')})")
-                            st.markdown(item.get('Summary', 'N/A'))
-                            original_tag_matches = item.get('tags', set()) & set(st.session_state['active_tags_for_filter'])
-                            if original_tag_matches:
-                                 st.markdown(f"**Why this was recommended:** Matched tags — **{', '.join(original_tag_matches)}**")
-                            else:
-                                st.markdown("_No direct tag matches found for this recommendation._")
+                        st.markdown('</div>', unsafe_allow_html=True) # End content-card-image-col
 
-                            with st.expander("Why this recommendation is great for your pair:"):
-                                with st.spinner("Generating personalized insights..."):
-                                    explanation = generate_recommendation_explanation(item, user_info, st.session_state['active_tags_for_filter'], client_ai)
-                                    st.markdown(explanation)
+                    with cols[1]:
+                        st.markdown(f"### {item.get('Title', 'N/A')} ({item.get('Type', 'N/A')})")
+                        st.markdown(item.get('Summary', 'N/A'))
+                        original_tag_matches = item.get('tags', set()) & set(st.session_state['active_tags_for_filter'])
+                        if original_tag_matches:
+                             st.markdown(f"**Why this was recommended:** Matched tags — **{', '.join(original_tag_matches)}**")
+                        else:
+                            st.markdown("_No direct tag matches found for this recommendation._")
 
-                            feedback_key = f"feedback_{item.get('Title', 'NoTitle')}_{item.get('Type', 'NoType')}"
-                            feedback = st.radio(
-                                f"Was this recommendation helpful?",
-                                ["Select an option", "✅ Yes", "❌ No"],
-                                index=0,
-                                key=feedback_key
-                            )
+                        with st.expander("Why this recommendation is great for your pair:"):
+                            with st.spinner("Generating personalized insights..."):
+                                explanation = generate_recommendation_explanation(item, user_info, st.session_state['active_tags_for_filter'], client_ai)
+                                st.markdown(explanation)
 
-                            if feedback != "Select an option" and not st.session_state.get(f"feedback_submitted_{feedback_key}", False):
-                                try:
-                                    # Corrected Google Sheet URL for feedback
-                                    sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXJRXcfmxjoj5s')
-                                    feedback_ws = sheet.worksheet('Feedback')
-                                    feedback_ws.append_row([
-                                        datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                                        st.session_state['current_user_name'], # Use the current pair's name
-                                        item.get('Title', 'N/A'),
-                                        item.get('Type', 'N/A'),
-                                        feedback,
-                                        ", ".join(item.get('tags', set()))
-                                    ])
-                                    st.session_state[f"feedback_submitted_{feedback_key}"] = True
-                                    st.success("✅ Feedback submitted! Thank you for helping us improve.")
-                                except Exception as e:
-                                    st.warning(f"⚠️ Failed to save feedback. Error: {e}")
+                        feedback_key = f"feedback_{item.get('Title', 'NoTitle')}_{item.get('Type', 'NoType')}"
+                        feedback = st.radio(
+                            f"Was this recommendation helpful?",
+                            ["Select an option", "✅ Yes", "❌ No"],
+                            index=0,
+                            key=feedback_key
+                        )
 
-                            if 'URL' in item and item['URL']:
-                                st.markdown(f"<a class='buy-button' href='{item['URL']}' target='_blank'>Buy Now</a>", unsafe_allow_html=True)
+                        if feedback != "Select an option" and not st.session_state.get(f"feedback_submitted_{feedback_key}", False):
+                            try:
+                                # Corrected Google Sheet URL for feedback
+                                sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXJRXcfmxjoj5s')
+                                feedback_ws = sheet.worksheet('Feedback')
+                                feedback_ws.append_row([
+                                    datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                                    st.session_state['current_user_name'], # Use the current pair's name
+                                    item.get('Title', 'N/A'),
+                                    item.get('Type', 'N/A'),
+                                    feedback,
+                                    ", ".join(item.get('tags', set()))
+                                ])
+                                st.session_state[f"feedback_submitted_{feedback_key}"] = True
+                                st.success("✅ Feedback submitted! Thank you for helping us improve.")
+                            except Exception as e:
+                                st.warning(f"⚠️ Failed to save feedback. Error: {e}")
+
+                        if 'URL' in item and item['URL']:
+                            st.markdown(f"<a class='buy-button' href='{item['URL']}' target='_blank'>Buy Now</a>", unsafe_allow_html=True)
+                    st.markdown('</div>', unsafe_allow_html=True) # End card
                 if not (books or newspapers):
                     st.markdown("_No primary recommendations found based on your current tags. Please try adjusting your input or generating new tags._")
             else:
@@ -1217,10 +1349,11 @@ if st.session_state['is_authenticated']:
                 num_cols = min(5, len(related_books))
                 cols = st.columns(num_cols)
                 for i, book in enumerate(related_books):
+                    st.markdown('<div class="content-card" style="padding: 1rem; margin-bottom: 1rem;">', unsafe_allow_html=True) # Smaller card for related books
                     with cols[i % num_cols]:
                         img_url = None
                         if book.get('Image', '').startswith("http"):
-                            img_url = item['Image']
+                            img_url = book['Image']
                         elif 'URL' in book and "amazon." in book['URL'] and "/dp/" in book['URL']:
                             # Safely extract ASIN if URL is from Amazon and contains '/dp/'
                             parts_dp = book['URL'].split('/dp/')
@@ -1248,6 +1381,7 @@ if st.session_state['is_authenticated']:
 
                         if 'URL' in book and book['URL']:
                             st.markdown(f"<a class='buy-button' href='{book['URL']}' target='_blank'>Buy Now</a>", unsafe_allow_html=True)
+                    st.markdown('</div>', unsafe_allow_html=True) # End card
             else:
                 st.markdown("_No other related books found with your current tags. Try generating new tags or searching for a specific topic!_")
                 st.markdown("---")
@@ -1259,6 +1393,7 @@ if st.session_state['is_authenticated']:
                         fallback_books = fallback_books_df.sample(min(5, len(fallback_books_df)), random_state=1).to_dict('records')
                         num_cols_fallback = st.columns(min(5, len(fallback_books)))
                         for i, book in enumerate(fallback_books):
+                            st.markdown('<div class="content-card" style="padding: 1rem; margin-bottom: 1rem;">', unsafe_allow_html=True) # Smaller card for fallback books
                             with num_cols_fallback[i % len(num_cols_fallback)]:
                                 img_url = None
                                 if book.get('Image', '').startswith("http"):
@@ -1280,6 +1415,7 @@ if st.session_state['is_authenticated']:
                                 st.caption(book.get('Title', 'N/A'))
                                 if 'URL' in book and book['URL']:
                                     st.markdown(f"<a class='buy-button' href='{book['URL']}' target='_blank'>Buy Now</a>", unsafe_allow_html=True)
+                            st.markdown('</div>', unsafe_allow_html=True) # End card
                     else:
                         st.markdown("_No books available in the database to recommend._")
                 else:
@@ -1354,6 +1490,7 @@ if st.session_state['is_authenticated']:
             session_history_df = load_session_logs(st.session_state['current_user_name'], st.session_state['logged_in_username'])
             if not session_history_df.empty:
                 for index, row in session_history_df.iterrows():
+                    st.markdown('<div class="session-history-item">', unsafe_allow_html=True) # Start history item card
                     st.markdown(f"**Session Date:** {row['Session Date']}")
                     st.markdown(f"**Pair Name:** {row['Pair Name']}")
                     st.markdown(f"**Mood:** {row['Mood']}")
@@ -1371,7 +1508,7 @@ if st.session_state['is_authenticated']:
                                     st.markdown(f"- {rec_title}") # Displaying just the title
                         except json.JSONDecodeError:
                             st.markdown("_Error loading recommended materials. Data format may be incorrect._")
-                    st.markdown("---")
+                    st.markdown("</div>", unsafe_allow_html=True) # End history item card
             else:
                 st.info(f"No past session notes found for {st.session_state['current_user_name']} logged by {st.session_state['logged_in_username']}. Save a session to see history!")
         else:
