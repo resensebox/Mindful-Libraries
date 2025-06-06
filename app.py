@@ -626,6 +626,7 @@ def load_session_logs(pair_name, volunteer_username):
 
         data_rows = all_values[1:]
 
+        # Create a DataFrame with cleaned headers
         df_raw = pd.DataFrame(data_rows, columns=cleaned_headers)
 
         # Define the exact expected headers for the final DataFrame
@@ -904,7 +905,7 @@ def generate_volunteer_reflection_prompts(session_details, _ai_client):
     except Exception as e:
         return [f"Could not generate reflection prompts at this time. Error: {e}"]
 
-@st.cache_data(ttl=86400) # Cache for 24 hours (entire day)
+# Removed @st.cache_data decorator to prevent caching issues.
 def get_this_day_in_history_facts(current_day, current_month, user_info, _ai_client, max_retries=3):
     """Generates famous event, person born, fun fact, and trivia for the current day.
     Includes retry logic to ensure an event is always provided."""
@@ -1573,11 +1574,10 @@ if st.session_state['is_authenticated']:
                         bool(item.get('URL', '').strip())
                     )
                     if has_content:
-                        # Removed the custom 'content-card' div
+                        st.markdown("---")
                         cols = st.columns([1, 2])
                         with cols[0]:
                             img_url = get_image_url(item) # Use the new helper function
-                            # Removed the custom 'content-card-image-col' div
                             st.image(img_url, width=180) # Always display image using the determined URL
 
                         with cols[1]:
@@ -1830,7 +1830,7 @@ if st.session_state['is_authenticated']:
             session_mood = st.radio(
                 "Pair's Overall Mood During Session:",
                 ["Happy 😊", "Calm 😌", "Neutral 😐", "Agitated 😠", "Sad 😢"],
-                index=["Happy 😊", "Calm 😌", "Neutral 😐", "Agitated 😠", "Sad 😢"].index(st.session_state['session_mood']),
+                index=["Happy �", "Calm 😌", "Neutral 😐", "Agitated 😠", "Sad 😢"].index(st.session_state['session_mood']),
                 key="session_mood_input"
             )
             st.session_state['session_mood'] = session_mood
@@ -1905,7 +1905,6 @@ if st.session_state['is_authenticated']:
             session_history_df = load_session_logs(st.session_state['current_user_name'], st.session_state['logged_in_username'])
             if not session_history_df.empty:
                 for index, row in session_history_df.iterrows():
-                    # Removed the custom 'session-history-item' div
                     st.markdown(f"**Session Date:** {row['Session Date']}")
                     st.markdown(f"**Pair Name:** {row['Pair Name']}")
                     st.markdown(f"**Mood:** {row['Mood']}")
@@ -1951,21 +1950,16 @@ if st.session_state['is_authenticated']:
 
             st.markdown(f"### Today is: {today_date_str}")
 
-            # Check if history data is already loaded and from today
-            # We'll use a simple check based on the current date, as get_this_day_in_history_facts is now cached for 24h
-            # This ensures that if the app reruns (e.g., user interaction on the page),
-            # the data is pulled from session state rather than re-parsing the AI response
-            if 'last_history_date' not in st.session_state or st.session_state['last_history_date'] != today:
-                with st.spinner("Fetching historical insights for today..."):
-                    history_facts_data = get_this_day_in_history_facts(current_day, current_month, user_info, client_ai)
-                    
-                    # Store parsed data in session state
-                    st.session_state['this_day_history_data'] = history_facts_data
-                    st.session_state['last_history_date'] = today # Mark when this data was fetched/stored
-            else:
-                # If already loaded for today, retrieve from session state
-                st.info("Showing cached insights for today.")
+            # Removed caching logic for get_this_day_in_history_facts
+            # Now, it will always fetch new data when the page loads or reruns,
+            # ensuring the most up-to-date information is displayed.
+            with st.spinner("Fetching historical insights for today..."):
+                history_facts_data = get_this_day_in_history_facts(current_day, current_month, user_info, client_ai)
                 
+                # Store parsed data in session state
+                st.session_state['this_day_history_data'] = history_facts_data
+                st.session_state['last_history_date'] = today # Mark when this data was fetched/stored
+            
             # Retrieve from session state for display and PDF generation
             event_title = st.session_state['this_day_history_data']['event_title']
             event_article = st.session_state['this_day_history_data']['event_article']
@@ -2043,3 +2037,4 @@ if st.session_state['is_authenticated']:
                 )
             else:
                 st.info("Generate the daily history content first to download the full page PDF.")
+�
