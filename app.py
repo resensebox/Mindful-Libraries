@@ -1544,4 +1544,3 @@ if st.session_state['is_authenticated']:
         else:
             st.info("Please set a 'Favorite Decade' in the Pair Profile to view a historical summary.")
 
-�
