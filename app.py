@@ -429,58 +429,48 @@ def load_session_logs(pair_name, volunteer_username):
     if not pair_name or not volunteer_username: # Require both pair_name and volunteer_username
         return pd.DataFrame()
     
-    with st.expander("Debug: Session History Loading"):
-        st.info(f"DEBUG: Attempting to load history for Pair Name (input): '{pair_name}' (lower: '{pair_name.lower()}')")
-        st.info(f"DEBUG: Volunteer Username (logged in): '{volunteer_username}' (lower: '{volunteer_username.lower()}')")
+    try:
+        sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXJRXcfmxjoj5s')
+        session_log_ws = sheet.worksheet('SessionLogs')
+        
+        all_values = session_log_ws.get_all_values()
 
-        try:
-            sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXJRXcfmxjoj5s')
-            session_log_ws = sheet.worksheet('SessionLogs')
-            
-            all_values = session_log_ws.get_all_values()
+        if not all_values:
+            return pd.DataFrame()
 
-            if not all_values:
-                st.info("DEBUG: The 'SessionLogs' worksheet is empty or has no valid data.")
-                return pd.DataFrame()
+        raw_headers = [str(h).strip() for h in all_values[0]]
+        
+        cleaned_headers = []
+        header_name_counts = Counter()
+        for header in raw_headers:
+            if not header:
+                header_name_counts['Unnamed'] += 1
+                cleaned_headers.append(f'Unnamed_{header_name_counts["Unnamed"]}')
+            elif header in cleaned_headers:
+                header_name_counts[header] += 1
+                cleaned_headers.append(f'{header}_{header_name_counts[header]}')
+            else:
+                cleaned_headers.append(header)
 
-            raw_headers = [str(h).strip() for h in all_values[0]]
-            
-            cleaned_headers = []
-            header_name_counts = Counter()
-            for header in raw_headers:
-                if not header:
-                    header_name_counts['Unnamed'] += 1
-                    cleaned_headers.append(f'Unnamed_{header_name_counts["Unnamed"]}')
-                elif header in cleaned_headers:
-                    header_name_counts[header] += 1
-                    cleaned_headers.append(f'{header}_{header_name_counts[header]}')
-                else:
-                    cleaned_headers.append(header)
+        data_rows = all_values[1:]
 
-            data_rows = all_values[1:]
+        df_raw = pd.DataFrame(data_rows, columns=cleaned_headers)
 
-            df_raw = pd.DataFrame(data_rows, columns=cleaned_headers)
-            st.info(f"DEBUG: Raw DataFrame loaded from SessionLogs (first 5 rows):")
-            st.write(df_raw.head())
-
-            # Updated expected headers - Add 'College Chapter' here for loading
-            expected_headers = ['Timestamp', 'Pair Name', 'Session Date', 'Mood', 'Engagement', 'Takeaways', 'Volunteer Username', 'Recommended Materials']
-            
-            df_final = pd.DataFrame()
-            for col in expected_headers:
-                found_col_name = None
-                for df_col in df_raw.columns:
-                    if df_col == col or (df_col.startswith(f"{col}_") and df_col[len(col):].replace('_', '').isdigit()):
-                        found_col_name = df_col
-                        break
+        # Updated expected headers - Add 'College Chapter' here for loading
+        expected_headers = ['Timestamp', 'Pair Name', 'Session Date', 'Mood', 'Engagement', 'Takeaways', 'Volunteer Username', 'Recommended Materials']
+        
+        df_final = pd.DataFrame()
+        for col in expected_headers:
+            found_col_name = None
+            for df_col in df_raw.columns:
+                if df_col == col or (df_col.startswith(f"{col}_") and df_col[len(col):].replace('_', '').isdigit()):
+                    found_col_name = df_col
+                    break
                 
                 if found_col_name and found_col_name in df_raw.columns:
                     df_final[col] = df_raw[found_col_name]
                 else:
                     df_final[col] = '' # Add missing column with empty string
-            
-            st.info(f"DEBUG: Final DataFrame columns after header cleaning (first 5 rows):")
-            st.write(df_final.head())
 
 
             # Filter by both Pair Name and Volunteer Username
@@ -489,13 +479,6 @@ def load_session_logs(pair_name, volunteer_username):
                 (df_final['Volunteer Username'].str.lower() == volunteer_username.lower())
             ].sort_values(by='Timestamp', ascending=False)
             
-            st.info(f"DEBUG: Filtered DataFrame row count: {len(filtered_df)}")
-            if filtered_df.empty:
-                st.info("DEBUG: No matching rows found after filtering.")
-            else:
-                st.info("DEBUG: Matching rows found.")
-                st.write(filtered_df)
-
             return filtered_df
 
         except gspread.exceptions.WorksheetNotFound:
