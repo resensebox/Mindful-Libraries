@@ -760,7 +760,7 @@ def generate_activities(_ai_client, active_tags, recommended_titles):
     Suggest activities in a numbered list format. Each activity should be a short, actionable sentence.
     """
     try:
-        response = _ai_ai.chat.completions.create(
+        response = _ai_client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[{"role": "user", "content": prompt}]
         )
@@ -930,7 +930,7 @@ if not st.session_state['is_authenticated']:
 else:
     # Sidebar navigation
     st.sidebar.image("https://i.ibb.co/q17Y0r7/Logo.png", use_column_width=True)
-    st.sidebar.title(f"Hello, {st.session_state['logged_in_username']}")
+    st.sidebar.title(f"Hello, {st.session_state['logged_in_username']}") # Corrected: Removed extraneous characters
 
     if st.sidebar.button("Dashboard"):
         st.session_state['current_page'] = 'dashboard'
@@ -1388,7 +1388,7 @@ else:
         # Removed the custom anchor tag: st.markdown('<a name=\"decade_summary\"></a>', unsafe_allow_html=True)
         st.header(f"🕰️ A Glimpse into the {st.session_state['current_user_decade']}:")
         if st.session_state['current_user_decade']:\
-            st.spinner(f"Generating context for the {st.session_state['current_user_decade']}..."):
+            with st.spinner(f"Generating context for the {st.session_state['current_user_decade']}..."):
                 historical_context = generate_historical_context(st.session_state['current_user_decade'], client_ai)
                 st.info(historical_context)
         else:
