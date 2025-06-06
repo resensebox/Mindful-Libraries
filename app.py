@@ -986,7 +986,7 @@ if st.session_state['is_authenticated']:
                     <a href="#dashboard" onclick="parent.postMessage({{streamlit: {{command: 'setPage', args: ['dashboard']}}}}, '*');" class="{'active' if st.session_state['current_page'] == 'dashboard' else ''}">Dashboard</a>
                     <a href="#search_section" onclick="parent.postMessage({{streamlit: {{command: 'setPage', args: ['search']}}}}, '*');" class="{'active' if st.session_state['current_page'] == 'search' else ''}">Search Content</a>
                     <a href="#personalized_recommendations" onclick="parent.postMessage({{streamlit: {{command: 'setPage', args: ['recommendations']}}}}, '*');" class="{'active' if st.session_state['current_page'] == 'recommendations' else ''}">My Recommendations</a>
-                    <a href="#activities_section" onclick="parent.postMessage({{streamlit: {{command: 'setPage', args: ['activities']}}}}, '*');" class="{'active' if st.session_state['current_page'] == 'activities'] else ''}">Activities</a>
+                    <a href="#activities_section" onclick="parent.postMessage({{streamlit: {{command: 'setPage', args: ['activities']}}}}, '*');" class="{'active' if st.session_state['current_page'] == 'activities' else ''}">Activities</a>
                     <a href="#you_might_also_like" onclick="parent.postMessage({{streamlit: {{command: 'setPage', args: ['related_books']}}}}, '*');" class="{'active' if st.session_state['current_page'] == 'related_books' else ''}">Related Materials</a>
                     <a href="#session_notes_section" onclick="parent.postMessage({{streamlit: {{command: 'setPage', args: ['session_notes']}}}}, '*');" class="{'active' if st.session_state['current_page'] == 'session_notes' else ''}">Session Notes</a>
                     <a href="#session_history_section" onclick="parent.postMessage({{streamlit: {{command: 'setPage', args: ['session_history']}}}}, '*');" class="{'active' if st.session_state['current_page'] == 'session_history' else ''}">Session History</a>
@@ -1431,14 +1431,12 @@ if st.session_state['is_authenticated']:
                     fallback_books = fallback_books_df.sample(min(5, len(fallback_books_df)), random_state=1).to_dict('records')
                     num_cols_fallback = st.columns(min(5, len(fallback_books)))
                     for i, book in enumerate(fallback_books):
-                        st.markdown('<div class="content-card" style="padding: 1rem; margin-bottom: 1rem;">', unsafe_allow_html=True) # Smaller card for fallback books
                         with num_cols_fallback[i % len(num_cols_fallback)]:
                             img_url = get_image_url(book) # Use the new helper function
                             st.image(img_url, width=120) # Always display image using the determined URL
                             st.caption(book.get('Title', 'N/A'))
                             if 'URL' in book and book['URL']:
                                 st.markdown(f"<a class='buy-button' href='{book['URL']}' target='_blank'>Buy Now</a>", unsafe_allow_html=True)
-                        st.markdown('</div>', unsafe_allow_html=True) # End card
                 else:
                     st.markdown("_No books available in the database to recommend._")
             else:
@@ -1455,7 +1453,7 @@ if st.session_state['is_authenticated']:
         with notes_col2:
             session_mood = st.radio(
                 "Pair's Overall Mood During Session:",
-                ["Happy 😊", "Calm �", "Neutral 😐", "Agitated 😠", "Sad 😢"],
+                ["Happy 😊", "Calm 😌", "Neutral 😐", "Agitated 😠", "Sad 😢"],
                 index=["Happy 😊", "Calm 😌", "Neutral 😐", "Agitated 😠", "Sad 😢"].index(st.session_state['session_mood']),
                 key="session_mood_input"
             )
