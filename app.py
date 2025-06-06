@@ -182,9 +182,9 @@ st.markdown("""
     /* Specific styling for the active navigation button to make it stand out */
     /* This targets Streamlit's internal element responsible for highlighting the active button */
     .stSidebar button[data-testid="stSidebarNav"] div[data-testid="stVerticalBlock"] > div:nth-child(even) > div > button {
-        background-color: #007bff; /* Blue background for active button */
-        color: white; /* White text for active button */
-        box-shadow: 0 4px 8px rgba(0,0,0,0.2); /* More pronounced shadow */
+        background-color: #007bff !important;
+        color: white !important;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2) !important;
     }
 
     /* Content Cards */
@@ -197,6 +197,7 @@ st.markdown("""
         display: flex;
         flex-direction: column; /* Stack elements inside card */
         transition: transform 0.2s ease;
+        height: auto; /* Ensure cards can shrink vertically */
     }
     .content-card:hover {
         transform: translateY(-5px); /* Lift effect on hover */
@@ -861,12 +862,11 @@ if st.session_state['is_authenticated']:
         st.rerun()
 st.markdown('</div>', unsafe_allow_html=True)
 
-# Main title that replaces Streamlit's default h1
-st.markdown("<h1 style='text-align: center; color: #333333; margin-top: 1rem; margin-bottom: 1.5rem; font-size: 2.5em; font-weight: 700; letter-spacing: -0.02em;'>Discover Your Next Nostalgic Read!</h1>", unsafe_allow_html=True)
-
 
 # --- Login / Register Section ---
 if not st.session_state['is_authenticated']:
+    # Main title is outside the main-content-wrapper when logged out
+    st.markdown("<h1 style='text-align: center; color: #333333; margin-top: 1rem; margin-bottom: 1.5rem; font-size: 2.5em; font-weight: 700; letter-spacing: -0.02em;'>Discover Your Next Nostalgic Read!</h1>", unsafe_allow_html=True)
     st.info("Please log in or register to use the Mindful Libraries app.")
 
     # Toggles between login and registration forms
@@ -991,6 +991,10 @@ if st.session_state['is_authenticated']:
     # --- Main Content Area Wrapper ---
     # This div will act as the "floating rectangle"
     st.markdown('<div class="main-content-wrapper">', unsafe_allow_html=True)
+
+    # Main title is now inside the main-content-wrapper when logged in
+    st.markdown("<h1 style='text-align: center; color: #333333; margin-top: 0; margin-bottom: 1.5rem; font-size: 2.5em; font-weight: 700; letter-spacing: -0.02em;'>Discover Your Next Nostalgic Read!</h1>", unsafe_allow_html=True)
+
 
     # Content Area based on selected page
     if st.session_state['current_page'] == 'dashboard':
@@ -1214,7 +1218,7 @@ if st.session_state['is_authenticated']:
             if results:
                 for item in results[:5]:
                     # Only render content-card if there's meaningful content
-                    if item.get('Title') or item.get('Summary') or item.get('Image') or item.get('URL'):
+                    if item.get('Title') and (item.get('Summary') or item.get('Image') or item.get('URL')): # Stricter check
                         st.markdown('<div class="content-card">', unsafe_allow_html=True) # Start card
                         cols = st.columns([1, 2])
                         with cols[0]:
@@ -1274,7 +1278,7 @@ if st.session_state['is_authenticated']:
             if books or newspapers:
                 for item in books + newspapers:
                     # Only render content-card if there's meaningful content
-                    if item.get('Title') or item.get('Summary') or item.get('Image') or item.get('URL'):
+                    if item.get('Title') and (item.get('Summary') or item.get('Image') or item.get('URL')): # Stricter check
                         st.markdown('<div class="content-card">', unsafe_allow_html=True) # Start card
                         cols = st.columns([1, 2])
                         with cols[0]:
@@ -1386,7 +1390,7 @@ if st.session_state['is_authenticated']:
             cols = st.columns(num_cols)
             for i, book in enumerate(related_books):
                 # Only render content-card if there's meaningful content
-                if book.get('Title') or book.get('Summary') or book.get('Image') or book.get('URL'):
+                if book.get('Title') and (book.get('Summary') or book.get('Image') or book.get('URL')): # Stricter check
                     # Using a column for each related book to arrange them in a grid-like manner
                     with cols[i % num_cols]:
                         st.markdown('<div class="content-card" style="padding: 1rem; margin-bottom: 1rem; height: auto;">', unsafe_allow_html=True) # Smaller card for related books, auto height
@@ -1413,7 +1417,7 @@ if st.session_state['is_authenticated']:
                     num_cols_fallback = st.columns(min(5, len(fallback_books_df)))
                     for i, book in enumerate(fallback_books_df.sample(min(5, len(fallback_books_df)), random_state=1).to_dict('records')):
                         # Only render content-card if there's meaningful content
-                        if book.get('Title') or book.get('Summary') or book.get('Image') or book.get('URL'):
+                        if book.get('Title') and (book.get('Summary') or book.get('Image') or book.get('URL')): # Stricter check
                             with num_cols_fallback[i % len(num_cols_fallback)]:
                                 st.markdown('<div class="content-card" style="padding: 1rem; margin-bottom: 1rem; height: auto;">', unsafe_allow_html=True) # Smaller card for fallback books, auto height
                                 img_url = get_image_url(book) # Use the new helper function
@@ -1533,3 +1537,4 @@ if st.session_state['is_authenticated']:
 
     # --- End of Main Content Area Wrapper ---
     st.markdown('</div>', unsafe_allow_html=True)
+
