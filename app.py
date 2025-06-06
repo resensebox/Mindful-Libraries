@@ -301,7 +301,8 @@ def save_pair_details(volunteer_username, pair_name, jobs, life_experiences, hob
                 break
         
         # Create a dictionary for mapping to header positions
-        col_map = {header_name: i for i i, header_name in enumerate(header_row)}
+        # Corrected syntax: removed duplicate 'i'
+        col_map = {header_name: i for i, header_name in enumerate(header_row)}
         
         # Prepare values to update, ensuring correct order based on header_row
         update_values = [''] * len(header_row) # Initialize with empty strings
