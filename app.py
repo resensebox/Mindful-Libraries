@@ -1,4 +1,3 @@
-
 import streamlit as st
 import pandas as pd
 import gspread
@@ -26,6 +25,7 @@ st.markdown("""
 
     /* App-like Header (remains at the top of the main content area) */
     /* Targeting the header container in Streamlit and adjusting its appearance */
+    /* Removed the explicit div wrapping for this section as per request to remove markdown containers */
     .st-emotion-cache-vk3357.e1nzilvr1 {
         background-color: #ffffff; /* White background for header */
         padding: 0.8rem 1.5rem; /* Adjusted padding */
@@ -178,47 +178,47 @@ st.markdown("""
         box-shadow: 0 4px 8px rgba(0,0,0,0.2) !important;
     }
 
-    /* Content Cards */
-    .content-card {
+    /* Content Cards CSS removed as per user request */
+    /* .content-card {
         background-color: #ffffff;
         border-radius: 12px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.08); /* More pronounced shadow */
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
         padding: 1.5rem;
-        margin-bottom: 2rem; /* Space between cards */
+        margin-bottom: 2rem;
         display: flex;
-        flex-direction: column; /* Stack elements inside card */
+        flex-direction: column;
         transition: transform 0.2s ease;
-        height: auto; /* Ensure cards can shrink vertically */
+        height: auto;
     }
     .content-card:hover {
-        transform: translateY(-5px); /* Lift effect on hover */
-    }
+        transform: translateY(-5px);
+    } */
 
-    .content-card-image-col {
+    /* .content-card-image-col {
         display: flex;
         justify-content: center;
         align-items: center;
-        padding-right: 1.5rem; /* Space between image and text */
-    }
+        padding-right: 1.5rem;
+    } */
 
-    /* Specific image styling within cards */
-    .content-card img {
+    /* Specific image styling within cards - remains, as images are still used */
+    .stImage > img { /* Changed from .content-card img to a more general Streamlit image selector */
         border-radius: 8px;
-        width: 100%; /* Make image responsive within its column */
+        width: 100%;
         height: auto;
-        max-width: 180px; /* Max width for images */
+        max-width: 180px;
         box-shadow: 0 2px 6px rgba(0,0,0,0.1);
     }
 
-    /* Session History Items */
-    .session-history-item {
+    /* Session History Items CSS removed as per user request */
+    /* .session-history-item {
         background-color: #ffffff;
         border-radius: 12px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.06); /* Lighter shadow for history items */
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
         padding: 1.2rem;
-        margin-bottom: 1.5rem; /* Space between history items */
-        border-left: 5px solid #4CAF50; /* Accent border */
-    }
+        margin-bottom: 1.5rem;
+        border-left: 5px solid #4CAF50;
+    } */
 
     .session-history-item strong {
         color: #333;
@@ -826,7 +826,7 @@ def get_image_url(item):
 
 # --- Streamlit UI ---
 # Custom header area with logo and logout button
-st.markdown('<div class="st-emotion-cache-vk3357 e1nzilvr1">', unsafe_allow_html=True)
+# Removed explicit markdown div here
 st.image("https://i.postimg.cc/0yVG4bhN/mindfullibrarieswhite-01.png", width=180) # Adjust width as needed
 if st.session_state['is_authenticated']:
     if st.button("Log Out"):
@@ -851,7 +851,6 @@ if st.session_state['is_authenticated']:
         st.session_state['show_printable_summary'] = False
         PAIRS_DATA = {} # Clear global PAIRS_DATA on logout
         st.rerun()
-st.markdown('</div>', unsafe_allow_html=True)
 
 
 # --- Login / Register Section ---
@@ -978,9 +977,6 @@ if st.session_state['is_authenticated']:
                 st.session_state['current_page'] = page_key
                 st.rerun() # Rerun to switch page
 
-
-    # --- Removed the main-content-wrapper div ---
-    # st.markdown('<div class="main-content-wrapper">', unsafe_allow_html=True) # Removed
 
     # Main title is now directly in the main authenticated content area
     st.markdown("<h1 style='text-align: center; color: #333333; margin-top: 2rem; margin-bottom: 1.5rem; font-size: 2.5em; font-weight: 700; letter-spacing: -0.02em;'>Discover Your Next Nostalgic Read!</h1>", unsafe_allow_html=True)
@@ -1207,7 +1203,7 @@ if st.session_state['is_authenticated']:
 
             if results:
                 for item in results[:5]:
-                    # Only render content-card if it has a meaningful title OR meaningful summary/image/URL
+                    # Only render content if it has a meaningful title OR meaningful summary/image/URL
                     has_content = (
                         bool(item.get('Title', '').strip()) or
                         bool(item.get('Summary', '').strip()) or
@@ -1215,13 +1211,12 @@ if st.session_state['is_authenticated']:
                         bool(item.get('URL', '').strip())
                     )
                     if has_content:
-                        st.markdown('<div class="content-card">', unsafe_allow_html=True) # Start card
+                        # Removed the custom 'content-card' div
                         cols = st.columns([1, 2])
                         with cols[0]:
                             img_url = get_image_url(item) # Use the new helper function
-                            st.markdown('<div class="content-card-image-col">', unsafe_allow_html=True)
+                            # Removed the custom 'content-card-image-col' div
                             st.image(img_url, width=180) # Always display image using the determined URL
-                            st.markdown('</div>', unsafe_allow_html=True) # End content-card-image-col
 
                         with cols[1]:
                             display_title = item.get('Title', '').strip()
@@ -1243,7 +1238,6 @@ if st.session_state['is_authenticated']:
 
                             if 'URL' in item and item['URL']:
                                 st.markdown(f"<a class='buy-button' href='{item['URL']}' target='_blank'>Buy Now</a>", unsafe_allow_html=True)
-                        st.markdown('</div>', unsafe_allow_html=True) # End card
                 if len(results) > 5:
                     st.info(f"Showing top 5 results. Found {len(results)} total matches for '{search_term}'.")
             else:
@@ -1284,7 +1278,7 @@ if st.session_state['is_authenticated']:
 
             if books or newspapers:
                 for item in books + newspapers:
-                    # Only render content-card if it has a meaningful title OR meaningful summary/image/URL
+                    # Only render content if it has a meaningful title OR meaningful summary/image/URL
                     has_content = (
                         bool(item.get('Title', '').strip()) or
                         bool(item.get('Summary', '').strip()) or
@@ -1292,13 +1286,12 @@ if st.session_state['is_authenticated']:
                         bool(item.get('URL', '').strip())
                     )
                     if has_content:
-                        st.markdown('<div class="content-card">', unsafe_allow_html=True) # Start card
+                        # Removed the custom 'content-card' div
                         cols = st.columns([1, 2])
                         with cols[0]:
                             img_url = get_image_url(item) # Use the new helper function
-                            st.markdown('<div class="content-card-image-col">', unsafe_allow_html=True)
+                            # Removed the custom 'content-card-image-col' div
                             st.image(img_url, width=180) # Always display image using the determined URL
-                            st.markdown('</div>', unsafe_allow_html=True) # End content-card-image-col
 
                         with cols[1]:
                             display_title = item.get('Title', '').strip()
@@ -1353,7 +1346,6 @@ if st.session_state['is_authenticated']:
 
                             if 'URL' in item and item['URL']:
                                 st.markdown(f"<a class='buy-button' href='{item['URL']}' target='_blank'>Buy Now</a>", unsafe_allow_html=True)
-                        st.markdown('</div>', unsafe_allow_html=True) # End card
                 if not (books or newspapers):
                     st.markdown("_No primary recommendations found based on your current tags. Please try adjusting your input or generating new tags._")
             else:
@@ -1413,7 +1405,7 @@ if st.session_state['is_authenticated']:
             num_cols = min(5, len(related_books))
             cols = st.columns(num_cols)
             for i, book in enumerate(related_books):
-                # Only render content-card if it has a meaningful title OR meaningful summary/image/URL
+                # Only render content if it has a meaningful title OR meaningful summary/image/URL
                 has_content = (
                     bool(book.get('Title', '').strip()) or
                     bool(book.get('Summary', '').strip()) or
@@ -1423,7 +1415,7 @@ if st.session_state['is_authenticated']:
                 if has_content:
                     # Using a column for each related book to arrange them in a grid-like manner
                     with cols[i % num_cols]:
-                        st.markdown('<div class="content-card" style="padding: 1rem; margin-bottom: 1rem; height: auto;">', unsafe_allow_html=True) # Smaller card for related books, auto height
+                        # Removed the custom 'content-card' div
                         img_url = get_image_url(book) # Use the new helper function
                         st.image(img_url, width=120) # Always display image using the determined URL
                         
@@ -1440,7 +1432,6 @@ if st.session_state['is_authenticated']:
 
                         if 'URL' in book and book['URL']:
                             st.markdown(f"<a class='buy-button' href='{book['URL']}' target='_blank'>Buy Now</a>", unsafe_allow_html=True)
-                        st.markdown('</div>', unsafe_allow_html=True) # End content-card
         else:
             st.markdown("_No other related materials found with your current tags. Try generating new tags or searching for a specific topic!_") # Changed text here
             st.markdown("---")
@@ -1451,7 +1442,7 @@ if st.session_state['is_authenticated']:
                 if not fallback_books_df.empty:
                     num_cols_fallback = st.columns(min(5, len(fallback_books_df)))
                     for i, book in enumerate(fallback_books_df.sample(min(5, len(fallback_books_df)), random_state=1).to_dict('records')):
-                        # Only render content-card if it has a meaningful title OR meaningful summary/image/URL
+                        # Only render content if it has a meaningful title OR meaningful summary/image/URL
                         has_content = (
                             bool(book.get('Title', '').strip()) or
                             bool(book.get('Summary', '').strip()) or
@@ -1460,7 +1451,7 @@ if st.session_state['is_authenticated']:
                         )
                         if has_content:
                             with num_cols_fallback[i % len(num_cols_fallback)]:
-                                st.markdown('<div class="content-card" style="padding: 1rem; margin-bottom: 1rem; height: auto;">', unsafe_allow_html=True) # Smaller card for fallback books, auto height
+                                # Removed the custom 'content-card' div
                                 img_url = get_image_url(book) # Use the new helper function
                                 st.image(img_url, width=120) # Always display image using the determined URL
                                 
@@ -1472,7 +1463,6 @@ if st.session_state['is_authenticated']:
 
                                 if 'URL' in book and book['URL']:
                                     st.markdown(f"<a class='buy-button' href='{book['URL']}' target='_blank'>Buy Now</a>", unsafe_allow_html=True)
-                                st.markdown('</div>', unsafe_allow_html=True) # End content-card
                 else:
                     st.markdown("_No books available in the database to recommend._")
             else:
@@ -1548,7 +1538,7 @@ if st.session_state['is_authenticated']:
             session_history_df = load_session_logs(st.session_state['current_user_name'], st.session_state['logged_in_username'])
             if not session_history_df.empty:
                 for index, row in session_history_df.iterrows():
-                    st.markdown('<div class="session-history-item">', unsafe_allow_html=True) # Start history item card
+                    # Removed the custom 'session-history-item' div
                     st.markdown(f"**Session Date:** {row['Session Date']}")
                     st.markdown(f"**Pair Name:** {row['Pair Name']}")
                     st.markdown(f"**Mood:** {row['Mood']}")
@@ -1566,7 +1556,7 @@ if st.session_state['is_authenticated']:
                                     st.markdown(f"- {rec_title}") # Displaying just the title
                         except json.JSONDecodeError:
                             st.markdown("_Error loading recommended materials. Data format may be incorrect._")
-                    st.markdown("</div>", unsafe_allow_html=True) # End history item card
+                    st.markdown("---") # Add a separator between history items
             else:
                 st.info(f"No past session notes found for {st.session_state['current_user_name']} logged by {st.session_state['logged_in_username']}. Save a session to see history!")
         else:
@@ -1581,7 +1571,4 @@ if st.session_state['is_authenticated']:
                 st.info(historical_context)
         else:
             st.info("Please set a 'Favorite Decade' in the Pair Profile to view a historical summary.")
-
-    # --- Removed the main-content-wrapper closing div ---
-    # st.markdown('</div>', unsafe_allow_html=True) # Removed
 
