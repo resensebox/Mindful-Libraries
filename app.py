@@ -60,7 +60,7 @@ st.markdown("""
     h1 {
         text-align: center;
         color: #333333;
-        margin-top: 1rem; /* Reduced top margin */
+        margin-top: 0; /* Changed from 1rem to 0 to remove top space */
         margin-bottom: 1.5rem; /* Slightly reduced bottom margin */
         font-size: 2.5em; /* Make it stand out */
         font-weight: 700;
@@ -1217,8 +1217,9 @@ if st.session_state['is_authenticated']:
 
             if results:
                 for item in results[:5]:
-                    # Only render content-card if there's meaningful content
-                    if item.get('Title') and (item.get('Summary') or item.get('Image') or item.get('URL')): # Stricter check
+                    # Only render content-card if there's meaningful content (stricter check)
+                    if item.get('Title', '').strip() and \
+                       (item.get('Summary', '').strip() or item.get('Image', '').strip() or item.get('URL', '').strip()):
                         st.markdown('<div class="content-card">', unsafe_allow_html=True) # Start card
                         cols = st.columns([1, 2])
                         with cols[0]:
@@ -1277,8 +1278,9 @@ if st.session_state['is_authenticated']:
 
             if books or newspapers:
                 for item in books + newspapers:
-                    # Only render content-card if there's meaningful content
-                    if item.get('Title') and (item.get('Summary') or item.get('Image') or item.get('URL')): # Stricter check
+                    # Only render content-card if there's meaningful content (stricter check)
+                    if item.get('Title', '').strip() and \
+                       (item.get('Summary', '').strip() or item.get('Image', '').strip() or item.get('URL', '').strip()):
                         st.markdown('<div class="content-card">', unsafe_allow_html=True) # Start card
                         cols = st.columns([1, 2])
                         with cols[0]:
@@ -1389,8 +1391,9 @@ if st.session_state['is_authenticated']:
             num_cols = min(5, len(related_books))
             cols = st.columns(num_cols)
             for i, book in enumerate(related_books):
-                # Only render content-card if there's meaningful content
-                if book.get('Title') and (book.get('Summary') or book.get('Image') or book.get('URL')): # Stricter check
+                # Only render content-card if there's meaningful content (stricter check)
+                if book.get('Title', '').strip() and \
+                   (book.get('Summary', '').strip() or book.get('Image', '').strip() or book.get('URL', '').strip()):
                     # Using a column for each related book to arrange them in a grid-like manner
                     with cols[i % num_cols]:
                         st.markdown('<div class="content-card" style="padding: 1rem; margin-bottom: 1rem; height: auto;">', unsafe_allow_html=True) # Smaller card for related books, auto height
@@ -1416,8 +1419,9 @@ if st.session_state['is_authenticated']:
                 if not fallback_books_df.empty:
                     num_cols_fallback = st.columns(min(5, len(fallback_books_df)))
                     for i, book in enumerate(fallback_books_df.sample(min(5, len(fallback_books_df)), random_state=1).to_dict('records')):
-                        # Only render content-card if there's meaningful content
-                        if book.get('Title') and (book.get('Summary') or book.get('Image') or book.get('URL')): # Stricter check
+                        # Only render content-card if there's meaningful content (stricter check)
+                        if book.get('Title', '').strip() and \
+                           (book.get('Summary', '').strip() or book.get('Image', '').strip() or book.get('URL', '').strip()):
                             with num_cols_fallback[i % len(num_cols_fallback)]:
                                 st.markdown('<div class="content-card" style="padding: 1rem; margin-bottom: 1rem; height: auto;">', unsafe_allow_html=True) # Smaller card for fallback books, auto height
                                 img_url = get_image_url(book) # Use the new helper function
@@ -1537,4 +1541,3 @@ if st.session_state['is_authenticated']:
 
     # --- End of Main Content Area Wrapper ---
     st.markdown('</div>', unsafe_allow_html=True)
-
