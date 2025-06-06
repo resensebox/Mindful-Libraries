@@ -737,6 +737,27 @@ def generate_activities(_ai_client, active_tags, recommended_titles):
     except Exception as e:
         return [f"Could not generate activity suggestions at this time. Error: {e}"]
 
+
+@st.cache_data(ttl=3600)
+def generate_activity_guide(activity_description, _ai_client):
+    """Generates a downloadable plan with steps and a shopping or supply list for an activity."""
+    prompt = f"""
+    You are a helpful assistant. Based on the following activity description, create a detailed step-by-step guide including:
+    - A supply list (or shopping list if applicable)
+    - Clear, numbered instructions
+
+    Activity Description: "{activity_description}"
+
+    Format the response in markdown.
+    """
+    try:
+        response = _ai_client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": prompt}]
+        )
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        return f"Could not generate activity guide. Error: {e}"
 def get_printable_summary(user_info, tags, books, newspapers, activities, volunteer_username):
     """Generates a formatted string summary for printing."""
     summary = f"--- Session Plan Summary for {user_info['name'] if user_info['name'] else 'Your Pair'} ---\n\n"
