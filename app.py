@@ -971,25 +971,29 @@ def generate_full_history_pdf(event_title, event_article, born_section, fun_fact
     pdf.ln(10)
 
     pdf.set_font("Arial", "B", 14)
-    pdf.multi_cell(0, 10, "Significant Event:", ln=1)
+    # Corrected: Removed 'ln=1' from multi_cell call
+    pdf.multi_cell(0, 10, "Significant Event:") 
     pdf.set_font("Arial", "", 12)
     pdf.multi_cell(0, 8, f"**{event_title}**\n{event_article}".encode('latin-1', 'replace').decode('latin-1'))
     pdf.ln(5)
 
     pdf.set_font("Arial", "B", 14)
-    pdf.multi_cell(0, 10, "Famous Person Born Today:", ln=1)
+    # Corrected: Removed 'ln=1' from multi_cell call
+    pdf.multi_cell(0, 10, "Famous Person Born Today:")
     pdf.set_font("Arial", "", 12)
     pdf.multi_cell(0, 8, born_section.encode('latin-1', 'replace').decode('latin-1'))
     pdf.ln(5)
 
     pdf.set_font("Arial", "B", 14)
-    pdf.multi_cell(0, 10, "Fun Fact:", ln=1)
+    # Corrected: Removed 'ln=1' from multi_cell call
+    pdf.multi_cell(0, 10, "Fun Fact:")
     pdf.set_font("Arial", "", 12)
     pdf.multi_cell(0, 8, fun_fact_section.encode('latin-1', 'replace').decode('latin-1'))
     pdf.ln(5)
 
     pdf.set_font("Arial", "B", 14)
-    pdf.multi_cell(0, 10, "Trivia Time! (with answers for the volunteer):", ln=1)
+    # Corrected: Removed 'ln=1' from multi_cell call
+    pdf.multi_cell(0, 10, "Trivia Time! (with answers for the volunteer):")
     pdf.set_font("Arial", "", 12)
     for trivia_item in trivia_section:
         pdf.multi_cell(0, 8, trivia_item.encode('latin-1', 'replace').decode('latin-1'))
