@@ -232,8 +232,6 @@ except Exception as e:
 
 
 @st.cache_data(ttl=3600)
-
-@st.cache_data(ttl=3600)
 def generate_activity_guide(activity_description, _ai_client):
     """Generates a downloadable plan with steps and a shopping or supply list for an activity."""
     prompt = f"""
@@ -253,6 +251,8 @@ def generate_activity_guide(activity_description, _ai_client):
         return response.choices[0].message.content.strip()
     except Exception as e:
         return f"Could not generate activity guide. Error: {e}"
+
+@st.cache_data(ttl=3600)
 def load_content():
     """Loads content data from Google Sheet and processes tags."""
     try:
@@ -313,6 +313,10 @@ if 'recommended_books_current_session' not in st.session_state:
     st.session_state['recommended_books_current_session'] = []
 if 'recommended_newspapers_current_session' not in st.session_state:
     st.session_state['recommended_newspapers_current_session'] = []
+if 'recommended_activities_current_session' not in st.session_state:
+    st.session_state['recommended_activities_current_session'] = [] # New: Store just activity titles
+if 'activity_guides_for_pdf' not in st.session_state:
+    st.session_state['activity_guides_for_pdf'] = [] # New: Store activities with guides for PDF
 
 if 'show_printable_summary' not in st.session_state:
     st.session_state['show_printable_summary'] = False
@@ -732,7 +736,7 @@ def load_feedback_tag_scores():
 
 @st.cache_data(ttl=3600) # Cache the activity suggestions for an hour
 def generate_activities(_ai_client, active_tags, recommended_titles):
-    """Generates activity suggestions based on tags and recommended titles."""
+    """Generates 5-10 activity suggestions based on tags and recommended titles."""
     if not active_tags and not recommended_titles:
         return ["No specific tags or recommended titles to suggest activities for. Try generating personalized tags first!"]
 
@@ -740,7 +744,7 @@ def generate_activities(_ai_client, active_tags, recommended_titles):
 
     prompt = f"""
     You are a helpful assistant for a student volunteer working with an individual living with dementia.
-    Given the following key interests (tags) and recommended reading materials, suggest 3-5 gentle and engaging activities that a student volunteer can do with their pair.
+    Given the following key interests (tags) and recommended reading materials, suggest 5-10 gentle and engaging activities that a student volunteer can do with their pair.
     Always include "Reading the recommended books/newspapers together and discussing them" as one of the suggestions.
     Focus on activities that can spark positive memories, facilitate conversation, and provide calming engagement, suitable for individuals with dementia.
 
@@ -754,15 +758,23 @@ def generate_activities(_ai_client, active_tags, recommended_titles):
             model="gpt-3.5-turbo",
             messages=[{"role": "user", "content": prompt}]
         )
-        return response.choices[0].message.content.strip().split('\n')
+        generated_activities = response.choices[0].message.content.strip().split('\n')
+        # Filter out empty strings and ensure each item is stripped
+        clean_activities = [activity.strip() for activity in generated_activities if activity.strip()]
+        
+        # Ensure that only 5-10 activities are returned if the AI generates more or less
+        if len(clean_activities) < 5:
+            return clean_activities
+        else:
+            return clean_activities[:10]
     except Exception as e:
         return [f"Could not generate activity suggestions at this time. Error: {e}"]
 
-def get_printable_summary(user_info, tags, books, newspapers, activities, volunteer_username):
-    """Generates a formatted string summary for printing."""
+def get_printable_summary(user_info, tags, books, newspapers, activities_with_guides, volunteer_username):
+    """Generates a formatted string summary for printing, including activity guides."""
     summary = f"--- Session Plan Summary for {user_info['name'] if user_info['name'] else 'Your Pair'} ---\n\n"
     summary += f"Date: {datetime.now().strftime('%Y-%m-%d')}\n"
-    summary += f"Volunteer: {volunteer_username}\n" # Add volunteer username to summary
+    summary += f"Volunteer: {volunteer_username}\n"
     summary += f"User Profile:\n"
     summary += f"  Job: {user_info['jobs'] if user_info['jobs'] else 'N/A'}\n"
     summary += f"  Life Experiences: {user_info['life_experiences'] if user_info['life_experiences'] else 'N/A'}\n"
@@ -786,12 +798,29 @@ def get_printable_summary(user_info, tags, books, newspapers, activities, volunt
             summary += f"  Summary: {newspaper.get('Summary', 'N/A')}\n"
             summary += f"  Link: {newspaper.get('URL', 'N/A')}\n\n"
 
-    summary += "Suggested Activities:\n"
-    for activity in activities:
-        summary += f"{activity}\n"
+    if activities_with_guides: # New section for activities with guides
+        summary += "Suggested Activities with How-To Guides:\n"
+        for item in activities_with_guides:
+            summary += f"--- Activity: {item['activity']}\n"
+            summary += f"{item['guide']}\n\n" # Add the guide content
+    else:
+        summary += "No Suggested Activities.\n\n"
     
     summary += "\n--- End of Summary ---"
     return summary
+
+def create_pdf_from_summary(summary_text, filename="session_summary.pdf"):
+    """Creates a PDF from a given summary text."""
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", size=12)
+
+    # Use multi_cell to handle line breaks in the summary text
+    # Encode to latin-1 and decode back to handle non-ASCII characters gracefully for FPDF
+    pdf.multi_cell(0, 10, summary_text.encode('latin-1', 'replace').decode('latin-1'))
+
+    pdf_output = pdf.output(dest='S').encode('latin-1') # Output as string to bytes
+    return pdf_output
 
 def get_image_url(item):
     """Determines the best image URL for an item."""
@@ -841,6 +870,8 @@ if st.session_state['is_authenticated']:
         st.session_state['session_takeaways'] = ""
         st.session_state['recommended_books_current_session'] = []
         st.session_state['recommended_newspapers_current_session'] = []
+        st.session_state['recommended_activities_current_session'] = []
+        st.session_state['activity_guides_for_pdf'] = []
         st.session_state['show_printable_summary'] = False
         PAIRS_DATA = {} # Clear global PAIRS_DATA on logout
         st.rerun()
@@ -932,7 +963,7 @@ if st.session_state['is_authenticated']:
             "Dashboard": "dashboard",
             "Search Content": "search",
             "My Recommendations": "recommendations",
-            "Activities": "activities",
+            "Suggested Activities": "activities", # Changed label here
             "Related Materials": "related_books",
             "Session Notes": "session_notes",
             "Session History": "session_history",
@@ -1345,28 +1376,38 @@ if st.session_state['is_authenticated']:
                 st.markdown("_No primary recommendations found based on your current tags. Please try adjusting your input or generating new tags._")
 
     elif st.session_state['current_page'] == 'activities':
-        # Removed the custom anchor tag: st.markdown('<a name="activities_section"></a>', unsafe_allow_html=True)
-        st.header("💡 Recommended Activities:")
+        st.header("💡 Suggested Activities:")
         
         # user_info is now defined at a higher scope
         recommended_titles_for_activities = [item.get('Title', 'N/A') for item in st.session_state['recommended_books_current_session'] + st.session_state['recommended_newspapers_current_session']]
 
-        with st.spinner("Generating activity suggestions..."):
-            activities = generate_activities(client_ai, st.session_state['active_tags_for_filter'], recommended_titles_for_activities)
-            for activity in activities:
-                st.markdown(activity)
-        
-        st.markdown("---")
-        if st.button("Prepare Printable Session Summary", key="printable_summary_btn_activities"):
-            st.session_state['show_printable_summary'] = True
+        if not st.session_state['active_tags_for_filter'] and not recommended_titles_for_activities:
+            st.info("Please generate personalized tags on the Dashboard or view recommendations first to get activity suggestions.")
+        else:
+            with st.spinner("Generating activity suggestions and how-to guides..."):
+                recs_activities = generate_activities(client_ai, st.session_state['active_tags_for_filter'], recommended_titles_for_activities)
+                st.session_state['recommended_activities_current_session'] = recs_activities # Store generated activity titles
 
-        if st.session_state['show_printable_summary']:
-            st.subheader("📄 Printable Session Summary:")
-            printable_summary_content = get_printable_summary(user_info, st.session_state['active_tags_for_filter'], st.session_state['recommended_books_current_session'], st.session_state['recommended_newspapers_current_session'], activities, st.session_state['logged_in_username'])
-            st.text_area("Copy and Print Your Session Plan", value=printable_summary_content, height=300, key="printable_summary_text_activities")
-            st.info("You can copy the text above and paste it into a document for printing.")
-            st.session_state['show_printable_summary'] = False
+                activity_guides_for_pdf = [] # Reset for this generation cycle
+                if recs_activities:
+                    st.subheader("Recommended Activities for this Session:")
+                    for i, activity_title in enumerate(recs_activities):
+                        st.markdown(f"#### {i+1}. {activity_title.strip()}") # Display activity title
 
+                        # Generate how-to guide for each activity
+                        guide_content = generate_activity_guide(activity_title.strip(), client_ai)
+                        st.markdown(guide_content) # Display the guide
+
+                        # Special handling for location-based activities (e.g., "take a walk")
+                        if "walk" in activity_title.lower() or "park" in activity_title.lower():
+                            st.info("💡 **Note on Location-Based Activities:** This application does not have access to real-time location data or mapping services. For activities like 'taking a walk,' consider suggesting local parks known to the volunteer, or encourage a simple walk around a safe, familiar area. You might also use a separate mapping application to find nearby parks.")
+
+                        activity_guides_for_pdf.append({"activity": activity_title.strip(), "guide": guide_content})
+                        st.markdown("---") # Separator between activities
+                else:
+                    st.info("No activity suggestions generated.")
+                
+                st.session_state['activity_guides_for_pdf'] = activity_guides_for_pdf # Save to session state for PDF generation
 
     
     elif st.session_state['current_page'] == 'related_books':
@@ -1462,7 +1503,6 @@ if st.session_state['is_authenticated']:
                 st.markdown("_No books available in the database to recommend._")
 
     elif st.session_state['current_page'] == 'session_notes':
-        # Removed the custom anchor tag: st.markdown('<a name="session_notes_section"></a>', unsafe_allow_html=True)
         st.header("📝 Record Your Session Notes:")
 
         notes_col1, notes_col2, notes_col3 = st.columns([1, 1, 1])
@@ -1473,7 +1513,7 @@ if st.session_state['is_authenticated']:
             session_mood = st.radio(
                 "Pair's Overall Mood During Session:",
                 ["Happy 😊", "Calm 😌", "Neutral 😐", "Agitated 😠", "Sad 😢"],
-                index=["Happy 😊", "Calm 😌", "Neutral 😐", "Agitated �", "Sad 😢"].index(st.session_state['session_mood']),
+                index=["Happy 😊", "Calm 😌", "Neutral 😐", "Agitated 😠", "Sad 😢"].index(st.session_state['session_mood']),
                 key="session_mood_input"
             )
             st.session_state['session_mood'] = session_mood
@@ -1519,9 +1559,51 @@ if st.session_state['is_authenticated']:
                 st.session_state['session_takeaways'] = ""
                 st.session_state['recommended_books_current_session'] = []
                 st.session_state['recommended_newspapers_current_session'] = []
+                st.session_state['recommended_activities_current_session'] = [] # Clear activities
+                st.session_state['activity_guides_for_pdf'] = [] # Clear activity guides for new session
                 st.rerun()
             else:
                 st.warning("Please enter a 'Pair's Name' at the top to save session notes.")
+
+        st.markdown("---")
+        st.subheader("Generate Printable Summary:")
+        if st.button("Generate Summary Text for Printing"):
+            st.session_state['show_printable_summary'] = True
+
+        if st.session_state['show_printable_summary']:
+            user_info_for_summary = {
+                'name': st.session_state['current_user_name'],
+                'jobs': st.session_state['current_user_jobs'],
+                'life_experiences': st.session_state['current_user_life_experiences'],
+                'hobbies': st.session_state['current_user_hobbies'],
+                'decade': st.session_state['current_user_decade'],
+                'college_chapter': st.session_state['current_user_college_chapter']
+            }
+            
+            printable_summary_text = get_printable_summary(
+                user_info_for_summary,
+                st.session_state.get('active_tags_for_filter', []),
+                st.session_state.get('recommended_books_current_session', []),
+                st.session_state.get('recommended_newspapers_current_session', []),
+                st.session_state.get('activity_guides_for_pdf', []), # Pass the new data
+                st.session_state['logged_in_username']
+            )
+
+            st.text_area("Copy and Print Your Session Plan", value=printable_summary_text, height=300, key="printable_summary_text_session_notes")
+            st.info("You can copy the text above and paste it into a document for printing.")
+
+            # Create PDF download button
+            if printable_summary_text:
+                pdf_bytes = create_pdf_from_summary(printable_summary_text, f"{st.session_state['current_user_name']}_session_summary.pdf")
+                st.download_button(
+                    label="Download Summary as PDF",
+                    data=pdf_bytes,
+                    file_name=f"{st.session_state['current_user_name']}_session_summary.pdf",
+                    mime="application/pdf"
+                )
+            # Reset show_printable_summary after showing or downloading
+            st.session_state['show_printable_summary'] = False
+
 
     elif st.session_state['current_page'] == 'session_history':
         # Removed the custom anchor tag: st.markdown('<a name="session_history_section"></a>', unsafe_allow_html=True)
@@ -1564,3 +1646,4 @@ if st.session_state['is_authenticated']:
                 st.info(historical_context)
         else:
             st.info("Please set a 'Favorite Decade' in the Pair Profile to view a historical summary.")
+
