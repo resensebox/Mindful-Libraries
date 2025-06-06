@@ -17,9 +17,20 @@ st.set_page_config(page_title="Mindful Libraries", layout="centered")
 st.markdown("""
     <style>
     body {
-        background-color: #f0f2f6; /* Light gray background */
+        background-color: #e8f0fe; /* Light blue background for the entire body */
         font-family: 'Inter', sans-serif;
     }
+
+    /* Main content wrapper to create the "floating rectangle" effect */
+    .main-content-wrapper {
+        background-color: #ffffff; /* White background for the main content area */
+        border-radius: 16px; /* More rounded corners for the main container */
+        box-shadow: 0 8px 24px rgba(0,0,0,0.1); /* Stronger, more noticeable shadow */
+        padding: 2rem; /* Increased padding inside the main content area */
+        margin-top: 2rem; /* Space from the header */
+        margin-bottom: 2rem; /* Space at the bottom */
+    }
+
 
     /* App-like Header (remains at the top of the main content area) */
     .st-emotion-cache-vk3357.e1nzilvr1 { /* Targeting the header container in Streamlit */
@@ -34,7 +45,7 @@ st.markdown("""
         position: sticky;
         top: 0;
         z-index: 1000;
-        margin-bottom: 2rem; /* Add space below header */
+        margin-bottom: 0; /* Remove margin-bottom as the wrapper will handle spacing */
     }
 
     /* Adjust the main page title for a cleaner look */
@@ -51,7 +62,7 @@ st.markdown("""
 
     /* Buttons */
     .buy-button {
-        background-color: #FFA500; /* Orange */
+        background-color: #4285F4; /* A shade of blue for accent */
         color: white;
         padding: 0.7em 1.5em;
         border: none;
@@ -64,7 +75,7 @@ st.markdown("""
         box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
     }
     .buy-button:hover {
-        background-color: #FF8C00; /* Darker orange on hover */
+        background-color: #3367D6; /* Darker blue on hover */
         transform: translateY(-2px);
     }
     .stButton>button {
@@ -172,13 +183,30 @@ st.markdown("""
         transform: none;
     }
 
-    /* Hide the radio buttons from the sidebar navigation */
-    div[data-testid="stSidebarNav"] .stRadio {
-        display: none;
+    /* Hide the entire Streamlit radio button widget more aggressively */
+    .stRadio {
+        display: none !important;
+        visibility: hidden !important;
+        height: 0 !important;
+        width: 0 !important;
+        overflow: hidden !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        position: absolute !important; /* Take it out of normal flow */
+        left: -9999px !important; /* Move it far off-screen */
+        top: -9999px !important;
     }
-    /* Also hide the label for the hidden radio button */
-    div[data-testid="stSidebarNav"] .stRadio > label {
-        display: none;
+    /* Also ensure no space is taken by its container or label */
+    .stRadio > label,
+    .stRadio > div,
+    .stRadio .st-cr { /* Targeting common internal Streamlit classes for radio elements */
+        display: none !important;
+        visibility: hidden !important;
+        height: 0 !important;
+        width: 0 !important;
+        overflow: hidden !important;
+        margin: 0 !important;
+        padding: 0 !important;
     }
 
     /* Content Cards */
@@ -802,6 +830,30 @@ def get_printable_summary(user_info, tags, books, newspapers, activities, volunt
     summary += "\n--- End of Summary ---"
     return summary
 
+def get_image_url(item):
+    """Determines the best image URL for an item."""
+    img_url = None
+    if item.get('Image', '').startswith("http"):
+        img_url = item['Image']
+    elif 'URL' in item and "amazon." in item['URL'] and "/dp/" in item['URL']:
+        # Safely extract ASIN if URL is from Amazon and contains '/dp/'
+        parts_dp = item['URL'].split('/dp/')
+        if len(parts_dp) > 1:
+            remaining_url = parts_dp[1]
+            parts_slash = remaining_url.split('/')
+            if len(parts_slash) > 0:
+                asin_with_params = parts_slash[0]
+                asin = asin_with_params.split('?')[0]
+                img_url = f"https://images-na.ssl-images-amazon.com/images/P/{asin}.01._SL250_.jpg"
+    
+    if not img_url:
+        item_type = item.get('Type', '').lower()
+        if item_type == 'newspaper':
+            img_url = "https://placehold.co/180x250/007bff/ffffff?text=Newspaper"
+        else:
+            img_url = f"https://placehold.co/180x250/cccccc/333333?text=No+Image"
+    return img_url
+
 # --- Streamlit UI ---
 # Custom header area with logo and logout button
 st.markdown('<div class="st-emotion-cache-vk3357 e1nzilvr1">', unsafe_allow_html=True)
@@ -919,7 +971,7 @@ if st.session_state['is_authenticated']:
             "Search Content": "search",
             "My Recommendations": "recommendations",
             "Activities": "activities",
-            "Related Books": "related_books",
+            "Related Materials": "related_books", # Changed label here
             "Session Notes": "session_notes",
             "Session History": "session_history",
         }
@@ -934,11 +986,11 @@ if st.session_state['is_authenticated']:
                     <a href="#dashboard" onclick="parent.postMessage({{streamlit: {{command: 'setPage', args: ['dashboard']}}}}, '*');" class="{'active' if st.session_state['current_page'] == 'dashboard' else ''}">Dashboard</a>
                     <a href="#search_section" onclick="parent.postMessage({{streamlit: {{command: 'setPage', args: ['search']}}}}, '*');" class="{'active' if st.session_state['current_page'] == 'search' else ''}">Search Content</a>
                     <a href="#personalized_recommendations" onclick="parent.postMessage({{streamlit: {{command: 'setPage', args: ['recommendations']}}}}, '*');" class="{'active' if st.session_state['current_page'] == 'recommendations' else ''}">My Recommendations</a>
-                    <a href="#activities_section" onclick="parent.postMessage({{streamlit: {{command: 'setPage', args: ['activities']}}}}, '*');" class="{'active' if st.session_state['current_page'] == 'activities' else ''}">Activities</a>
-                    <a href="#you_might_also_like" onclick="parent.postMessage({{streamlit: {{command: 'setPage', args: ['related_books']}}}}, '*');" class="{'active' if st.session_state['current_page'] == 'related_books' else ''}">Related Books</a>
+                    <a href="#activities_section" onclick="parent.postMessage({{streamlit: {{command: 'setPage', args: ['activities']}}}}, '*');" class="{'active' if st.session_state['current_page'] == 'activities'] else ''}">Activities</a>
+                    <a href="#you_might_also_like" onclick="parent.postMessage({{streamlit: {{command: 'setPage', args: ['related_books']}}}}, '*');" class="{'active' if st.session_state['current_page'] == 'related_books' else ''}">Related Materials</a>
                     <a href="#session_notes_section" onclick="parent.postMessage({{streamlit: {{command: 'setPage', args: ['session_notes']}}}}, '*');" class="{'active' if st.session_state['current_page'] == 'session_notes' else ''}">Session Notes</a>
                     <a href="#session_history_section" onclick="parent.postMessage({{streamlit: {{command: 'setPage', args: ['session_history']}}}}, '*');" class="{'active' if st.session_state['current_page'] == 'session_history' else ''}">Session History</a>
-                    <a href="#decade_summary" onclick="{ "parent.postMessage({{streamlit: {{command: 'setPage', args: ['decade_summary']}}}}, '*');" if not st.session_state['current_user_decade'] else "return false;"}" class="{decade_summary_class}">Decade Summary</a>
+                    <a href="#decade_summary" onclick="{ "return false;" if not st.session_state['current_user_decade'] else "parent.postMessage({{streamlit: {{command: 'setPage', args: ['decade_summary']}}}}, '*');"}" class="{decade_summary_class}">Decade Summary</a>
                 </div>
             </div>
         """, unsafe_allow_html=True)
@@ -959,6 +1011,10 @@ if st.session_state['is_authenticated']:
         # Update current_page based on the radio selection
         if "_sidebar_radio" in st.session_state:
             st.session_state['current_page'] = page_options[st.session_state._sidebar_radio]
+
+    # --- Main Content Area Wrapper ---
+    # This div will act as the "floating rectangle"
+    st.markdown('<div class="main-content-wrapper">', unsafe_allow_html=True)
 
     # Content Area based on selected page
     if st.session_state['current_page'] == 'dashboard':
@@ -1185,30 +1241,9 @@ if st.session_state['is_authenticated']:
                     st.markdown('<div class="content-card">', unsafe_allow_html=True) # Start card
                     cols = st.columns([1, 2])
                     with cols[0]:
-                        img_url = None
-                        if item.get('Image', '').startswith("http"):
-                            img_url = item['Image']
-                        elif 'URL' in item and "amazon." in item['URL'] and "/dp/" in item['URL']:
-                            # Safely extract ASIN if URL is from Amazon and contains '/dp/'
-                            parts_dp = item['URL'].split('/dp/')
-                            if len(parts_dp) > 1:
-                                remaining_url = parts_dp[1]
-                                parts_slash = remaining_url.split('/')
-                                if len(parts_slash) > 0:
-                                    asin_with_params = parts_slash[0]
-                                    asin = asin_with_params.split('?')[0]
-                                    img_url = f"https://images-na.ssl-images-amazon.com/images/P/{asin}.01._SL250_.jpg"
-                        
-                        # Use content-card-image-col for centering and padding
+                        img_url = get_image_url(item) # Use the new helper function
                         st.markdown('<div class="content-card-image-col">', unsafe_allow_html=True)
-                        if img_url:
-                            st.image(img_url, width=180)
-                        else:
-                            item_type = item.get('Type', '').lower()
-                            if item_type == 'newspaper':
-                                st.image("https://placehold.co/180x250/007bff/ffffff?text=Newspaper", width=180, caption=item.get('Title', 'N/A'))
-                            else:
-                                st.image(f"https://placehold.co/180x250/cccccc/333333?text=No+Image", width=180)
+                        st.image(img_url, width=180) # Always display image using the determined URL
                         st.markdown('</div>', unsafe_allow_html=True) # End content-card-image-col
 
                     with cols[1]:
@@ -1264,30 +1299,9 @@ if st.session_state['is_authenticated']:
                     st.markdown('<div class="content-card">', unsafe_allow_html=True) # Start card
                     cols = st.columns([1, 2])
                     with cols[0]:
-                        img_url = None
-                        if item.get('Image', '').startswith("http"):
-                            img_url = item['Image']
-                        elif 'URL' in item and "amazon." in item['URL'] and "/dp/" in item['URL']:
-                            # Safely extract ASIN if URL is from Amazon and contains '/dp/'
-                            parts_dp = item['URL'].split('/dp/')
-                            if len(parts_dp) > 1:
-                                remaining_url = parts_dp[1]
-                                parts_slash = remaining_url.split('/')
-                                if len(parts_slash) > 0:
-                                    asin_with_params = parts_slash[0]
-                                    asin = asin_with_params.split('?')[0]
-                                    img_url = f"https://images-na.ssl-images-amazon.com/images/P/{asin}.01._SL250_.jpg"
-                        
-                        # Use content-card-image-col for centering and padding
+                        img_url = get_image_url(item) # Use the new helper function
                         st.markdown('<div class="content-card-image-col">', unsafe_allow_html=True)
-                        if img_url:
-                            st.image(img_url, width=180)
-                        else:
-                            item_type = item.get('Type', '').lower()
-                            if item_type == 'newspaper':
-                                st.image("https://placehold.co/180x250/007bff/ffffff?text=Newspaper", width=180, caption=item.get('Title', 'N/A'))
-                            else:
-                                st.image(f"https://placehold.co/180x250/cccccc/333333?text=No+Image", width=180)
+                        st.image(img_url, width=180) # Always display image using the determined URL
                         st.markdown('</div>', unsafe_allow_html=True) # End content-card-image-col
 
                     with cols[1]:
@@ -1364,7 +1378,7 @@ if st.session_state['is_authenticated']:
 
     elif st.session_state['current_page'] == 'related_books':
         st.markdown('<a name="you_might_also_like"></a>', unsafe_allow_html=True)
-        st.header("📖 You Might Also Like:")
+        st.header("📖 You Might Also Like:") # Changed header text here
         
         # user_info is now defined at a higher scope
         feedback_tag_scores = load_feedback_tag_scores()
@@ -1388,33 +1402,14 @@ if st.session_state['is_authenticated']:
 
 
         if related_books:
-            st.markdown("Based on your interests, here are a few more books you might enjoy.")
+            st.markdown("Based on your interests, here are a few more materials you might enjoy.") # Changed text here
             num_cols = min(5, len(related_books))
             cols = st.columns(num_cols)
             for i, book in enumerate(related_books):
                 st.markdown('<div class="content-card" style="padding: 1rem; margin-bottom: 1rem;">', unsafe_allow_html=True) # Smaller card for related books
                 with cols[i % num_cols]:
-                    img_url = None
-                    if book.get('Image', '').startswith("http"):
-                        img_url = book['Image']
-                    elif 'URL' in book and "amazon." in book['URL'] and "/dp/" in book['URL']:
-                        # Safely extract ASIN if URL is from Amazon and contains '/dp/'
-                        parts_dp = item['URL'].split('/dp/')
-                        if len(parts_dp) > 1:
-                            remaining_url = parts_dp[1]
-                            parts_slash = remaining_url.split('/')
-                            if len(parts_slash) > 0:
-                                asin_with_params = parts_slash[0]
-                                asin = asin_with_params.split('?')[0]
-                                img_url = f"https://images-na.ssl-images-amazon.com/images/P/{asin}.01._SL250_.jpg"
-                    if img_url:
-                        st.image(img_url, width=120)
-                    else:
-                        item_type = item.get('Type', '').lower()
-                        if item_type == 'newspaper':
-                            st.image("https://placehold.co/120x160/007bff/ffffff?text=Newspaper", width=120, caption=book.get('Title', 'N/A'))
-                        else:
-                            st.image(f"https://placehold.co/120x160/cccccc/333333?text=No+Image", width=120)
+                    img_url = get_image_url(book) # Use the new helper function
+                    st.image(img_url, width=120) # Always display image using the determined URL
                     st.caption(book.get('Title', 'N/A'))
 
                     with st.expander("Why this recommendation is great for your pair:"):
@@ -1426,7 +1421,7 @@ if st.session_state['is_authenticated']:
                         st.markdown(f"<a class='buy-button' href='{book['URL']}' target='_blank'>Buy Now</a>", unsafe_allow_html=True)
                 st.markdown('</div>', unsafe_allow_html=True) # End card
         else:
-            st.markdown("_No other related books found with your current tags. Try generating new tags or searching for a specific topic!_")
+            st.markdown("_No other related materials found with your current tags. Try generating new tags or searching for a specific topic!_") # Changed text here
             st.markdown("---")
             st.subheader("✨ Or, explore some popular titles:")
             st.markdown("Here are some widely appreciated books to get you started.")
@@ -1438,23 +1433,8 @@ if st.session_state['is_authenticated']:
                     for i, book in enumerate(fallback_books):
                         st.markdown('<div class="content-card" style="padding: 1rem; margin-bottom: 1rem;">', unsafe_allow_html=True) # Smaller card for fallback books
                         with num_cols_fallback[i % len(num_cols_fallback)]:
-                            img_url = None
-                            if book.get('Image', '').startswith("http"):
-                                img_url = book['Image']
-                            elif 'URL' in book and "amazon." in book['URL'] and "/dp/" in book['URL']:
-                                # Safely extract ASIN if URL is from Amazon and contains '/dp/'
-                                parts_dp = book['URL'].split('/dp/')
-                                if len(parts_dp) > 1:
-                                    remaining_url = parts_dp[1]
-                                    parts_slash = remaining_url.split('/')
-                                    if len(parts_slash) > 0:
-                                        asin_with_params = parts_slash[0]
-                                        asin = asin_with_params.split('?')[0]
-                                        img_url = f"https://images-na.ssl-images-amazon.com/images/P/{asin}.01._SL250_.jpg"
-                            if img_url:
-                                st.image(img_url, width=120)
-                            else:
-                                 st.image(f"https://placehold.co/120x160/cccccc/333333?text=No+Image", width=120)
+                            img_url = get_image_url(book) # Use the new helper function
+                            st.image(img_url, width=120) # Always display image using the determined URL
                             st.caption(book.get('Title', 'N/A'))
                             if 'URL' in book and book['URL']:
                                 st.markdown(f"<a class='buy-button' href='{book['URL']}' target='_blank'>Buy Now</a>", unsafe_allow_html=True)
@@ -1475,7 +1455,7 @@ if st.session_state['is_authenticated']:
         with notes_col2:
             session_mood = st.radio(
                 "Pair's Overall Mood During Session:",
-                ["Happy 😊", "Calm 😌", "Neutral 😐", "Agitated 😠", "Sad 😢"],
+                ["Happy 😊", "Calm �", "Neutral 😐", "Agitated 😠", "Sad 😢"],
                 index=["Happy 😊", "Calm 😌", "Neutral 😐", "Agitated 😠", "Sad 😢"].index(st.session_state['session_mood']),
                 key="session_mood_input"
             )
@@ -1567,3 +1547,6 @@ if st.session_state['is_authenticated']:
                 st.info(historical_context)
         else:
             st.info("Please set a 'Favorite Decade' in the Pair Profile to view a historical summary.")
+
+    # --- End of Main Content Area Wrapper ---
+    st.markdown('</div>', unsafe_allow_html=True)
