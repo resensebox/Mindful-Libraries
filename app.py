@@ -2037,4 +2037,4 @@ if st.session_state['is_authenticated']:
                 )
             else:
                 st.info("Generate the daily history content first to download the full page PDF.")
-�
+
