@@ -738,7 +738,7 @@ else: # If authenticated
         st.session_state['active_tags_for_filter'] = []
         st.session_state['tag_checkbox_states'] = {}
         st.session_state['session_date'] = date.today()
-        st.session_state['session_mood'] = "Neutral 😌" # Changed to consistent emoji
+        st.session_state['session_mood'] = "Neutral 😐" # Changed to consistent emoji
         st.session_state['session_engagement'] = "Moderately Engaged ⭐⭐"
         st.session_state['session_takeaways'] = ""
         st.session_state['recommended_books_current_session'] = []
