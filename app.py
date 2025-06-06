@@ -300,6 +300,17 @@ if 'recommended_newspapers_current_session' not in st.session_state:
 if 'show_printable_summary' not in st.session_state:
     st.session_state['show_printable_summary'] = False
 
+# Session state for This Day in History parsed content
+if 'this_day_history_data' not in st.session_state:
+    st.session_state['this_day_history_data'] = {
+        'event_title': "",
+        'event_article': "",
+        'born_section': "",
+        'fun_fact_section': "",
+        'trivia_section': []
+    }
+
+
 # --- Authentication Session State ---
 if 'is_authenticated' not in st.session_state:
     st.session_state['is_authenticated'] = False
@@ -892,7 +903,7 @@ def generate_volunteer_reflection_prompts(session_details, _ai_client):
     except Exception as e:
         return [f"Could not generate reflection prompts at this time. Error: {e}"]
 
-@st.cache_data(ttl=3600) # Cache general history for the day
+@st.cache_data(ttl=86400) # Cache for 24 hours (entire day)
 def get_this_day_in_history_facts(current_day, current_month, user_info, _ai_client):
     """Generates famous event, person born, fun fact, and trivia for the current day."""
     current_date_str = f"{current_month:02d}-{current_day:02d}"
@@ -940,17 +951,54 @@ def get_this_day_in_history_facts(current_day, current_month, user_info, _ai_cli
         return f"Could not retrieve 'This Day in History' facts. Error: {e}"
 
 def generate_article_pdf(title, content):
-    """Generates a PDF of the given article title and content."""
+    """Generates a PDF of a single article title and content."""
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", "B", 16)
     pdf.multi_cell(0, 10, title, align='C')
     pdf.ln(10)
     pdf.set_font("Arial", "", 12)
-    # Ensure content is UTF-8 encoded and handle potential non-ASCII characters
     pdf.multi_cell(0, 8, content.encode('latin-1', 'replace').decode('latin-1'))
     
-    # Return the PDF as bytes
+    return pdf.output(dest='S').encode('latin-1')
+
+def generate_full_history_pdf(event_title, event_article, born_section, fun_fact_section, trivia_section, today_date_str, user_info):
+    """Generates a PDF of the entire 'This Day in History' page content."""
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", "B", 20)
+    pdf.multi_cell(0, 10, f"This Day in History: {today_date_str}", align='C')
+    pdf.ln(10)
+
+    pdf.set_font("Arial", "B", 14)
+    pdf.multi_cell(0, 10, "Significant Event:", ln=1)
+    pdf.set_font("Arial", "", 12)
+    pdf.multi_cell(0, 8, f"**{event_title}**\n{event_article}".encode('latin-1', 'replace').decode('latin-1'))
+    pdf.ln(5)
+
+    pdf.set_font("Arial", "B", 14)
+    pdf.multi_cell(0, 10, "Famous Person Born Today:", ln=1)
+    pdf.set_font("Arial", "", 12)
+    pdf.multi_cell(0, 8, born_section.encode('latin-1', 'replace').decode('latin-1'))
+    pdf.ln(5)
+
+    pdf.set_font("Arial", "B", 14)
+    pdf.multi_cell(0, 10, "Fun Fact:", ln=1)
+    pdf.set_font("Arial", "", 12)
+    pdf.multi_cell(0, 8, fun_fact_section.encode('latin-1', 'replace').decode('latin-1'))
+    pdf.ln(5)
+
+    pdf.set_font("Arial", "B", 14)
+    pdf.multi_cell(0, 10, "Trivia Time! (with answers for the volunteer):", ln=1)
+    pdf.set_font("Arial", "", 12)
+    for trivia_item in trivia_section:
+        pdf.multi_cell(0, 8, trivia_item.encode('latin-1', 'replace').decode('latin-1'))
+    pdf.ln(5)
+
+    pdf.set_font("Arial", "I", 10)
+    pdf.multi_cell(0, 5, f"Generated for {user_info['name']} by Mindful Libraries on {today_date_str}".encode('latin-1', 'replace').decode('latin-1'), align='C')
+
+
     return pdf.output(dest='S').encode('latin-1')
 
 
@@ -1043,6 +1091,10 @@ if st.session_state['is_authenticated']:
         st.session_state['recommended_books_current_session'] = []
         st.session_state['recommended_newspapers_current_session'] = []
         st.session_state['show_printable_summary'] = False
+        st.session_state['this_day_history_data'] = { # Clear history data on logout
+            'event_title': "", 'event_article': "", 'born_section': "",
+            'fun_fact_section': "", 'trivia_section': []
+        }
         PAIRS_DATA = {} # Clear global PAIRS_DATA on logout
         st.rerun()
 
@@ -1077,6 +1129,10 @@ if not st.session_state['is_authenticated']:
                     st.session_state['current_user_decade'] = ""
                     st.session_state['current_user_college_chapter'] = ""
                     st.session_state['generated_session_topic'] = "" # Clear generated session topic
+                    st.session_state['this_day_history_data'] = { # Clear history data on login
+                        'event_title': "", 'event_article': "", 'born_section': "",
+                        'fun_fact_section': "", 'trivia_section': []
+                    }
                     st.rerun()
                 else:
                     st.error("Invalid username or password")
@@ -1110,6 +1166,10 @@ if not st.session_state['is_authenticated']:
                         st.session_state['current_user_decade'] = ""
                         st.session_state['current_user_college_chapter'] = ""
                         st.session_state['generated_session_topic'] = "" # Clear generated session topic
+                        st.session_state['this_day_history_data'] = { # Clear history data on new user
+                            'event_title': "", 'event_article': "", 'born_section': "",
+                            'fun_fact_section': "", 'trivia_section': []
+                        }
                         st.rerun()
 
 # --- Main App Content (visible only if authenticated) ---
@@ -1386,7 +1446,6 @@ if st.session_state['is_authenticated']:
                 st.markdown("Now, select 'Session Plan' from the sidebar to view your tailored recommendations and prepare for your session!")
 
     elif st.session_state['current_page'] == 'search':
-        # Removed the custom anchor tag: st.markdown('<a name="search_section"></a>', unsafe_allow_html=True)
         st.header("🔍 Search for a Specific Topic:")
         search_term = st.text_input("Enter a keyword (e.g., 'adventure', 'history', 'science fiction', 'actor')", key="search_input")
 
@@ -1691,7 +1750,7 @@ if st.session_state['is_authenticated']:
             session_mood = st.radio(
                 "Pair's Overall Mood During Session:",
                 ["Happy 😊", "Calm 😌", "Neutral 😐", "Agitated 😠", "Sad 😢"],
-                index=["Happy �", "Calm 😌", "Neutral 😐", "Agitated 😠", "Sad 😢"].index(st.session_state['session_mood']),
+                index=["Happy 😊", "Calm 😌", "Neutral 😐", "Agitated 😠", "Sad 😢"].index(st.session_state['session_mood']),
                 key="session_mood_input"
             )
             st.session_state['session_mood'] = session_mood
@@ -1760,7 +1819,6 @@ if st.session_state['is_authenticated']:
                 st.warning("Please enter a 'Pair's Name' at the top to save session notes.")
 
     elif st.session_state['current_page'] == 'session_history':
-        # Removed the custom anchor tag: st.markdown('<a name="session_history_section"></a>', unsafe_allow_html=True)
         st.header("Past Session History:")
 
         if st.session_state['current_user_name'] and st.session_state['logged_in_username']:
@@ -1792,7 +1850,6 @@ if st.session_state['is_authenticated']:
             st.info("Enter a 'Pair's Name' above to view their session history.")
 
     elif st.session_state['current_page'] == 'decade_summary':
-        # Removed the custom anchor tag: st.markdown('<a name="decade_summary"></a>', unsafe_allow_html=True)
         st.header(f"🕰️ A Glimpse into the {st.session_state['current_user_decade']}:")
         if st.session_state['current_user_decade']:
             with st.spinner(f"Generating context for the {st.session_state['current_user_decade']}..."):
@@ -1810,85 +1867,133 @@ if st.session_state['is_authenticated']:
             today = date.today()
             current_day = today.day
             current_month = today.month
+            today_date_str = today.strftime('%B %d, %Y')
 
-            st.markdown(f"### Today is: {today.strftime('%B %d, %Y')}")
+            st.markdown(f"### Today is: {today_date_str}")
 
-            with st.spinner("Fetching historical insights for today..."):
-                history_facts_raw = get_this_day_in_history_facts(current_day, current_month, user_info, client_ai)
+            # Check if history data is already loaded and from today
+            # We'll use a simple check based on the current date, as get_this_day_in_history_facts is now cached for 24h
+            # This ensures that if the app reruns (e.g., user interaction on the page),
+            # the data is pulled from session state rather than re-parsing the AI response
+            if 'last_history_date' not in st.session_state or st.session_state['last_history_date'] != today:
+                with st.spinner("Fetching historical insights for today..."):
+                    history_facts_raw = get_this_day_in_history_facts(current_day, current_month, user_info, client_ai)
 
-                # Parse the raw text response from the AI
-                event_title = ""
-                event_article = ""
-                born_section = ""
-                fun_fact_section = ""
-                trivia_section = []
+                    # Parse the raw text response from the AI
+                    event_title = ""
+                    event_article = ""
+                    born_section = ""
+                    fun_fact_section = ""
+                    trivia_section = []
 
-                sections = history_facts_raw.split('\n\n') # Split by double newline for sections
+                    sections = history_facts_raw.split('\n\n') # Split by double newline for sections
 
-                for i, section in enumerate(sections):
-                    if section.startswith("Event:"):
-                        # Extract title and year first
-                        first_line = section.split('\n')[0].replace("Event:", "").strip()
-                        if ' - ' in first_line:
-                            event_title_parts = first_line.split(' - ', 1)
-                            event_title = event_title_parts[0].strip()
-                        else:
-                            event_title = first_line.strip() # Fallback if format is slightly off
+                    for i, section in enumerate(sections):
+                        if section.startswith("Event:"):
+                            # Extract title and year first
+                            first_line = section.split('\n')[0].replace("Event:", "").strip()
+                            if ' - ' in first_line:
+                                event_title_parts = first_line.split(' - ', 1)
+                                event_title = event_title_parts[0].strip()
+                            else:
+                                event_title = first_line.strip() # Fallback if format is slightly off
 
-                        # The rest of the section is the article content
-                        event_article = '\n'.join(section.split('\n')[1:]).strip()
-                    elif section.startswith("Born on this Day:"):
-                        born_section = section.replace("Born on this Day:", "").strip()
-                    elif section.startswith("Fun Fact:"):
-                        fun_fact_section = section.replace("Fun Fact:", "").strip()
-                    elif section.startswith("Trivia Questions:"):
-                        trivia_lines = section.replace("Trivia Questions:", "").strip().split('\n')
-                        trivia_section = [line.strip() for line in trivia_lines if line.strip()]
-                
-                st.markdown("---")
-                st.subheader("Significant Event:")
-                if event_title and event_article:
-                    st.markdown(f"**{event_title}**")
-                    st.info(event_article)
+                            # The rest of the section is the article content
+                            event_article = '\n'.join(section.split('\n')[1:]).strip()
+                        elif section.startswith("Born on this Day:"):
+                            born_section = section.replace("Born on this Day:", "").strip()
+                        elif section.startswith("Fun Fact:"):
+                            fun_fact_section = section.replace("Fun Fact:", "").strip()
+                        elif section.startswith("Trivia Questions:"):
+                            trivia_lines = section.replace("Trivia Questions:", "").strip().split('\n')
+                            trivia_section = [line.strip() for line in trivia_lines if line.strip()]
                     
-                    # Add PDF download button
-                    pdf_bytes = generate_article_pdf(event_title, event_article)
-                    st.download_button(
-                        label="Download Article as PDF",
-                        data=pdf_bytes,
-                        file_name=f"{event_title.replace(' ', '_')}_Article.pdf",
-                        mime="application/pdf",
-                        key="download_event_article_pdf"
-                    )
+                    # Store parsed data in session state
+                    st.session_state['this_day_history_data'] = {
+                        'event_title': event_title,
+                        'event_article': event_article,
+                        'born_section': born_section,
+                        'fun_fact_section': fun_fact_section,
+                        'trivia_section': trivia_section
+                    }
+                    st.session_state['last_history_date'] = today # Mark when this data was fetched/stored
+            else:
+                # If already loaded for today, retrieve from session state
+                event_title = st.session_state['this_day_history_data']['event_title']
+                event_article = st.session_state['this_day_history_data']['event_article']
+                born_section = st.session_state['this_day_history_data']['born_section']
+                fun_fact_section = st.session_state['this_day_history_data']['fun_fact_section']
+                trivia_section = st.session_state['this_day_history_data']['trivia_section']
+                st.info("Showing cached insights for today.")
+                
+            
+            st.markdown("---")
+            st.subheader("Significant Event:")
+            if event_title and event_article:
+                st.markdown(f"**{event_title}**")
+                st.info(event_article)
+                
+                # Add PDF download button for just the article
+                pdf_bytes_article = generate_article_pdf(event_title, event_article)
+                st.download_button(
+                    label="Download Article as PDF",
+                    data=pdf_bytes_article,
+                    file_name=f"{event_title.replace(' ', '_')}_Article.pdf",
+                    mime="application/pdf",
+                    key="download_event_article_pdf"
+                )
 
-                else:
-                    st.info("No famous event found for this day in the specified era.")
+            else:
+                st.info("No famous event found for this day in the specified era.")
 
-                st.markdown("---")
-                st.subheader("Famous Person Born Today:")
-                if born_section:
-                    person_name_match = born_section.split('\n')[0] if '\n' in born_section else born_section
-                    st.markdown(f"**{person_name_match}**")
-                    # Use a placeholder image with the person's name
-                    # Encode name for URL: replace spaces with +
-                    person_name_for_url = person_name_match.split('-')[0].strip().replace(' ', '+') # Just the name, before description
-                    img_url_placeholder = f"https://placehold.co/150x150/8d8d8d/ffffff?text={person_name_for_url}"
-                    st.image(img_url_placeholder, width=150, caption=person_name_match)
-                    st.markdown(born_section)
-                else:
-                    st.info("No famous person found for this day in the specified era or tailored to the profile.")
+            st.markdown("---")
+            st.subheader("Famous Person Born Today:")
+            if born_section:
+                person_name_match = born_section.split('\n')[0] if '\n' in born_section else born_section
+                st.markdown(f"**{person_name_match}**")
+                # Use a placeholder image with the person's name
+                # Encode name for URL: replace spaces with +
+                person_name_for_url = person_name_match.split('-')[0].strip().replace(' ', '+') # Just the name, before description
+                img_url_placeholder = f"https://placehold.co/150x150/8d8d8d/ffffff?text={person_name_for_url}"
+                st.image(img_url_placeholder, width=150, caption=person_name_match)
+                st.markdown(born_section)
+            else:
+                st.info("No famous person found for this day in the specified era or tailored to the profile.")
 
-                st.markdown("---")
-                st.subheader("Fun Fact:")
-                if fun_fact_section:
-                    st.info(fun_fact_section)
-                else:
-                    st.info("No fun fact available for this day.")
+            st.markdown("---")
+            st.subheader("Fun Fact:")
+            if fun_fact_section:
+                st.info(fun_fact_section)
+            else:
+                st.info("No fun fact available for this day.")
 
-                st.markdown("---")
-                st.subheader("Trivia Time! (with answers for the volunteer):")
-                if trivia_section:
-                    for i, trivia_item in enumerate(trivia_section):
-                        st.markdown(f"{trivia_item}")
-                else:
-                    st.info("No trivia questions generated for this day.")
+            st.markdown("---")
+            st.subheader("Trivia Time! (with answers for the volunteer):")
+            if trivia_section:
+                for i, trivia_item in enumerate(trivia_section):
+                    st.markdown(f"{trivia_item}")
+            else:
+                st.info("No trivia questions generated for this day.")
+
+            st.markdown("---")
+            st.subheader("Full Page Summary:")
+            # Add PDF download button for the entire page
+            if st.session_state['this_day_history_data']['event_title']: # Only show if content has been generated
+                full_page_pdf_bytes = generate_full_history_pdf(
+                    st.session_state['this_day_history_data']['event_title'],
+                    st.session_state['this_day_history_data']['event_article'],
+                    st.session_state['this_day_history_data']['born_section'],
+                    st.session_state['this_day_history_data']['fun_fact_section'],
+                    st.session_state['this_day_history_data']['trivia_section'],
+                    today_date_str,
+                    user_info
+                )
+                st.download_button(
+                    label="Download This Day in History Page as PDF",
+                    data=full_page_pdf_bytes,
+                    file_name=f"This_Day_in_History_{today.strftime('%Y_%m_%d')}.pdf",
+                    mime="application/pdf",
+                    key="download_full_history_page_pdf"
+                )
+            else:
+                st.info("Generate the daily history content first to download the full page PDF.")
