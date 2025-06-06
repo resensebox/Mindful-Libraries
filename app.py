@@ -1122,47 +1122,47 @@ if st.session_state['is_authenticated']:
                                 # Updated placeholder for Newspaper to better reflect its type
                             else:
                                 st.image(f"https://placehold.co/180x250/cccccc/333333?text=No+Image", width=180)
-                    with cols[1]:
-                        st.markdown(f"### {item.get('Title', 'N/A')} ({item.get('Type', 'N/A')})")
-                        st.markdown(item.get('Summary', 'N/A'))
-                        original_tag_matches = item.get('tags', set()) & set(st.session_state['active_tags_for_filter'])
-                        if original_tag_matches:
-                            st.markdown(f"**Why this was recommended:** Matched tags — **{', '.join(original_tag_matches)}**")
-                        else:
-                            st.markdown("_No direct tag matches found for this recommendation._")
+                        with cols[1]:
+                            st.markdown(f"### {item.get('Title', 'N/A')} ({item.get('Type', 'N/A')})")
+                            st.markdown(item.get('Summary', 'N/A'))
+                            original_tag_matches = item.get('tags', set()) & set(st.session_state['active_tags_for_filter'])
+                            if original_tag_matches:
+                                 st.markdown(f"**Why this was recommended:** Matched tags — **{', '.join(original_tag_matches)}**")
+                            else:
+                                st.markdown("_No direct tag matches found for this recommendation._")
 
-                        with st.expander("Why this recommendation is great for your pair:"):
-                            with st.spinner("Generating personalized insights..."):
-                                explanation = generate_recommendation_explanation(item, user_info, st.session_state['active_tags_for_filter'], client_ai)
-                                st.markdown(explanation)
+                            with st.expander("Why this recommendation is great for your pair:"):
+                                with st.spinner("Generating personalized insights..."):
+                                    explanation = generate_recommendation_explanation(item, user_info, st.session_state['active_tags_for_filter'], client_ai)
+                                    st.markdown(explanation)
 
-                        feedback_key = f"feedback_{item.get('Title', 'NoTitle')}_{item.get('Type', 'NoType')}"
-                        feedback = st.radio(
-                            f"Was this recommendation helpful?",
-                            ["Select an option", "✅ Yes", "❌ No"],
-                            index=0,
-                            key=feedback_key
-                        )
+                            feedback_key = f"feedback_{item.get('Title', 'NoTitle')}_{item.get('Type', 'NoType')}"
+                            feedback = st.radio(
+                                f"Was this recommendation helpful?",
+                                ["Select an option", "✅ Yes", "❌ No"],
+                                index=0,
+                                key=feedback_key
+                            )
 
-                        if feedback != "Select an option" and not st.session_state.get(f"feedback_submitted_{feedback_key}", False):
-                            try:
-                                sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXJRXcfmxj5s')
-                                feedback_ws = sheet.worksheet('Feedback')
-                                feedback_ws.append_row([
-                                    datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                                    st.session_state['current_user_name'], # Use the current pair's name
-                                    item.get('Title', 'N/A'),
-                                    item.get('Type', 'N/A'),
-                                    feedback,
-                                    ", ".join(item.get('tags', set()))
-                                ])
-                                st.session_state[f"feedback_submitted_{feedback_key}"] = True
-                                st.success("✅ Feedback submitted! Thank you for helping us improve.")
-                            except Exception as e:
-                                st.warning(f"⚠️ Failed to save feedback. Error: {e}")
+                            if feedback != "Select an option" and not st.session_state.get(f"feedback_submitted_{feedback_key}", False):
+                                try:
+                                    sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXJRXcfmxj5s')
+                                    feedback_ws = sheet.worksheet('Feedback')
+                                    feedback_ws.append_row([
+                                        datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                                        st.session_state['current_user_name'], # Use the current pair's name
+                                        item.get('Title', 'N/A'),
+                                        item.get('Type', 'N/A'),
+                                        feedback,
+                                        ", ".join(item.get('tags', set()))
+                                    ])
+                                    st.session_state[f"feedback_submitted_{feedback_key}"] = True
+                                    st.success("✅ Feedback submitted! Thank you for helping us improve.")
+                                except Exception as e:
+                                    st.warning(f"⚠️ Failed to save feedback. Error: {e}")
 
-                        if 'URL' in item and item['URL']:
-                            st.markdown(f"<a class='buy-button' href='{item['URL']}' target='_blank'>Buy Now</a>", unsafe_allow_html=True)
+                            if 'URL' in item and item['URL']:
+                                st.markdown(f"<a class='buy-button' href='{item['URL']}' target='_blank'>Buy Now</a>", unsafe_allow_html=True)
                 if not (books or newspapers):
                     st.markdown("_No primary recommendations found based on your current tags. Please try adjusting your input or generating new tags._")
             else:
@@ -1287,7 +1287,22 @@ if st.session_state['is_authenticated']:
 
         if st.button("Save Session Notes", key="save_session_notes_btn"):
             if st.session_state['current_user_name']:
-                all_recommended_materials = st.session_state['recommended_books_current_session'] + st.session_state['recommended_newspapers_current_session']
+                # Convert 'tags' sets to lists before dumping to JSON
+                serializable_books = []
+                for book in st.session_state['recommended_books_current_session']:
+                    book_copy = book.copy()
+                    if 'tags' in book_copy and isinstance(book_copy['tags'], set):
+                        book_copy['tags'] = list(book_copy['tags'])
+                    serializable_books.append(book_copy)
+
+                serializable_newspapers = []
+                for newspaper in st.session_state['recommended_newspapers_current_session']:
+                    newspaper_copy = newspaper.copy()
+                    if 'tags' in newspaper_copy and isinstance(newspaper_copy['tags'], set):
+                        newspaper_copy['tags'] = list(newspaper_copy['tags'])
+                    serializable_newspapers.append(newspaper_copy)
+
+                all_recommended_materials = serializable_books + serializable_newspapers
                 recommended_materials_json = json.dumps(all_recommended_materials)
 
                 save_session_notes_to_gsheet(
