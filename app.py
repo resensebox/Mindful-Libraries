@@ -430,7 +430,10 @@ def save_session_notes_to_gsheet(pair_name, session_date, mood, engagement, take
 @st.cache_data(ttl=60) # Cache session logs for 1 minute
 def load_session_logs(pair_name, volunteer_username):
     """Loads session logs for a specific pair and volunteer from Google Sheet."""
+    st.write(f"DEBUG: Attempting to load session logs for Pair Name: '{pair_name}' (cleaned: '{pair_name.strip().lower()}') and Volunteer Username: '{volunteer_username}' (cleaned: '{volunteer_username.strip().lower()}')")
+
     if not pair_name or not volunteer_username: # Require both pair_name and volunteer_username
+        st.info("DEBUG: Pair Name or Volunteer Username is empty. Cannot load history.")
         return pd.DataFrame()
     
     try:
@@ -438,12 +441,15 @@ def load_session_logs(pair_name, volunteer_username):
         session_log_ws = sheet.worksheet('SessionLogs')
         
         all_values = session_log_ws.get_all_values()
+        st.write(f"DEBUG: Raw values from Google Sheet (first 3 rows): {all_values[:3]}")
+
 
         if not all_values:
             st.info("No data found in the 'SessionLogs' worksheet. The sheet might be empty or the data is not in the expected format.")
             return pd.DataFrame()
 
         raw_headers = [str(h).strip() for h in all_values[0]]
+        st.write(f"DEBUG: Raw headers: {raw_headers}")
         
         cleaned_headers = []
         header_name_counts = Counter()
@@ -456,10 +462,14 @@ def load_session_logs(pair_name, volunteer_username):
                 cleaned_headers.append(f'{header}_{header_name_counts[header]}')
             else:
                 cleaned_headers.append(header)
+        st.write(f"DEBUG: Cleaned headers for DataFrame: {cleaned_headers}")
 
         data_rows = all_values[1:]
+        st.write(f"DEBUG: Number of data rows: {len(data_rows)}")
 
         df_raw = pd.DataFrame(data_rows, columns=cleaned_headers)
+        st.write(f"DEBUG: df_raw head:\n{df_raw.head()}")
+
 
         # Define the exact expected headers for the final DataFrame
         expected_headers = ['Timestamp', 'Pair Name', 'Session Date', 'Mood', 'Engagement', 'Takeaways', 'Volunteer Username', 'Recommended Materials']
@@ -477,19 +487,35 @@ def load_session_logs(pair_name, volunteer_username):
                 df_final[col] = df_raw[found_col_name]
             else:
                 df_final[col] = '' # Add missing column with empty string
+        st.write(f"DEBUG: df_final head after header mapping:\n{df_final.head()}")
+
 
         # Ensure 'Pair Name' and 'Volunteer Username' are cleaned for filtering
         if 'Pair Name' in df_final.columns:
-            df_final['Pair Name'] = df_final['Pair Name'].astype(str).str.strip().str.lower()
+            df_final['Pair Name (cleaned)'] = df_final['Pair Name'].astype(str).str.strip().str.lower()
+            st.write(f"DEBUG: 'Pair Name (cleaned)' column unique values: {df_final['Pair Name (cleaned)'].unique()}")
         if 'Volunteer Username' in df_final.columns:
-            df_final['Volunteer Username'] = df_final['Volunteer Username'].astype(str).str.strip().str.lower()
+            df_final['Volunteer Username (cleaned)'] = df_final['Volunteer Username'].astype(str).str.strip().str.lower()
+            st.write(f"DEBUG: 'Volunteer Username (cleaned)' column unique values: {df_final['Volunteer Username (cleaned)'].unique()}")
 
         # Filter by both Pair Name and Volunteer Username, ensuring comparison values are also cleaned
-        filtered_df = df_final[
-            (df_final['Pair Name'] == pair_name.strip().lower()) &
-            (df_final['Volunteer Username'] == volunteer_username.strip().lower())
-        ].sort_values(by='Timestamp', ascending=False)
-        
+        target_pair_name = pair_name.strip().lower()
+        target_volunteer_username = volunteer_username.strip().lower()
+
+        st.write(f"DEBUG: Target Pair Name for filter: '{target_pair_name}'")
+        st.write(f"DEBUG: Target Volunteer Username for filter: '{target_volunteer_username}'")
+
+        if 'Pair Name (cleaned)' in df_final.columns and 'Volunteer Username (cleaned)' in df_final.columns:
+            filtered_df = df_final[
+                (df_final['Pair Name (cleaned)'] == target_pair_name) &
+                (df_final['Volunteer Username (cleaned)'] == target_volunteer_username)
+            ].sort_values(by='Timestamp', ascending=False)
+            st.write(f"DEBUG: Filtered DataFrame head:\n{filtered_df.head()}")
+            st.write(f"DEBUG: Number of rows after filtering: {len(filtered_df)}")
+        else:
+            st.warning("DEBUG: Cleaned 'Pair Name' or 'Volunteer Username' columns not found for filtering. This indicates a data loading issue.")
+            return pd.DataFrame() # Return empty if essential columns are missing after cleaning
+
         return filtered_df
 
     except gspread.exceptions.WorksheetNotFound:
