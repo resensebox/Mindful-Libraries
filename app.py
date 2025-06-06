@@ -1892,4 +1892,3 @@ if st.session_state['is_authenticated']:
                         st.markdown(f"{trivia_item}")
                 else:
                     st.info("No trivia questions generated for this day.")
-�
