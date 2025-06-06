@@ -797,9 +797,12 @@ if st.session_state['is_authenticated']:
     # Display the pair details input form
     st.markdown("---")
     if st.session_state['selected_pair_name'] == "Add New Pair" or (st.session_state['selected_pair_name'] and st.session_state['selected_pair_name'] != "Add New Pair"):
-        pair_form_title = f"Details for {st.session_state['selected_pair_name']}" if st.session_state['selected_pair_name'] != "Add New Pair" else "Add New Pair Details"
+        pair_form_title = f"Details for **{st.session_state['selected_pair_name']}**" if st.session_state['selected_pair_name'] != "Add New Pair" else "✨ Add New Pair Profile ✨"
         st.subheader(pair_form_title)
         
+        if st.session_state['selected_pair_name'] == "Add New Pair":
+            st.info("Please fill in the details below to create a new pair profile for this volunteer account.")
+
         with st.form("pair_details_form"):
             pair_name_input = st.text_input("Pair's Name (Required)", value=st.session_state['current_user_name'], key="pair_name_input")
             jobs_input = st.text_input("What did they used to do for a living? (e.g., Teacher, Engineer, Homemaker)", value=st.session_state['current_user_jobs'], key="pair_jobs_input")
@@ -1252,7 +1255,7 @@ if st.session_state['is_authenticated']:
         with notes_col2:
             session_mood = st.radio(
                 "Pair's Overall Mood During Session:",
-                ["Happy 😊", "Calm 😌", "Neutral �", "Agitated 😠", "Sad 😢"],
+                ["Happy 😊", "Calm 😌", "Neutral 😐", "Agitated 😠", "Sad 😢"],
                 index=["Happy 😊", "Calm 😌", "Neutral 😐", "Agitated 😠", "Sad 😢"].index(st.session_state['session_mood']),
                 key="session_mood_input"
             )
