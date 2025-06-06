@@ -819,6 +819,7 @@ if st.session_state['is_authenticated']:
             st.session_state['current_user_hobbies'] = ""
             st.session_state['current_user_decade'] = ""
             st.session_state['current_user_college_chapter'] = ""
+            st.info("Fill in the new pair's details below in the 'Pair Profile Details' section and click 'Save Pair Details'!")
             st.rerun() # Rerun to reflect changes and open expander
 
     # Logic when a pair is selected from the dropdown (or after "Add New Pair" button click reruns)
@@ -1202,7 +1203,7 @@ if st.session_state['is_authenticated']:
 
                         if feedback != "Select an option" and not st.session_state.get(f"feedback_submitted_{feedback_key}", False):
                             try:
-                                sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXJRXcfmxjoj5s')
+                                sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXJRXcfmxj5s')
                                 feedback_ws = sheet.worksheet('Feedback')
                                 feedback_ws.append_row([
                                     datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -1320,7 +1321,7 @@ if st.session_state['is_authenticated']:
             session_mood = st.radio(
                 "Pair's Overall Mood During Session:",
                 ["Happy 😊", "Calm 😌", "Neutral 😐", "Agitated 😠", "Sad 😢"],
-                index=["Happy 😊", "Calm �", "Neutral 😐", "Agitated 😠", "Sad 😢"].index(st.session_state['session_mood']),
+                index=["Happy 😊", "Calm 😌", "Neutral 😐", "Agitated 😠", "Sad 😢"].index(st.session_state['session_mood']),
                 key="session_mood_input"
             )
             st.session_state['session_mood'] = session_mood
@@ -1394,3 +1395,4 @@ if st.session_state['is_authenticated']:
             st.info("Select a 'Pair's Name' above to view their session history.")
     else:
         st.info("Please select or add a pair above to continue.")
+
