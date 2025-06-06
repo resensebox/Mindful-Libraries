@@ -440,6 +440,7 @@ def load_session_logs(pair_name, volunteer_username):
         all_values = session_log_ws.get_all_values()
 
         if not all_values:
+            st.info("No data found in the 'SessionLogs' worksheet. The sheet might be empty or the data is not in the expected format.")
             return pd.DataFrame()
 
         raw_headers = [str(h).strip() for h in all_values[0]]
@@ -460,29 +461,33 @@ def load_session_logs(pair_name, volunteer_username):
 
         df_raw = pd.DataFrame(data_rows, columns=cleaned_headers)
 
-        # Updated expected headers - Add 'College Chapter' here for loading
+        # Define the exact expected headers for the final DataFrame
         expected_headers = ['Timestamp', 'Pair Name', 'Session Date', 'Mood', 'Engagement', 'Takeaways', 'Volunteer Username', 'Recommended Materials']
         
         df_final = pd.DataFrame()
         for col in expected_headers:
+            # Find the best match for the expected column name, considering potential numbered duplicates
             found_col_name = None
             for df_col in df_raw.columns:
                 if df_col == col or (df_col.startswith(f"{col}_") and df_col[len(col):].replace('_', '').isdigit()):
                     found_col_name = df_col
                     break
             
-            # This logic must be outside the inner loop over df_raw.columns,
-            # but still inside the outer loop over expected_headers.
             if found_col_name and found_col_name in df_raw.columns:
                 df_final[col] = df_raw[found_col_name]
             else:
                 df_final[col] = '' # Add missing column with empty string
 
+        # Ensure 'Pair Name' and 'Volunteer Username' are cleaned for filtering
+        if 'Pair Name' in df_final.columns:
+            df_final['Pair Name'] = df_final['Pair Name'].astype(str).str.strip().str.lower()
+        if 'Volunteer Username' in df_final.columns:
+            df_final['Volunteer Username'] = df_final['Volunteer Username'].astype(str).str.strip().str.lower()
 
-        # Filter by both Pair Name and Volunteer Username
+        # Filter by both Pair Name and Volunteer Username, ensuring comparison values are also cleaned
         filtered_df = df_final[
-            (df_final['Pair Name'].str.lower() == pair_name.lower()) &
-            (df_final['Volunteer Username'].str.lower() == volunteer_username.lower())
+            (df_final['Pair Name'] == pair_name.strip().lower()) &
+            (df_final['Volunteer Username'] == volunteer_username.strip().lower())
         ].sort_values(by='Timestamp', ascending=False)
         
         return filtered_df
