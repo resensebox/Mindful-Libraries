@@ -1146,7 +1146,8 @@ if st.session_state['is_authenticated']:
 
                             if feedback != "Select an option" and not st.session_state.get(f"feedback_submitted_{feedback_key}", False):
                                 try:
-                                    sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXJRXcfmxj5s')
+                                    # Corrected Google Sheet URL for feedback
+                                    sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXJRXcfmxjoj5s')
                                     feedback_ws = sheet.worksheet('Feedback')
                                     feedback_ws.append_row([
                                         datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -1267,7 +1268,7 @@ if st.session_state['is_authenticated']:
         with notes_col2:
             session_mood = st.radio(
                 "Pair's Overall Mood During Session:",
-                ["Happy 😊", "Calm �", "Neutral 😐", "Agitated 😠", "Sad 😢"],
+                ["Happy 😊", "Calm 😌", "Neutral 😐", "Agitated 😠", "Sad 😢"],
                 index=["Happy 😊", "Calm 😌", "Neutral 😐", "Agitated 😠", "Sad 😢"].index(st.session_state['session_mood']),
                 key="session_mood_input"
             )
@@ -1291,23 +1292,13 @@ if st.session_state['is_authenticated']:
 
         if st.button("Save Session Notes", key="save_session_notes_btn"):
             if st.session_state['current_user_name']:
-                # Prepare recommended materials for JSON serialization, converting sets to lists
-                serializable_books = []
-                for book in st.session_state['recommended_books_current_session']:
-                    book_copy = book.copy()
-                    if 'tags' in book_copy and isinstance(book_copy['tags'], set):
-                        book_copy['tags'] = list(book_copy['tags'])
-                    serializable_books.append(book_copy)
-
-                serializable_newspapers = []
-                for newspaper in st.session_state['recommended_newspapers_current_session']:
-                    newspaper_copy = newspaper.copy()
-                    if 'tags' in newspaper_copy and isinstance(newspaper_copy['tags'], set):
-                        newspaper_copy['tags'] = list(newspaper_copy['tags'])
-                    serializable_newspapers.append(newspaper_copy)
-
-                all_recommended_materials = serializable_books + serializable_newspapers
-                recommended_materials_json = json.dumps(all_recommended_materials) # Now dumping full dicts
+                # Extract only titles for logging in a list of strings
+                recommended_book_titles = [book.get('Title', 'N/A') for book in st.session_state['recommended_books_current_session']]
+                recommended_newspaper_titles = [newspaper.get('Title', 'N/A') for newspaper in st.session_state['recommended_newspapers_current_session']]
+                
+                # Combine all titles into a single list
+                all_recommended_titles = recommended_book_titles + recommended_newspaper_titles
+                recommended_materials_json = json.dumps(all_recommended_titles) # Now dumping a list of strings
 
                 save_session_notes_to_gsheet(
                     st.session_state['current_user_name'], # Use the current pair's name
@@ -1343,13 +1334,13 @@ if st.session_state['is_authenticated']:
                     
                     if 'Recommended Materials' in row and row['Recommended Materials']:
                         try:
-                            # When loading, parse the JSON string back into a list of dictionaries
+                            # When loading, parse the JSON string back into a list of titles
                             recs = json.loads(row['Recommended Materials'])
                             if recs:
                                 st.markdown("**Recommended Materials for this Session:**")
-                                # Display each item's title and type
-                                for rec_item in recs:
-                                    st.markdown(f"- {rec_item.get('Title', 'N/A')} ({rec_item.get('Type', 'N/A')})")
+                                # Display each title in the list
+                                for rec_title in recs:
+                                    st.markdown(f"- {rec_title}") # Displaying just the title
                         except json.JSONDecodeError:
                             st.markdown("_Error loading recommended materials. Data format may be incorrect._")
                     st.markdown("---")
