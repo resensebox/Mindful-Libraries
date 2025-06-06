@@ -1,3 +1,4 @@
+
 import streamlit as st
 import pandas as pd
 import gspread
@@ -21,17 +22,7 @@ st.markdown("""
         font-family: 'Inter', sans-serif;
     }
 
-    /* Main content wrapper to create the "floating rectangle" effect */
-    .main-content-wrapper {
-        background-color: #ffffff; /* White background for the main content area */
-        border-radius: 16px; /* More rounded corners for the main container */
-        box-shadow: 0 8px 24px rgba(0,0,0,0.15); /* Stronger, more noticeable shadow */
-        padding: 2rem; /* Increased padding inside the main content area */
-        margin: 1.5rem auto; /* Adjusted top/bottom margin, and auto left/right for centering */
-        max-width: 900px; /* Limit width for better floating effect */
-        min-height: auto; /* Allows content area to shrink when content is sparse */
-        box-sizing: border-box; /* Include padding in the element's total width and height */
-    }
+    /* Main content wrapper CSS removed as per user request */
 
     /* App-like Header (remains at the top of the main content area) */
     /* Targeting the header container in Streamlit and adjusting its appearance */
@@ -60,8 +51,8 @@ st.markdown("""
     h1 {
         text-align: center;
         color: #333333;
-        margin-top: 0; /* Changed from 1rem to 0 to remove top space */
-        margin-bottom: 1.5rem; /* Slightly reduced bottom margin */
+        margin-top: 2rem; /* Adjusted top margin after removing .main-content-wrapper */
+        margin-bottom: 1.5rem;
         font-size: 2.5em; /* Make it stand out */
         font-weight: 700;
         letter-spacing: -0.02em;
@@ -988,12 +979,11 @@ if st.session_state['is_authenticated']:
                 st.rerun() # Rerun to switch page
 
 
-    # --- Main Content Area Wrapper ---
-    # This div will act as the "floating rectangle"
-    st.markdown('<div class="main-content-wrapper">', unsafe_allow_html=True)
+    # --- Removed the main-content-wrapper div ---
+    # st.markdown('<div class="main-content-wrapper">', unsafe_allow_html=True) # Removed
 
-    # Main title is now inside the main-content-wrapper when logged in
-    st.markdown("<h1 style='text-align: center; color: #333333; margin-top: 0; margin-bottom: 1.5rem; font-size: 2.5em; font-weight: 700; letter-spacing: -0.02em;'>Discover Your Next Nostalgic Read!</h1>", unsafe_allow_html=True)
+    # Main title is now directly in the main authenticated content area
+    st.markdown("<h1 style='text-align: center; color: #333333; margin-top: 2rem; margin-bottom: 1.5rem; font-size: 2.5em; font-weight: 700; letter-spacing: -0.02em;'>Discover Your Next Nostalgic Read!</h1>", unsafe_allow_html=True)
 
 
     # Content Area based on selected page
@@ -1218,12 +1208,13 @@ if st.session_state['is_authenticated']:
             if results:
                 for item in results[:5]:
                     # Only render content-card if it has a meaningful title OR meaningful summary/image/URL
-                    has_title = bool(item.get('Title', '').strip())
-                    has_summary = bool(item.get('Summary', '').strip())
-                    has_image = bool(item.get('Image', '').strip())
-                    has_url = bool(item.get('URL', '').strip())
-
-                    if has_title or has_summary or has_image or has_url: # Render if any content exists
+                    has_content = (
+                        bool(item.get('Title', '').strip()) or
+                        bool(item.get('Summary', '').strip()) or
+                        bool(item.get('Image', '').strip()) or
+                        bool(item.get('URL', '').strip())
+                    )
+                    if has_content:
                         st.markdown('<div class="content-card">', unsafe_allow_html=True) # Start card
                         cols = st.columns([1, 2])
                         with cols[0]:
@@ -1294,12 +1285,13 @@ if st.session_state['is_authenticated']:
             if books or newspapers:
                 for item in books + newspapers:
                     # Only render content-card if it has a meaningful title OR meaningful summary/image/URL
-                    has_title = bool(item.get('Title', '').strip())
-                    has_summary = bool(item.get('Summary', '').strip())
-                    has_image = bool(item.get('Image', '').strip())
-                    has_url = bool(item.get('URL', '').strip())
-
-                    if has_title or has_summary or has_image or has_url: # Render if any content exists
+                    has_content = (
+                        bool(item.get('Title', '').strip()) or
+                        bool(item.get('Summary', '').strip()) or
+                        bool(item.get('Image', '').strip()) or
+                        bool(item.get('URL', '').strip())
+                    )
+                    if has_content:
                         st.markdown('<div class="content-card">', unsafe_allow_html=True) # Start card
                         cols = st.columns([1, 2])
                         with cols[0]:
@@ -1422,12 +1414,13 @@ if st.session_state['is_authenticated']:
             cols = st.columns(num_cols)
             for i, book in enumerate(related_books):
                 # Only render content-card if it has a meaningful title OR meaningful summary/image/URL
-                has_title = bool(item.get('Title', '').strip())
-                has_summary = bool(item.get('Summary', '').strip())
-                has_image = bool(item.get('Image', '').strip())
-                has_url = bool(item.get('URL', '').strip())
-
-                if has_title or has_summary or has_image or has_url: # Render if any content exists
+                has_content = (
+                    bool(book.get('Title', '').strip()) or
+                    bool(book.get('Summary', '').strip()) or
+                    bool(book.get('Image', '').strip()) or
+                    bool(book.get('URL', '').strip())
+                )
+                if has_content:
                     # Using a column for each related book to arrange them in a grid-like manner
                     with cols[i % num_cols]:
                         st.markdown('<div class="content-card" style="padding: 1rem; margin-bottom: 1rem; height: auto;">', unsafe_allow_html=True) # Smaller card for related books, auto height
@@ -1459,12 +1452,13 @@ if st.session_state['is_authenticated']:
                     num_cols_fallback = st.columns(min(5, len(fallback_books_df)))
                     for i, book in enumerate(fallback_books_df.sample(min(5, len(fallback_books_df)), random_state=1).to_dict('records')):
                         # Only render content-card if it has a meaningful title OR meaningful summary/image/URL
-                        has_title = bool(item.get('Title', '').strip())
-                        has_summary = bool(item.get('Summary', '').strip())
-                        has_image = bool(item.get('Image', '').strip())
-                        has_url = bool(item.get('URL', '').strip())
-
-                        if has_title or has_summary or has_image or has_url: # Render if any content exists
+                        has_content = (
+                            bool(book.get('Title', '').strip()) or
+                            bool(book.get('Summary', '').strip()) or
+                            bool(book.get('Image', '').strip()) or
+                            bool(book.get('URL', '').strip())
+                        )
+                        if has_content:
                             with num_cols_fallback[i % len(num_cols_fallback)]:
                                 st.markdown('<div class="content-card" style="padding: 1rem; margin-bottom: 1rem; height: auto;">', unsafe_allow_html=True) # Smaller card for fallback books, auto height
                                 img_url = get_image_url(book) # Use the new helper function
@@ -1496,7 +1490,7 @@ if st.session_state['is_authenticated']:
             session_mood = st.radio(
                 "Pair's Overall Mood During Session:",
                 ["Happy 😊", "Calm 😌", "Neutral 😐", "Agitated 😠", "Sad 😢"],
-                index=["Happy 😊", "Calm 😌", "Neutral 😐", "Agitated �", "Sad 😢"].index(st.session_state['session_mood']),
+                index=["Happy 😊", "Calm 😌", "Neutral 😐", "Agitated 😠", "Sad 😢"].index(st.session_state['session_mood']),
                 key="session_mood_input"
             )
             st.session_state['session_mood'] = session_mood
@@ -1588,5 +1582,6 @@ if st.session_state['is_authenticated']:
         else:
             st.info("Please set a 'Favorite Decade' in the Pair Profile to view a historical summary.")
 
-    # --- End of Main Content Area Wrapper ---
-    st.markdown('</div>', unsafe_allow_html=True)
+    # --- Removed the main-content-wrapper closing div ---
+    # st.markdown('</div>', unsafe_allow_html=True) # Removed
+
