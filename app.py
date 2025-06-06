@@ -1347,15 +1347,13 @@ if st.session_state['is_authenticated']:
             st.session_state['show_printable_summary'] = False
 
 
+    
     elif st.session_state['current_page'] == 'related_books':
-        # Removed the custom anchor tag: st.markdown('<a name="you_might_also_like"></a>', unsafe_allow_html=True)
-        st.header("📖 You Might Also Like:") # Changed header text here
-        
-        # user_info is now defined at a higher scope
+        st.header("📖 You Might Also Like:")
+
         feedback_tag_scores = load_feedback_tag_scores()
-        
         primary_recommended_titles = {item.get('Title') for item in st.session_state['recommended_books_current_session'] + st.session_state['recommended_newspapers_current_session'] if item.get('Title')}
-        
+
         related_books = []
         all_relevant_tags = set(st.session_state['active_tags_for_filter'])
         for item in st.session_state['recommended_books_current_session'] + st.session_state['recommended_newspapers_current_session']:
@@ -1371,13 +1369,9 @@ if st.session_state['is_authenticated']:
         temp_related_books_candidates.sort(key=lambda x: x[0], reverse=True)
         related_books = [book_dict for _, book_dict in temp_related_books_candidates][:10]
 
-
         if related_books:
-            st.markdown("Based on your interests, here are a few more materials you might enjoy.") # Changed text here
-            num_cols = min(5, len(related_books))
-            cols = st.columns(num_cols)
-            for i, book in enumerate(related_books):
-                # Only render content if it has a meaningful title OR meaningful summary/image/URL
+            st.markdown("Based on your interests, here are a few more materials you might enjoy.")
+            for book in related_books:
                 has_content = (
                     bool(book.get('Title', '').strip()) or
                     bool(book.get('Summary', '').strip()) or
@@ -1385,26 +1379,32 @@ if st.session_state['is_authenticated']:
                     bool(book.get('URL', '').strip())
                 )
                 if has_content:
-                    # Using a column for each related book to arrange them in a grid-like manner
-                    with cols[i % num_cols]:
-                        # Removed the custom 'content-card' div
-                        img_url = get_image_url(book) # Use the new helper function
-                        st.image(img_url, width=120) # Always display image using the determined URL
-                        
+                    st.markdown("---")
+                    cols = st.columns([1, 3])
+                    with cols[0]:
+                        img_url = get_image_url(book)
+                        st.image(img_url, width=120)
+                    with cols[1]:
                         display_title = book.get('Title', '').strip()
-                        if display_title:
-                            st.caption(display_title)
-                        else:
-                            st.caption("_No Title Available_") # Explicit message
+                        display_summary = book.get('Summary', '').strip()
+                        st.markdown(f"### {display_title if display_title else '_No Title Available_'}")
+                        if display_summary:
+                            st.markdown(display_summary)
 
-                        with st.expander("Why this recommendation is great for your pair:"):
-                            with st.spinner("Generating personalized insights..."):
+                        matched_tags = set(book.get('tags', set())) & set(st.session_state['active_tags_for_filter'])
+                        if matched_tags:
+                            st.markdown(f"**Why this was recommended:** Matched tags — **{', '.join(matched_tags)}**")
+
+                        with st.expander("💡 Why this recommendation is great for your pair:", expanded=True):
+                            with st.spinner("Generating insights..."):
                                 explanation = generate_recommendation_explanation(book, user_info, st.session_state['active_tags_for_filter'], client_ai)
                                 st.markdown(explanation)
 
                         if 'URL' in book and book['URL']:
                             st.markdown(f"<a class='buy-button' href='{book['URL']}' target='_blank'>Buy Now</a>", unsafe_allow_html=True)
         else:
+            st.markdown("_No other related materials found with your current tags. Try adding more details or updating your preferences._")
+
             st.markdown("_No other related materials found with your current tags. Try generating new tags or searching for a specific topic!_") # Changed text here
             st.markdown("---")
             st.subheader("✨ Or, explore some popular titles:")
