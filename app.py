@@ -904,8 +904,10 @@ def generate_volunteer_reflection_prompts(session_details, _ai_client):
         return [f"Could not generate reflection prompts at this time. Error: {e}"]
 
 @st.cache_data(ttl=86400) # Cache for 24 hours (entire day)
-def get_this_day_in_history_facts(current_day, current_month, user_info, _ai_client):
-    """Generates famous event, person born, fun fact, and trivia for the current day."""
+def get_this_day_in_history_facts(current_day, current_month, user_info, _ai_client, max_retries=3):
+    """Generates famous event, person born, fun fact, and trivia for the current day.
+    Includes retry logic to ensure an event is always provided."""
+
     current_date_str = f"{current_month:02d}-{current_day:02d}"
 
     # Prepare user info for personalization
@@ -917,38 +919,92 @@ def get_this_day_in_history_facts(current_day, current_month, user_info, _ai_cli
     if user_info['life_experiences']: user_profile_summary += f"Life Experiences: {user_info['life_experiences']}. "
     if user_info['college_chapter']: user_profile_summary += f"College Chapter: {user_info['college_chapter']}. "
 
-    prompt = f"""
-    You are an expert historical archivist and a compassionate assistant for student volunteers working with individuals living with dementia.
-    For today's date, {current_date_str}, provide the following information:
+    default_response = {
+        'event_title': f"A Moment in History on {current_date_str}",
+        'event_article': "No specific broadly positive or culturally significant event between 1900-1965 could be reliably found for this day after multiple attempts. However, every day holds countless untold stories waiting to be explored!",
+        'born_section': "No famous person born today in the specified era could be reliably found. Many incredible people have shaped history, even if their birthdays aren't widely celebrated.",
+        'fun_fact_section': "Did you know that every day, no matter the date, is unique in its own way? Each day brings new possibilities and hidden gems from the past.",
+        'trivia_section': [
+            "What is the capital of France? (Answer: Paris)",
+            "What animal lays eggs? (Answer: Chicken)",
+            "Which season comes after spring? (Answer: Summer)"
+        ]
+    }
 
-    1.  **A famous event** that happened on this day in the past (between 1900 and 1965). Write a 200-word article about it. Ensure the event is broadly positive or culturally significant, suitable for sparking pleasant memories.
-    2.  **A famous person born on this day** (between 1850 and 1960). Try to pick someone that the user's pair (a person living with dementia) might be interested in, based on their profile. Include a brief description of who they are/what they are famous for.
-        User's Pair Profile: {user_profile_summary if user_profile_summary else 'No specific profile details provided. Try to pick a broadly recognizable figure.'}
-    3.  **A fun fact** related to this day in history.
-    4.  **Three easy trivia questions** about general knowledge or common historical facts that would be simple for individuals with dementia. For each question, provide a clear, simple answer. These questions should not require direct memory recall of specific dates or complex details, but rather general recognition or common sense.
+    for attempt in range(max_retries):
+        try:
+            prompt = f"""
+            You are an expert historical archivist and a compassionate assistant for student volunteers working with individuals living with dementia.
+            For today's date, {current_date_str}, provide the following information:
 
-    Format your response strictly as follows:
-    Event: [Event Title] - [Year]
-    [200-word article content]
+            1.  **A famous event** that happened on this day in the past (between 1900 and 1965). Write a 200-word article about it. Ensure the event is broadly positive or culturally significant, suitable for sparking pleasant memories. **It is crucial to always provide an event.**
+            2.  **A famous person born on this day** (between 1850 and 1960). Try to pick someone that the user's pair (a person living with dementia) might be interested in, based on their profile. Include a brief description of who they are/what they are famous for.
+                User's Pair Profile: {user_profile_summary if user_profile_summary else 'No specific profile details provided. Try to pick a broadly recognizable figure.'}
+            3.  **A fun fact** related to this day in history.
+            4.  **Three easy trivia questions** about general knowledge or common historical facts that would be simple for individuals with dementia. For each question, provide a clear, simple answer. These questions should not require direct memory recall of specific dates or complex details, but rather general recognition or common sense.
 
-    Born on this Day: [Person's Name]
-    [Person's Description]
+            Format your response strictly as follows:
+            Event: [Event Title] - [Year]
+            [200-word article content]
 
-    Fun Fact: [Your fun fact]
+            Born on this Day: [Person's Name]
+            [Person's Description]
 
-    Trivia Questions:
-    1. [Question 1]? (Answer: [Answer 1])
-    2. [Question 2]? (Answer: [Answer 2])
-    3. [Question 3]? (Answer: [Answer 3])
-    """
-    try:
-        response = _ai_client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[{"role": "user", "content": prompt}]
-        )
-        return response.choices[0].message.content.strip()
-    except Exception as e:
-        return f"Could not retrieve 'This Day in History' facts. Error: {e}"
+            Fun Fact: [Your fun fact]
+
+            Trivia Questions:
+            1. [Question 1]? (Answer: [Answer 1])
+            2. [Question 2]? (Answer: [Answer 2])
+            3. [Question 3]? (Answer: [Answer 3])
+            """
+            response = _ai_client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=[{"role": "user", "content": prompt}]
+            )
+            history_facts_raw = response.choices[0].message.content.strip()
+
+            # Parse the raw text response from the AI
+            event_title = ""
+            event_article = ""
+            born_section = ""
+            fun_fact_section = ""
+            trivia_section = []
+
+            sections = history_facts_raw.split('\n\n') # Split by double newline for sections
+
+            for section in sections:
+                if section.startswith("Event:"):
+                    first_line = section.split('\n')[0].replace("Event:", "").strip()
+                    if ' - ' in first_line:
+                        event_title = first_line.split(' - ', 1)[0].strip()
+                    else:
+                        event_title = first_line.strip()
+                    event_article = '\n'.join(section.split('\n')[1:]).strip()
+                elif section.startswith("Born on this Day:"):
+                    born_section = section.replace("Born on this Day:", "").strip()
+                elif section.startswith("Fun Fact:"):
+                    fun_fact_section = section.replace("Fun Fact:", "").strip()
+                elif section.startswith("Trivia Questions:"):
+                    trivia_lines = section.replace("Trivia Questions:", "").strip().split('\n')
+                    trivia_section = [line.strip() for line in trivia_lines if line.strip()]
+            
+            # Check if an event was successfully extracted and is reasonably long (more than just title)
+            if event_title and len(event_article) > 50: # Check for minimal article content length
+                return {
+                    'event_title': event_title,
+                    'event_article': event_article,
+                    'born_section': born_section,
+                    'fun_fact_section': fun_fact_section,
+                    'trivia_section': trivia_section
+                }
+        except Exception as e:
+            st.warning(f"Attempt {attempt+1} failed to retrieve 'This Day in History' facts: {e}")
+            # Continue to next attempt
+
+    # If all retries fail, return the default response
+    st.error("Failed to generate custom 'This Day in History' content after multiple attempts. Displaying default content.")
+    return default_response
+
 
 def generate_article_pdf(title, content):
     """Generates a PDF of a single article title and content."""
@@ -958,6 +1014,7 @@ def generate_article_pdf(title, content):
     pdf.multi_cell(0, 10, title, align='C')
     pdf.ln(10)
     pdf.set_font("Arial", "", 12)
+    # Ensure content is encoded properly for FPDF
     pdf.multi_cell(0, 8, content.encode('latin-1', 'replace').decode('latin-1'))
     
     return pdf.output(dest='S').encode('latin-1')
@@ -1881,55 +1938,21 @@ if st.session_state['is_authenticated']:
             # the data is pulled from session state rather than re-parsing the AI response
             if 'last_history_date' not in st.session_state or st.session_state['last_history_date'] != today:
                 with st.spinner("Fetching historical insights for today..."):
-                    history_facts_raw = get_this_day_in_history_facts(current_day, current_month, user_info, client_ai)
-
-                    # Parse the raw text response from the AI
-                    event_title = ""
-                    event_article = ""
-                    born_section = ""
-                    fun_fact_section = ""
-                    trivia_section = []
-
-                    sections = history_facts_raw.split('\n\n') # Split by double newline for sections
-
-                    for i, section in enumerate(sections):
-                        if section.startswith("Event:"):
-                            # Extract title and year first
-                            first_line = section.split('\n')[0].replace("Event:", "").strip()
-                            if ' - ' in first_line:
-                                event_title_parts = first_line.split(' - ', 1)
-                                event_title = event_title_parts[0].strip()
-                            else:
-                                event_title = first_line.strip() # Fallback if format is slightly off
-
-                            # The rest of the section is the article content
-                            event_article = '\n'.join(section.split('\n')[1:]).strip()
-                        elif section.startswith("Born on this Day:"):
-                            born_section = section.replace("Born on this Day:", "").strip()
-                        elif section.startswith("Fun Fact:"):
-                            fun_fact_section = section.replace("Fun Fact:", "").strip()
-                        elif section.startswith("Trivia Questions:"):
-                            trivia_lines = section.replace("Trivia Questions:", "").strip().split('\n')
-                            trivia_section = [line.strip() for line in trivia_lines if line.strip()]
+                    history_facts_data = get_this_day_in_history_facts(current_day, current_month, user_info, client_ai)
                     
                     # Store parsed data in session state
-                    st.session_state['this_day_history_data'] = {
-                        'event_title': event_title,
-                        'event_article': event_article,
-                        'born_section': born_section,
-                        'fun_fact_section': fun_fact_section,
-                        'trivia_section': trivia_section
-                    }
+                    st.session_state['this_day_history_data'] = history_facts_data
                     st.session_state['last_history_date'] = today # Mark when this data was fetched/stored
             else:
                 # If already loaded for today, retrieve from session state
-                event_title = st.session_state['this_day_history_data']['event_title']
-                event_article = st.session_state['this_day_history_data']['event_article']
-                born_section = st.session_state['this_day_history_data']['born_section']
-                fun_fact_section = st.session_state['this_day_history_data']['fun_fact_section']
-                trivia_section = st.session_state['this_day_history_data']['trivia_section']
                 st.info("Showing cached insights for today.")
                 
+            # Retrieve from session state for display and PDF generation
+            event_title = st.session_state['this_day_history_data']['event_title']
+            event_article = st.session_state['this_day_history_data']['event_article']
+            born_section = st.session_state['this_day_history_data']['born_section']
+            fun_fact_section = st.session_state['this_day_history_data']['fun_fact_section']
+            trivia_section = st.session_state['this_day_history_data']['trivia_section']
             
             st.markdown("---")
             st.subheader("Significant Event:")
