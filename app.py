@@ -1357,4 +1357,3 @@ if st.session_state['is_authenticated']:
                 st.info(f"No past session notes found for {st.session_state['current_user_name']} logged by {st.session_state['logged_in_username']}. Save a session to see history!")
         else:
             st.info("Enter a 'Pair's Name' above to view their session history.")
-�
