@@ -8,6 +8,7 @@ from collections import Counter
 from openai import OpenAI
 from fpdf import FPDF
 from datetime import datetime, date
+import base64 # Import base64 for PDF download
 
 st.set_option('client.showErrorDetails', True)
 
@@ -909,7 +910,7 @@ def get_this_day_in_history_facts(current_day, current_month, user_info, _ai_cli
     You are an expert historical archivist and a compassionate assistant for student volunteers working with individuals living with dementia.
     For today's date, {current_date_str}, provide the following information:
 
-    1.  **A famous event** that happened on this day in the past (between 1900 and 1965). Describe it in 2-3 sentences.
+    1.  **A famous event** that happened on this day in the past (between 1900 and 1965). Write a 200-word article about it. Ensure the event is broadly positive or culturally significant, suitable for sparking pleasant memories.
     2.  **A famous person born on this day** (between 1850 and 1960). Try to pick someone that the user's pair (a person living with dementia) might be interested in, based on their profile. Include a brief description of who they are/what they are famous for.
         User's Pair Profile: {user_profile_summary if user_profile_summary else 'No specific profile details provided. Try to pick a broadly recognizable figure.'}
     3.  **A fun fact** related to this day in history.
@@ -917,7 +918,7 @@ def get_this_day_in_history_facts(current_day, current_month, user_info, _ai_cli
 
     Format your response strictly as follows:
     Event: [Event Title] - [Year]
-    [Event Description]
+    [200-word article content]
 
     Born on this Day: [Person's Name]
     [Person's Description]
@@ -937,6 +938,21 @@ def get_this_day_in_history_facts(current_day, current_month, user_info, _ai_cli
         return response.choices[0].message.content.strip()
     except Exception as e:
         return f"Could not retrieve 'This Day in History' facts. Error: {e}"
+
+def generate_article_pdf(title, content):
+    """Generates a PDF of the given article title and content."""
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", "B", 16)
+    pdf.multi_cell(0, 10, title, align='C')
+    pdf.ln(10)
+    pdf.set_font("Arial", "", 12)
+    # Ensure content is UTF-8 encoded and handle potential non-ASCII characters
+    pdf.multi_cell(0, 8, content.encode('latin-1', 'replace').decode('latin-1'))
+    
+    # Return the PDF as bytes
+    return pdf.output(dest='S').encode('latin-1')
+
 
 def get_printable_summary(user_info, tags, session_topic, books, newspapers, activities, volunteer_username):
     """Generates a formatted string summary for printing."""
@@ -1675,7 +1691,7 @@ if st.session_state['is_authenticated']:
             session_mood = st.radio(
                 "Pair's Overall Mood During Session:",
                 ["Happy 😊", "Calm 😌", "Neutral 😐", "Agitated 😠", "Sad 😢"],
-                index=["Happy 😊", "Calm 😌", "Neutral 😐", "Agitated 😠", "Sad 😢"].index(st.session_state['session_mood']),
+                index=["Happy �", "Calm 😌", "Neutral 😐", "Agitated 😠", "Sad 😢"].index(st.session_state['session_mood']),
                 key="session_mood_input"
             )
             st.session_state['session_mood'] = session_mood
@@ -1801,16 +1817,26 @@ if st.session_state['is_authenticated']:
                 history_facts_raw = get_this_day_in_history_facts(current_day, current_month, user_info, client_ai)
 
                 # Parse the raw text response from the AI
-                event_section = ""
+                event_title = ""
+                event_article = ""
                 born_section = ""
                 fun_fact_section = ""
                 trivia_section = []
 
                 sections = history_facts_raw.split('\n\n') # Split by double newline for sections
 
-                for section in sections:
+                for i, section in enumerate(sections):
                     if section.startswith("Event:"):
-                        event_section = section.replace("Event:", "").strip()
+                        # Extract title and year first
+                        first_line = section.split('\n')[0].replace("Event:", "").strip()
+                        if ' - ' in first_line:
+                            event_title_parts = first_line.split(' - ', 1)
+                            event_title = event_title_parts[0].strip()
+                        else:
+                            event_title = first_line.strip() # Fallback if format is slightly off
+
+                        # The rest of the section is the article content
+                        event_article = '\n'.join(section.split('\n')[1:]).strip()
                     elif section.startswith("Born on this Day:"):
                         born_section = section.replace("Born on this Day:", "").strip()
                     elif section.startswith("Fun Fact:"):
@@ -1821,8 +1847,20 @@ if st.session_state['is_authenticated']:
                 
                 st.markdown("---")
                 st.subheader("Significant Event:")
-                if event_section:
-                    st.info(event_section)
+                if event_title and event_article:
+                    st.markdown(f"**{event_title}**")
+                    st.info(event_article)
+                    
+                    # Add PDF download button
+                    pdf_bytes = generate_article_pdf(event_title, event_article)
+                    st.download_button(
+                        label="Download Article as PDF",
+                        data=pdf_bytes,
+                        file_name=f"{event_title.replace(' ', '_')}_Article.pdf",
+                        mime="application/pdf",
+                        key="download_event_article_pdf"
+                    )
+
                 else:
                     st.info("No famous event found for this day in the specified era.")
 
@@ -1854,4 +1892,4 @@ if st.session_state['is_authenticated']:
                         st.markdown(f"{trivia_item}")
                 else:
                     st.info("No trivia questions generated for this day.")
-
+�
