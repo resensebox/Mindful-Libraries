@@ -466,32 +466,34 @@ def load_session_logs(pair_name, volunteer_username):
                 if df_col == col or (df_col.startswith(f"{col}_") and df_col[len(col):].replace('_', '').isdigit()):
                     found_col_name = df_col
                     break
-                
-                if found_col_name and found_col_name in df_raw.columns:
-                    df_final[col] = df_raw[found_col_name]
-                else:
-                    df_final[col] = '' # Add missing column with empty string
-
-
-            # Filter by both Pair Name and Volunteer Username
-            filtered_df = df_final[
-                (df_final['Pair Name'].str.lower() == pair_name.lower()) &
-                (df_final['Volunteer Username'].str.lower() == volunteer_username.lower())
-            ].sort_values(by='Timestamp', ascending=False)
             
-            return filtered_df
+            # This logic must be outside the inner loop over df_raw.columns,
+            # but still inside the outer loop over expected_headers.
+            if found_col_name and found_col_name in df_raw.columns:
+                df_final[col] = df_raw[found_col_name]
+            else:
+                df_final[col] = '' # Add missing column with empty string
 
-        except gspread.exceptions.WorksheetNotFound:
-            st.info(f"The 'SessionLogs' worksheet was not found. Please create a sheet named 'SessionLogs' in your Google Sheet to enable session history tracking.")
-            return pd.DataFrame()
-        except Exception as e:
-            st.error(f"Could not load session history for {pair_name} and {volunteer_username}. An unexpected error occurred: {e}. "
-                     "This often happens if there are empty or duplicate column headers in your 'SessionLogs' worksheet, "
-                     "or if the column names do not exactly match. "
-                     "Please ensure the first row of your 'SessionLogs' sheet contains unique and clear headers like "
-                     "'Timestamp', 'Pair Name', 'Session Date', 'Mood', 'Engagement', 'Takeaways', 'Recommended Materials', 'Volunteer Username'. "
-                     "Also, check for any entirely blank leading columns that might be causing issues.")
-            return pd.DataFrame()
+
+        # Filter by both Pair Name and Volunteer Username
+        filtered_df = df_final[
+            (df_final['Pair Name'].str.lower() == pair_name.lower()) &
+            (df_final['Volunteer Username'].str.lower() == volunteer_username.lower())
+        ].sort_values(by='Timestamp', ascending=False)
+        
+        return filtered_df
+
+    except gspread.exceptions.WorksheetNotFound:
+        st.info(f"The 'SessionLogs' worksheet was not found. Please create a sheet named 'SessionLogs' in your Google Sheet to enable session history tracking.")
+        return pd.DataFrame()
+    except Exception as e:
+        st.error(f"Could not load session history for {pair_name} and {volunteer_username}. An unexpected error occurred: {e}. "
+                 "This often happens if there are empty or duplicate column headers in your 'SessionLogs' worksheet, "
+                 "or if the column names do not exactly match. "
+                 "Please ensure the first row of your 'SessionLogs' sheet contains unique and clear headers like "
+                 "'Timestamp', 'Pair Name', 'Session Date', 'Mood', 'Engagement', 'Takeaways', 'Recommended Materials', 'Volunteer Username'. "
+                 "Also, check for any entirely blank leading columns that might be causing issues.")
+        return pd.DataFrame()
 
 @st.cache_data(ttl=3600) # Cache the explanation for an hour
 def generate_recommendation_explanation(item, user_info, selected_tags_from_session, _ai_client):
