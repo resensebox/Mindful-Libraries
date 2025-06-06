@@ -174,9 +174,6 @@ if 'current_user_decade' not in st.session_state:
 # New session state for college chapter
 if 'current_user_college_chapter' not in st.session_state:
     st.session_state['current_user_college_chapter'] = ""
-# New session state to control the expander
-if 'show_new_pair_form' not in st.session_state:
-    st.session_state['show_new_pair_form'] = False
 
 
 # Session state for session notes
@@ -334,7 +331,6 @@ def save_pair_details(volunteer_username, pair_name, jobs, life_experiences, hob
             pairs_ws.append_row(update_values)
             st.success(f"New pair '{pair_name}' added successfully!")
             st.session_state['selected_pair_name'] = pair_name # Auto-select new pair
-            st.session_state['show_new_pair_form'] = False # Collapse after adding
 
         st.cache_data(load_pairs).clear()
         PAIRS_DATA = load_pairs(volunteer_username) # This assignment is now valid after global declaration
@@ -712,7 +708,6 @@ if not st.session_state['is_authenticated']:
                         st.session_state['current_user_hobbies'] = ""
                         st.session_state['current_user_decade'] = ""
                         st.session_state['current_user_college_chapter'] = "" # Clear new field
-                    st.session_state['show_new_pair_form'] = False # Hide new pair form on login
                     st.rerun()
                 else:
                     st.error("Invalid username or password")
@@ -746,7 +741,6 @@ if not st.session_state['is_authenticated']:
                         st.session_state['current_user_hobbies'] = ""
                         st.session_state['current_user_decade'] = ""
                         st.session_state['current_user_college_chapter'] = "" # Clear new field
-                        st.session_state['show_new_pair_form'] = True # Show new pair form on new registration
                         st.rerun()
 
 else: # If authenticated
@@ -771,7 +765,6 @@ else: # If authenticated
         st.session_state['recommended_books_current_session'] = []
         st.session_state['recommended_newspapers_current_session'] = []
         st.session_state['show_printable_summary'] = False
-        st.session_state['show_new_pair_form'] = False
         PAIRS_DATA = {} # Clear global PAIRS_DATA on logout
         st.rerun()
 
@@ -811,7 +804,6 @@ if st.session_state['is_authenticated']:
         st.markdown("<br>", unsafe_allow_html=True) # Add some spacing
         if st.button("✨ Add New Pair", key="add_new_pair_button"):
             st.session_state['selected_pair_name'] = "Add New Pair"
-            st.session_state['show_new_pair_form'] = True # Explicitly show the form
             # Clear all current pair data in session state to prepare for new input
             st.session_state['current_user_name'] = ""
             st.session_state['current_user_jobs'] = ""
@@ -819,7 +811,6 @@ if st.session_state['is_authenticated']:
             st.session_state['current_user_hobbies'] = ""
             st.session_state['current_user_decade'] = ""
             st.session_state['current_user_college_chapter'] = ""
-            st.info("Fill in the new pair's details below in the 'Pair Profile Details' section and click 'Save Pair Details'!")
             st.rerun() # Rerun to reflect changes and open expander
 
     # Logic when a pair is selected from the dropdown (or after "Add New Pair" button click reruns)
@@ -833,7 +824,6 @@ if st.session_state['is_authenticated']:
             st.session_state['current_user_hobbies'] = selected_pair_info.get('hobbies', '')
             st.session_state['current_user_decade'] = selected_pair_info.get('decade', '')
             st.session_state['current_user_college_chapter'] = selected_pair_info.get('college_chapter', '')
-            st.session_state['show_new_pair_form'] = False # Hide new pair form when selecting existing
         else: 
             st.session_state['current_user_name'] = ""
             st.session_state['current_user_jobs'] = ""
@@ -841,19 +831,15 @@ if st.session_state['is_authenticated']:
             st.session_state['current_user_hobbies'] = ""
             st.session_state['current_user_decade'] = ""
             st.session_state['current_user_college_chapter'] = ""
-            st.session_state['show_new_pair_form'] = True # Show new pair form when selected from dropdown
         st.rerun() # Rerun to update the input fields immediately and expander state
 
 
     # Display the pair details input form within an expander
     st.markdown("---")
-    # Control expander state based on whether "Add New Pair" is selected
-    if st.session_state['selected_pair_name'] == "Add New Pair":
-        expander_default_expanded = True
-    else:
-        expander_default_expanded = st.session_state['show_new_pair_form'] # Follow the flag if not "Add New Pair"
+    # Expander is open if a pair is selected or 'Add New Pair' is chosen. Closed only on initial load.
+    expander_is_open_on_init = st.session_state['selected_pair_name'] != ""
 
-    with st.expander("✨ Pair Profile Details", expanded=expander_default_expanded):
+    with st.expander("✨ Pair Profile Details", expanded=expander_is_open_on_init):
         pair_form_title = f"Details for **{st.session_state['selected_pair_name']}**" if st.session_state['selected_pair_name'] != "Add New Pair" else "✨ Add New Pair Profile ✨"
         st.subheader(pair_form_title)
         
@@ -885,7 +871,6 @@ if st.session_state['is_authenticated']:
                         st.session_state['current_user_decade'] = decade_input
                         st.session_state['current_user_college_chapter'] = college_chapter_input # Update new field
                         st.session_state['selected_pair_name'] = pair_name_input # Ensure selectbox reflects the saved name
-                        st.session_state['show_new_pair_form'] = False # Collapse after successful save
                         st.rerun() # Rerun to refresh UI with saved data and potentially new pair in dropdown
 
     # Only show main app content if a pair is selected AND it's not the "Add New Pair" state
@@ -1320,7 +1305,7 @@ if st.session_state['is_authenticated']:
         with notes_col2:
             session_mood = st.radio(
                 "Pair's Overall Mood During Session:",
-                ["Happy 😊", "Calm 😌", "Neutral 😐", "Agitated 😠", "Sad 😢"],
+                ["Happy 😊", "Calm 😌", "Neutral 😐", "Agitated �", "Sad 😢"],
                 index=["Happy 😊", "Calm 😌", "Neutral 😐", "Agitated 😠", "Sad 😢"].index(st.session_state['session_mood']),
                 key="session_mood_input"
             )
@@ -1395,4 +1380,3 @@ if st.session_state['is_authenticated']:
             st.info("Select a 'Pair's Name' above to view their session history.")
     else:
         st.info("Please select or add a pair above to continue.")
-
