@@ -159,8 +159,7 @@ if 'tag_checkbox_states' not in st.session_state:
     st.session_state['tag_checkbox_states'] = {}
 
 # --- Pair Management Session State ---
-if 'selected_pair_name' not in st.session_state:
-    st.session_state['selected_pair_name'] = "" # Stores the name of the currently selected/active pair
+# 'selected_pair_name' no longer serves a direct selection purpose in the UI
 if 'current_user_name' not in st.session_state: # This will now be the pair's name
     st.session_state['current_user_name'] = ""
 if 'current_user_jobs' not in st.session_state:
@@ -253,12 +252,6 @@ def load_pairs(volunteer_username):
 USERS.update(load_users())
 if st.session_state['is_authenticated'] and st.session_state['logged_in_username']:
     PAIRS_DATA = load_pairs(st.session_state['logged_in_username'])
-    # Ensure selected_pair_name is valid if it exists, otherwise clear it
-    if st.session_state['selected_pair_name'] and st.session_state['selected_pair_name'] not in PAIRS_DATA:
-        st.session_state['selected_pair_name'] = ""
-    # If there's only one pair, auto-select it
-    if len(PAIRS_DATA) == 1 and not st.session_state['selected_pair_name']:
-        st.session_state['selected_pair_name'] = list(PAIRS_DATA.keys())[0]
 
 def save_new_user(username, password):
     """Saves a new user to the 'Users' Google Sheet."""
@@ -330,7 +323,6 @@ def save_pair_details(volunteer_username, pair_name, jobs, life_experiences, hob
         else:
             pairs_ws.append_row(update_values)
             st.success(f"New pair '{pair_name}' added successfully!")
-            st.session_state['selected_pair_name'] = pair_name # Auto-select new pair
 
         st.cache_data(load_pairs).clear()
         PAIRS_DATA = load_pairs(volunteer_username) # This assignment is now valid after global declaration
@@ -688,26 +680,13 @@ if not st.session_state['is_authenticated']:
                     st.success(f"Welcome back, {username}!")
                     # Reload pairs specific to this user after successful login
                     PAIRS_DATA = load_pairs(st.session_state['logged_in_username'])
-                    # If there's only one pair for this user, auto-select it
-                    if len(PAIRS_DATA) == 1:
-                        st.session_state['selected_pair_name'] = list(PAIRS_DATA.keys())[0]
-                        # Populate pair details from loaded data
-                        selected_pair_info = PAIRS_DATA[st.session_state['selected_pair_name']]
-                        st.session_state['current_user_name'] = st.session_state['selected_pair_name']
-                        st.session_state['current_user_jobs'] = selected_pair_info['jobs']
-                        st.session_state['current_user_life_experiences'] = selected_pair_info['life_experiences']
-                        st.session_state['current_user_hobbies'] = selected_pair_info['hobbies']
-                        st.session_state['current_user_decade'] = selected_pair_info['decade']
-                        st.session_state['current_user_college_chapter'] = selected_pair_info['college_chapter'] # Populate new field
-                    else:
-                        st.session_state['selected_pair_name'] = "" # Ensure no pair is selected if multiple exist
-                        # Clear pair-specific data if no specific pair is auto-selected
-                        st.session_state['current_user_name'] = ""
-                        st.session_state['current_user_jobs'] = ""
-                        st.session_state['current_user_life_experiences'] = ""
-                        st.session_state['current_user_hobbies'] = ""
-                        st.session_state['current_user_decade'] = ""
-                        st.session_state['current_user_college_chapter'] = "" # Clear new field
+                    # Clear pair-specific data for direct input
+                    st.session_state['current_user_name'] = ""
+                    st.session_state['current_user_jobs'] = ""
+                    st.session_state['current_user_life_experiences'] = ""
+                    st.session_state['current_user_hobbies'] = ""
+                    st.session_state['current_user_decade'] = ""
+                    st.session_state['current_user_college_chapter'] = ""
                     st.rerun()
                 else:
                     st.error("Invalid username or password")
@@ -733,14 +712,13 @@ if not st.session_state['is_authenticated']:
                         st.session_state['is_authenticated'] = True
                         st.session_state['logged_in_username'] = new_username
                         PAIRS_DATA = {} # Update global PAIRS_DATA for new user (empty initially)
-                        st.session_state['selected_pair_name'] = "" # No pair selected for new user
-                        # Clear all pair-related session state on new registration
+                        # Clear all pair-related session state on new registration for direct input
                         st.session_state['current_user_name'] = ""
                         st.session_state['current_user_jobs'] = ""
                         st.session_state['current_user_life_experiences'] = ""
                         st.session_state['current_user_hobbies'] = ""
                         st.session_state['current_user_decade'] = ""
-                        st.session_state['current_user_college_chapter'] = "" # Clear new field
+                        st.session_state['current_user_college_chapter'] = ""
                         st.rerun()
 
 else: # If authenticated
@@ -748,13 +726,13 @@ else: # If authenticated
     if st.button("Log Out"):
         st.session_state['is_authenticated'] = False
         st.session_state['logged_in_username'] = ""
-        st.session_state['selected_pair_name'] = "" # Clear selected pair on logout
+        # Clear all pair-related session state on logout
         st.session_state['current_user_name'] = ""
         st.session_state['current_user_jobs'] = ""
         st.session_state['current_user_life_experiences'] = ""
         st.session_state['current_user_hobbies'] = ""
         st.session_state['current_user_decade'] = ""
-        st.session_state['current_user_college_chapter'] = "" # Clear new field
+        st.session_state['current_user_college_chapter'] = ""
         st.session_state['selected_tags'] = []
         st.session_state['active_tags_for_filter'] = []
         st.session_state['tag_checkbox_states'] = {}
@@ -777,82 +755,46 @@ if st.session_state['is_authenticated']:
     """)
 
     st.markdown("---")
-    st.header("👥 Manage Your Pairs:")
+    st.header("👥 Manage Your Pair's Profile:")
 
-    col_select_pair, col_add_pair_btn = st.columns([3, 1])
-
-    with col_select_pair:
-        # Get the list of pair names for the logged-in volunteer
-        pair_names = list(PAIRS_DATA.keys())
-        
-        # Add an option to add a new pair to the selectbox for initial selection
-        pair_options_selectbox = ["Add New Pair"] + sorted(pair_names)
-
-        # Determine the initial index for the selectbox
-        selected_option_index = 0 # Default to "Add New Pair"
-        if st.session_state['selected_pair_name'] and st.session_state['selected_pair_name'] in pair_names:
-            selected_option_index = pair_names.index(st.session_state['selected_pair_name']) + 1 # +1 for "Add New Pair" option
-        
-        selected_pair_ui = st.selectbox(
-            "Select an existing pair:",
-            options=pair_options_selectbox,
-            index=selected_option_index,
-            key="pair_selector"
-        )
-
-    with col_add_pair_btn:
-        st.markdown("<br>", unsafe_allow_html=True) # Add some spacing
-        if st.button("✨ Add New Pair", key="add_new_pair_button"):
-            st.session_state['selected_pair_name'] = "Add New Pair"
-            # Clear all current pair data in session state to prepare for new input
-            st.session_state['current_user_name'] = ""
-            st.session_state['current_user_jobs'] = ""
-            st.session_state['current_user_life_experiences'] = ""
-            st.session_state['current_user_hobbies'] = ""
-            st.session_state['current_user_decade'] = ""
-            st.session_state['current_user_college_chapter'] = ""
-            st.rerun() # Rerun to reflect changes and open expander
-
-    # Logic when a pair is selected from the dropdown (or after "Add New Pair" button click reruns)
-    if selected_pair_ui != st.session_state['selected_pair_name']:
-        st.session_state['selected_pair_name'] = selected_pair_ui
-        if selected_pair_ui != "Add New Pair":
-            selected_pair_info = PAIRS_DATA.get(selected_pair_ui, {})
-            st.session_state['current_user_name'] = selected_pair_ui
-            st.session_state['current_user_jobs'] = selected_pair_info.get('jobs', '')
-            st.session_state['current_user_life_experiences'] = selected_pair_info.get('life_experiences', '')
-            st.session_state['current_user_hobbies'] = selected_pair_info.get('hobbies', '')
-            st.session_state['current_user_decade'] = selected_pair_info.get('decade', '')
-            st.session_state['current_user_college_chapter'] = selected_pair_info.get('college_chapter', '')
-        else: 
-            st.session_state['current_user_name'] = ""
-            st.session_state['current_user_jobs'] = ""
-            st.session_state['current_user_life_experiences'] = ""
-            st.session_state['current_user_hobbies'] = ""
-            st.session_state['current_user_decade'] = ""
-            st.session_state['current_user_college_chapter'] = ""
-        st.rerun() # Rerun to update the input fields immediately and expander state
-
-
-    # Display the pair details input form within an expander
-    st.markdown("---")
-    # Expander is open if a pair is selected or 'Add New Pair' is chosen. Closed only on initial load.
-    expander_is_open_on_init = st.session_state['selected_pair_name'] != ""
-
-    with st.expander("✨ Pair Profile Details", expanded=expander_is_open_on_init):
-        pair_form_title = f"Details for **{st.session_state['selected_pair_name']}**" if st.session_state['selected_pair_name'] != "Add New Pair" else "✨ Add New Pair Profile ✨"
-        st.subheader(pair_form_title)
-        
-        if st.session_state['selected_pair_name'] == "Add New Pair":
-            st.info("Please fill in the details below to create a new pair profile for this volunteer account.")
+    # Display the pair details input form within an expander that is always expanded
+    with st.expander("✨ Pair Profile Details", expanded=True):
+        st.subheader("Edit Pair Profile")
+        st.info("Enter the pair's name. If the name exists, their details will load. Otherwise, you're creating a new profile.")
 
         with st.form("pair_details_form"):
-            pair_name_input = st.text_input("Pair's Name (Required)", value=st.session_state['current_user_name'], key="pair_name_input")
+            # Use a callback for on_change of pair_name_input to load existing data
+            def load_existing_pair_data():
+                typed_pair_name = st.session_state.get('pair_name_input', '').strip()
+                if typed_pair_name and typed_pair_name in PAIRS_DATA:
+                    pair_info = PAIRS_DATA[typed_pair_name]
+                    st.session_state['current_user_name'] = typed_pair_name
+                    st.session_state['current_user_jobs'] = pair_info.get('jobs', '')
+                    st.session_state['current_user_life_experiences'] = pair_info.get('life_experiences', '')
+                    st.session_state['current_user_hobbies'] = pair_info.get('hobbies', '')
+                    st.session_state['current_user_decade'] = pair_info.get('decade', '')
+                    st.session_state['current_user_college_chapter'] = pair_info.get('college_chapter', '')
+                elif typed_pair_name: # If a new name is typed, clear other fields
+                    if st.session_state['current_user_name'] != typed_pair_name: # Only clear if name actually changed to a new one
+                        st.session_state['current_user_jobs'] = ""
+                        st.session_state['current_user_life_experiences'] = ""
+                        st.session_state['current_user_hobbies'] = ""
+                        st.session_state['current_user_decade'] = ""
+                        st.session_state['current_user_college_chapter'] = ""
+                    st.session_state['current_user_name'] = typed_pair_name # Update current_user_name with the typed name
+
+            pair_name_input = st.text_input(
+                "Pair's Name (Required)",
+                value=st.session_state['current_user_name'],
+                key="pair_name_input",
+                on_change=load_existing_pair_data # Load data when name changes
+            )
+            
             jobs_input = st.text_input("What did they used to do for a living? (e.g., Teacher, Engineer, Homemaker)", value=st.session_state['current_user_jobs'], key="pair_jobs_input")
             life_experiences_input = st.text_input("What are some significant life experiences or memorable events they often talk about? (e.g., specific projects at work, historical events they lived through, family milestones)", value=st.session_state['current_user_life_experiences'], key="pair_life_experiences_input")
             hobbies_input = st.text_input("What are their hobbies or favorite activities? (e.g., Gardening, Reading, Music, Sports)", value=st.session_state['current_user_hobbies'], key="pair_hobbies_input")
             decade_input = st.text_input("What is their favorite decade or era? (e.g., 1950s, 1970s, Victorian era)", value=st.session_state['current_user_decade'], key="pair_decade_input")
-            college_chapter_input = st.text_input("College Chapter (e.g., Alpha Beta Gamma, 1965-1969)", value=st.session_state['current_user_college_chapter'], key="pair_college_chapter_input") # New input field
+            college_chapter_input = st.text_input("College Chapter (e.g., Alpha Beta Gamma, 1965-1969)", value=st.session_state['current_user_college_chapter'], key="pair_college_chapter_input")
 
 
             save_pair_button = st.form_submit_button("Save Pair Details")
@@ -860,28 +802,33 @@ if st.session_state['is_authenticated']:
             if save_pair_button:
                 if not pair_name_input:
                     st.error("Pair's Name is required.")
-                elif pair_name_input != st.session_state['selected_pair_name'] and pair_name_input in PAIRS_DATA:
-                    st.error(f"A pair with the name '{pair_name_input}' already exists for your account. Please choose a different name.")
                 else:
-                    if save_pair_details(st.session_state['logged_in_username'], pair_name_input, jobs_input, life_experiences_input, hobbies_input, decade_input, college_chapter_input): # Pass new field
-                        st.session_state['current_user_name'] = pair_name_input # Update current_user_name to new pair name
+                    if save_pair_details(
+                        st.session_state['logged_in_username'],
+                        pair_name_input,
+                        jobs_input,
+                        life_experiences_input,
+                        hobbies_input,
+                        decade_input,
+                        college_chapter_input
+                    ):
+                        st.session_state['current_user_name'] = pair_name_input # Update current_user_name
                         st.session_state['current_user_jobs'] = jobs_input
                         st.session_state['current_user_life_experiences'] = life_experiences_input
                         st.session_state['current_user_hobbies'] = hobbies_input
                         st.session_state['current_user_decade'] = decade_input
-                        st.session_state['current_user_college_chapter'] = college_chapter_input # Update new field
-                        st.session_state['selected_pair_name'] = pair_name_input # Ensure selectbox reflects the saved name
+                        st.session_state['current_user_college_chapter'] = college_chapter_input
                         st.rerun() # Rerun to refresh UI with saved data and potentially new pair in dropdown
 
-    # Only show main app content if a pair is selected AND it's not the "Add New Pair" state
-    if st.session_state['selected_pair_name'] and st.session_state['selected_pair_name'] != "Add New Pair":
+    # Display the current active pair's details outside the form
+    if st.session_state['current_user_name']:
         st.markdown(f"---")
-        st.subheader(f"Current Active Pair: **{st.session_state['selected_pair_name']}**")
+        st.subheader(f"Current Active Pair: **{st.session_state['current_user_name']}**")
         st.markdown(f"Job: {st.session_state['current_user_jobs'] if st.session_state['current_user_jobs'] else 'N/A'}")
         st.markdown(f"Life Experiences: {st.session_state['current_user_life_experiences'] if st.session_state['current_user_life_experiences'] else 'N/A'}")
         st.markdown(f"Hobbies: {st.session_state['current_user_hobbies'] if st.session_state['current_user_hobbies'] else 'N/A'}")
         st.markdown(f"Favorite Decade: {st.session_state['current_user_decade'] if st.session_state['current_user_decade'] else 'N/A'}")
-        st.markdown(f"College Chapter: {st.session_state['current_user_college_chapter'] if st.session_state['current_user_college_chapter'] else 'N/A'}") # Display new field
+        st.markdown(f"College Chapter: {st.session_state['current_user_college_chapter'] if st.session_state['current_user_college_chapter'] else 'N/A'}")
         st.markdown("---")
 
 
@@ -916,14 +863,14 @@ if st.session_state['is_authenticated']:
             'life_experiences': st.session_state['current_user_life_experiences'],
             'hobbies': st.session_state['current_user_hobbies'],
             'decade': st.session_state['current_user_decade'],
-            'college_chapter': st.session_state['current_user_college_chapter'] # Add new field to user_info
+            'college_chapter': st.session_state['current_user_college_chapter']
         }
 
         feedback_tag_scores = load_feedback_tag_scores()
 
 
         if st.button("Generate Personalized Tags & Recommendations", key="generate_main_btn"):
-            if not (st.session_state['current_user_jobs'] or st.session_state['current_user_hobbies'] or st.session_state['current_user_decade'] or st.session_state['current_user_life_experiences'] or st.session_state['current_user_college_chapter']): # Check new field
+            if not (st.session_state['current_user_jobs'] or st.session_state['current_user_hobbies'] or st.session_state['current_user_decade'] or st.session_state['current_user_life_experiences'] or st.session_state['current_user_college_chapter']):
                 st.warning("Please enter at least one detail about your pair (job, life experiences, hobbies, favorite decade, or college chapter) to generate tags.")
                 st.stop()
 
@@ -969,7 +916,7 @@ if st.session_state['is_authenticated']:
                         st.session_state['tag_checkbox_states'] = {tag: True for tag in st.session_state['selected_tags']}
                         st.session_state['active_tags_for_filter'] = list(st.session_state['selected_tags'])
                         st.success("✨ Tags generated!")
-                        save_user_input(st.session_state['current_user_name'], st.session_state['current_user_jobs'], st.session_state['current_user_hobbies'], st.session_state['current_user_decade'], st.session_state['selected_tags'], st.session_state['logged_in_username'], st.session_state['current_user_college_chapter']) # Pass new field
+                        save_user_input(st.session_state['current_user_name'], st.session_state['current_user_jobs'], st.session_state['current_user_hobbies'], st.session_state['current_user_decade'], st.session_state['selected_tags'], st.session_state['logged_in_username'], st.session_state['current_user_college_chapter'])
                     except Exception as e:
                         st.error(f"Failed to generate tags using OpenAI. Please check your API key and try again. Error: {e}")
                 else:
@@ -1192,7 +1139,7 @@ if st.session_state['is_authenticated']:
                                 feedback_ws = sheet.worksheet('Feedback')
                                 feedback_ws.append_row([
                                     datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                                    st.session_state['current_user_name'], # Use the selected pair's name
+                                    st.session_state['current_user_name'], # Use the current pair's name
                                     item.get('Title', 'N/A'),
                                     item.get('Type', 'N/A'),
                                     feedback,
@@ -1305,7 +1252,7 @@ if st.session_state['is_authenticated']:
         with notes_col2:
             session_mood = st.radio(
                 "Pair's Overall Mood During Session:",
-                ["Happy 😊", "Calm 😌", "Neutral 😐", "Agitated �", "Sad 😢"],
+                ["Happy 😊", "Calm 😌", "Neutral 😐", "Agitated 😠", "Sad 😢"],
                 index=["Happy 😊", "Calm 😌", "Neutral 😐", "Agitated 😠", "Sad 😢"].index(st.session_state['session_mood']),
                 key="session_mood_input"
             )
@@ -1333,7 +1280,7 @@ if st.session_state['is_authenticated']:
                 recommended_materials_json = json.dumps(all_recommended_materials)
 
                 save_session_notes_to_gsheet(
-                    st.session_state['current_user_name'], # Use the selected pair's name
+                    st.session_state['current_user_name'], # Use the current pair's name
                     st.session_state['session_date'],
                     st.session_state['session_mood'],
                     st.session_state['session_engagement'],
@@ -1349,7 +1296,7 @@ if st.session_state['is_authenticated']:
                 st.session_state['recommended_newspapers_current_session'] = []
                 st.rerun()
             else:
-                st.warning("Please select or add a 'Pair's Name' at the top to save session notes.")
+                st.warning("Please enter a 'Pair's Name' at the top to save session notes.")
 
         st.markdown("---")
         st.subheader("Past Session History:")
@@ -1377,6 +1324,4 @@ if st.session_state['is_authenticated']:
             else:
                 st.info(f"No past session notes found for {st.session_state['current_user_name']} logged by {st.session_state['logged_in_username']}. Save a session to see history!")
         else:
-            st.info("Select a 'Pair's Name' above to view their session history.")
-    else:
-        st.info("Please select or add a pair above to continue.")
+            st.info("Enter a 'Pair's Name' above to view their session history.")
