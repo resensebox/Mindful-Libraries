@@ -9,6 +9,7 @@ from openai import OpenAI
 from fpdf import FPDF
 from datetime import datetime, date
 import base64 # Import base64 for PDF download
+import re # Import regex module for robust parsing
 
 st.set_option('client.showErrorDetails', True)
 
@@ -963,33 +964,47 @@ def get_this_day_in_history_facts(current_day, current_month, user_info, _ai_cli
             )
             history_facts_raw = response.choices[0].message.content.strip()
 
-            # Parse the raw text response from the AI
+            # --- Robust Parsing using regex ---
             event_title = ""
             event_article = ""
             born_section = ""
             fun_fact_section = ""
             trivia_section = []
 
-            sections = history_facts_raw.split('\n\n') # Split by double newline for sections
+            # Define regex patterns for each section
+            # Use re.DOTALL to match across multiple lines
+            # Non-greedy match for content (.*?) until the next section header or end of string
+            event_pattern = re.compile(r"Event:\s*(.*?)\n(.*?)(?=\n\nBorn on this Day:|\n\nFun Fact:|\n\nTrivia Questions:|$)", re.DOTALL)
+            born_pattern = re.compile(r"Born on this Day:\s*(.*?)(?=\n\nFun Fact:|\n\nTrivia Questions:|$)", re.DOTALL)
+            fun_fact_pattern = re.compile(r"Fun Fact:\s*(.*?)(?=\n\nTrivia Questions:|$)", re.DOTALL)
+            trivia_pattern = re.compile(r"Trivia Questions:\s*(.*)", re.DOTALL)
 
-            for section in sections:
-                if section.startswith("Event:"):
-                    first_line = section.split('\n')[0].replace("Event:", "").strip()
-                    if ' - ' in first_line:
-                        event_title = first_line.split(' - ', 1)[0].strip()
-                    else:
-                        event_title = first_line.strip()
-                    event_article = '\n'.join(section.split('\n')[1:]).strip()
-                elif section.startswith("Born on this Day:"):
-                    born_section = section.replace("Born on this Day:", "").strip()
-                elif section.startswith("Fun Fact:"):
-                    fun_fact_section = section.replace("Fun Fact:", "").strip()
-                elif section.startswith("Trivia Questions:"):
-                    trivia_lines = section.replace("Trivia Questions:", "").strip().split('\n')
-                    trivia_section = [line.strip() for line in trivia_lines if line.strip()]
-            
-            # Check if an event was successfully extracted and is reasonably long (more than just title)
-            if event_title and len(event_article) > 50: # Check for minimal article content length
+
+            event_match = event_pattern.search(history_facts_raw)
+            if event_match:
+                full_event_line = event_match.group(1).strip()
+                # Split title and year if year is present
+                if ' - ' in full_event_line:
+                    event_title = full_event_line.split(' - ', 1)[0].strip()
+                else:
+                    event_title = full_event_line.strip()
+                event_article = event_match.group(2).strip()
+
+            born_match = born_pattern.search(history_facts_raw)
+            if born_match:
+                born_section = born_match.group(1).strip()
+
+            fun_fact_match = fun_fact_pattern.search(history_facts_raw)
+            if fun_fact_match:
+                fun_fact_section = fun_fact_match.group(1).strip()
+
+            trivia_match = trivia_pattern.search(history_facts_raw)
+            if trivia_match:
+                trivia_lines = trivia_match.group(1).strip().split('\n')
+                trivia_section = [line.strip() for line in trivia_lines if line.strip()]
+
+            # Check if an event was successfully extracted and has at least a minimal article length
+            if event_title and len(event_article) > 20: # Lowered from 50 to 20 for more robustness
                 return {
                     'event_title': event_title,
                     'event_article': event_article,
@@ -997,8 +1012,12 @@ def get_this_day_in_history_facts(current_day, current_month, user_info, _ai_cli
                     'fun_fact_section': fun_fact_section,
                     'trivia_section': trivia_section
                 }
+            else:
+                st.warning(f"Attempt {attempt+1}: AI response for event was too short or improperly formatted. Retrying... Raw response segment for Event: '{history_facts_raw[:200]}'") # Log what was received
+                # Continue to next attempt, will try again with the same prompt.
+
         except Exception as e:
-            st.warning(f"Attempt {attempt+1} failed to retrieve 'This Day in History' facts: {e}")
+            st.warning(f"Attempt {attempt+1} failed to retrieve 'This Day in History' facts due to an exception: {e}. Retrying...")
             # Continue to next attempt
 
     # If all retries fail, return the default response
