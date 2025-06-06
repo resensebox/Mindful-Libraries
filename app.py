@@ -602,8 +602,10 @@ def save_user_input(name, jobs, hobbies, decade, selected_topics, volunteer_user
         if 'Recommended Books (Titles)' in log_col_map:
             log_update_values[log_col_map['Recommended Books (Titles)']] = ", ".join(recommended_materials_titles) if recommended_materials_titles else ""
 
+        # Convert all elements to string before appending to ensure no non-string types
+        final_values_to_append = [str(val) for val in log_update_values]
 
-        log_ws.append_row(log_update_values)
+        log_ws.append_row(final_values_to_append)
     except Exception as e:
         st.warning(f"Failed to save user data. Error: {e}")
 
