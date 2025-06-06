@@ -551,18 +551,20 @@ def generate_pdf(name, topics, recs):
     return pdf
 
 # Function to save user input to Google Sheet (Logs)
-def save_user_input(name, jobs, hobbies, decade, selected_topics, volunteer_username, college_chapter):
-    """Saves user input to the 'Logs' Google Sheet."""
+def save_user_input(name, jobs, hobbies, decade, selected_topics, volunteer_username, college_chapter, recommended_materials_titles=None):
+    """Saves user input and optional recommended materials to the 'Logs' Google Sheet."""
     try:
         sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXJRXcfmxjoj5s')
         log_ws = sheet.worksheet('Logs')
-        # Check if 'Volunteer Username' and 'College Chapter' column exists, if not, add it
+        # Check if 'Volunteer Username', 'College Chapter', and 'Recommended Books (Titles)' columns exist, if not, add them
         header_row = log_ws.row_values(1)
         new_log_headers_to_add = []
         if 'Volunteer Username' not in header_row:
             new_log_headers_to_add.append('Volunteer Username')
         if 'College Chapter' not in header_row:
             new_log_headers_to_add.append('College Chapter')
+        if 'Recommended Books (Titles)' not in header_row: # New column for recommended titles
+            new_log_headers_to_add.append('Recommended Books (Titles)')
 
         if new_log_headers_to_add:
             log_ws.append_row(header_row + new_log_headers_to_add) # Append new headers
@@ -582,6 +584,9 @@ def save_user_input(name, jobs, hobbies, decade, selected_topics, volunteer_user
         if 'Selected Topics' in log_col_map: log_update_values[log_col_map['Selected Topics']] = ", ".join(selected_topics)
         if 'Volunteer Username' in log_col_map: log_update_values[log_col_map['Volunteer Username']] = volunteer_username
         if 'College Chapter' in log_col_map: log_update_values[log_col_map['College Chapter']] = college_chapter # Save new field
+        if 'Recommended Books (Titles)' in log_col_map: # Save recommended titles if provided
+            log_update_values[log_col_map['Recommended Books (Titles)']] = ", ".join(recommended_materials_titles) if recommended_materials_titles else ""
+
 
         log_ws.append_row(log_update_values)
     except Exception as e:
@@ -1503,7 +1508,8 @@ if st.session_state['is_authenticated']:
                             st.session_state['tag_checkbox_states'] = {tag: True for tag in st.session_state['selected_tags']}
                             st.session_state['active_tags_for_filter'] = list(st.session_state['selected_tags'])
                             st.success("✨ Tags generated!")
-                            save_user_input(st.session_state['current_user_name'], st.session_state['current_user_jobs'], st.session_state['current_user_hobbies'], st.session_state['current_user_decade'], st.session_state['selected_tags'], st.session_state['logged_in_username'], st.session_state['current_user_college_chapter'])
+                            # Initial save when tags are generated (no recommended books yet)
+                            save_user_input(st.session_state['current_user_name'], st.session_state['current_user_jobs'], st.session_state['current_user_hobbies'], st.session_state['current_user_decade'], st.session_state['selected_tags'], st.session_state['logged_in_username'], st.session_state['current_user_college_chapter'], [])
                             # Automatically navigate to Session Plan after generating tags
                             st.session_state['current_page'] = 'session_plan'
                             st.rerun()
@@ -1688,6 +1694,20 @@ if st.session_state['is_authenticated']:
             
             st.session_state['recommended_books_current_session'] = books
             st.session_state['recommended_newspapers_current_session'] = newspapers
+
+            # Log recommended titles to the "Logs" sheet when they are generated
+            all_recommended_titles_for_log = [item.get('Title', 'N/A') for item in books + newspapers]
+            save_user_input(
+                st.session_state['current_user_name'],
+                st.session_state['current_user_jobs'],
+                st.session_state['current_user_hobbies'],
+                st.session_state['current_user_decade'],
+                st.session_state['active_tags_for_filter'], # Current active tags
+                st.session_state['logged_in_username'],
+                st.session_state['current_user_college_chapter'],
+                all_recommended_titles_for_log
+            )
+
 
             if books or newspapers:
                 for item in books + newspapers:
