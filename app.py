@@ -179,27 +179,7 @@ st.markdown("""
     }
 
     /* Content Cards CSS removed as per user request */
-    /* .content-card {
-        background-color: #ffffff;
-        border-radius: 12px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-        padding: 1.5rem;
-        margin-bottom: 2rem;
-        display: flex;
-        flex-direction: column;
-        transition: transform 0.2s ease;
-        height: auto;
-    }
-    .content-card:hover {
-        transform: translateY(-5px);
-    } */
 
-    /* .content-card-image-col {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        padding-right: 1.5rem;
-    } */
 
     /* Specific image styling within cards - remains, as images are still used */
     .stImage > img { /* Changed from .content-card img to a more general Streamlit image selector */
@@ -211,14 +191,6 @@ st.markdown("""
     }
 
     /* Session History Items CSS removed as per user request */
-    /* .session-history-item {
-        background-color: #ffffff;
-        border-radius: 12px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-        padding: 1.2rem;
-        margin-bottom: 1.5rem;
-        border-left: 5px solid #4CAF50;
-    } */
 
     .session-history-item strong {
         color: #333;
@@ -1163,7 +1135,7 @@ if st.session_state['is_authenticated']:
                 st.markdown("Now, select 'My Recommendations' from the sidebar to view your tailored recommendations!")
 
     elif st.session_state['current_page'] == 'search':
-        st.markdown('<a name="search_section"></a>', unsafe_allow_html=True)
+        # Removed the custom anchor tag: st.markdown('<a name="search_section"></a>', unsafe_allow_html=True)
         st.header("🔍 Search for a Specific Topic:")
         search_term = st.text_input("Enter a keyword (e.g., 'adventure', 'history', 'science fiction', 'actor')", key="search_input")
 
@@ -1244,7 +1216,7 @@ if st.session_state['is_authenticated']:
                 st.info(f"No results found for '{search_term}' or its related tags. Try a different keyword or explore the personalized recommendations below.")
 
     elif st.session_state['current_page'] == 'recommendations':
-        st.markdown('<a name="personalized_recommendations"></a>', unsafe_allow_html=True)
+        # Removed the custom anchor tag: st.markdown('<a name="personalized_recommendations"></a>', unsafe_allow_html=True)
         st.header(f"📚 Personalized Recommendations for You!")
 
         if not st.session_state['active_tags_for_filter']:
@@ -1352,7 +1324,7 @@ if st.session_state['is_authenticated']:
                 st.markdown("_No primary recommendations found based on your current tags. Please try adjusting your input or generating new tags._")
 
     elif st.session_state['current_page'] == 'activities':
-        st.markdown('<a name="activities_section"></a>', unsafe_allow_html=True)
+        # Removed the custom anchor tag: st.markdown('<a name="activities_section"></a>', unsafe_allow_html=True)
         st.header("💡 Recommended Activities:")
         
         # user_info is now defined at a higher scope
@@ -1376,7 +1348,7 @@ if st.session_state['is_authenticated']:
 
 
     elif st.session_state['current_page'] == 'related_books':
-        st.markdown('<a name="you_might_also_like"></a>', unsafe_allow_html=True)
+        # Removed the custom anchor tag: st.markdown('<a name="you_might_also_like"></a>', unsafe_allow_html=True)
         st.header("📖 You Might Also Like:") # Changed header text here
         
         # user_info is now defined at a higher scope
@@ -1469,7 +1441,7 @@ if st.session_state['is_authenticated']:
                 st.markdown("_No books available in the database to recommend._")
 
     elif st.session_state['current_page'] == 'session_notes':
-        st.markdown('<a name="session_notes_section"></a>', unsafe_allow_html=True)
+        # Removed the custom anchor tag: st.markdown('<a name="session_notes_section"></a>', unsafe_allow_html=True)
         st.header("📝 Record Your Session Notes:")
 
         notes_col1, notes_col2, notes_col3 = st.columns([1, 1, 1])
@@ -1480,7 +1452,7 @@ if st.session_state['is_authenticated']:
             session_mood = st.radio(
                 "Pair's Overall Mood During Session:",
                 ["Happy 😊", "Calm 😌", "Neutral 😐", "Agitated 😠", "Sad 😢"],
-                index=["Happy 😊", "Calm 😌", "Neutral 😐", "Agitated 😠", "Sad 😢"].index(st.session_state['session_mood']),
+                index=["Happy 😊", "Calm 😌", "Neutral 😐", "Agitated �", "Sad 😢"].index(st.session_state['session_mood']),
                 key="session_mood_input"
             )
             st.session_state['session_mood'] = session_mood
@@ -1531,7 +1503,7 @@ if st.session_state['is_authenticated']:
                 st.warning("Please enter a 'Pair's Name' at the top to save session notes.")
 
     elif st.session_state['current_page'] == 'session_history':
-        st.markdown('<a name="session_history_section"></a>', unsafe_allow_html=True)
+        # Removed the custom anchor tag: st.markdown('<a name="session_history_section"></a>', unsafe_allow_html=True)
         st.header("Past Session History:")
 
         if st.session_state['current_user_name'] and st.session_state['logged_in_username']:
@@ -1563,7 +1535,7 @@ if st.session_state['is_authenticated']:
             st.info("Enter a 'Pair's Name' above to view their session history.")
 
     elif st.session_state['current_page'] == 'decade_summary':
-        st.markdown('<a name="decade_summary"></a>', unsafe_allow_html=True)
+        # Removed the custom anchor tag: st.markdown('<a name="decade_summary"></a>', unsafe_allow_html=True)
         st.header(f"🕰️ A Glimpse into the {st.session_state['current_user_decade']}:")
         if st.session_state['current_user_decade']:
             with st.spinner(f"Generating context for the {st.session_state['current_user_decade']}..."):
@@ -1572,3 +1544,4 @@ if st.session_state['is_authenticated']:
         else:
             st.info("Please set a 'Favorite Decade' in the Pair Profile to view a historical summary.")
 
+�
