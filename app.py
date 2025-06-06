@@ -301,7 +301,6 @@ def save_pair_details(volunteer_username, pair_name, jobs, life_experiences, hob
                 break
         
         # Create a dictionary for mapping to header positions
-        # Corrected syntax: removed duplicate 'i'
         col_map = {header_name: i for i, header_name in enumerate(header_row)}
         
         # Prepare values to update, ensuring correct order based on header_row
@@ -1268,7 +1267,7 @@ if st.session_state['is_authenticated']:
         with notes_col2:
             session_mood = st.radio(
                 "Pair's Overall Mood During Session:",
-                ["Happy 😊", "Calm 😌", "Neutral 😐", "Agitated 😠", "Sad 😢"],
+                ["Happy 😊", "Calm �", "Neutral 😐", "Agitated 😠", "Sad 😢"],
                 index=["Happy 😊", "Calm 😌", "Neutral 😐", "Agitated 😠", "Sad 😢"].index(st.session_state['session_mood']),
                 key="session_mood_input"
             )
@@ -1292,13 +1291,23 @@ if st.session_state['is_authenticated']:
 
         if st.button("Save Session Notes", key="save_session_notes_btn"):
             if st.session_state['current_user_name']:
-                # Extract only titles for logging
-                recommended_book_titles = [book.get('Title', 'N/A') for book in st.session_state['recommended_books_current_session']]
-                recommended_newspaper_titles = [newspaper.get('Title', 'N/A') for newspaper in st.session_state['recommended_newspapers_current_session']]
-                
-                # Combine titles and join them into a single string for logging
-                all_recommended_titles = recommended_book_titles + recommended_newspaper_titles
-                recommended_materials_json = json.dumps(all_recommended_titles) # Now dumping a list of strings
+                # Prepare recommended materials for JSON serialization, converting sets to lists
+                serializable_books = []
+                for book in st.session_state['recommended_books_current_session']:
+                    book_copy = book.copy()
+                    if 'tags' in book_copy and isinstance(book_copy['tags'], set):
+                        book_copy['tags'] = list(book_copy['tags'])
+                    serializable_books.append(book_copy)
+
+                serializable_newspapers = []
+                for newspaper in st.session_state['recommended_newspapers_current_session']:
+                    newspaper_copy = newspaper.copy()
+                    if 'tags' in newspaper_copy and isinstance(newspaper_copy['tags'], set):
+                        newspaper_copy['tags'] = list(newspaper_copy['tags'])
+                    serializable_newspapers.append(newspaper_copy)
+
+                all_recommended_materials = serializable_books + serializable_newspapers
+                recommended_materials_json = json.dumps(all_recommended_materials) # Now dumping full dicts
 
                 save_session_notes_to_gsheet(
                     st.session_state['current_user_name'], # Use the current pair's name
@@ -1334,17 +1343,18 @@ if st.session_state['is_authenticated']:
                     
                     if 'Recommended Materials' in row and row['Recommended Materials']:
                         try:
-                            # When loading, parse the JSON string back into a list of titles
+                            # When loading, parse the JSON string back into a list of dictionaries
                             recs = json.loads(row['Recommended Materials'])
                             if recs:
                                 st.markdown("**Recommended Materials for this Session:**")
-                                # Display each title in the list
-                                for rec_title in recs:
-                                    st.markdown(f"- {rec_title}")
+                                # Display each item's title and type
+                                for rec_item in recs:
+                                    st.markdown(f"- {rec_item.get('Title', 'N/A')} ({rec_item.get('Type', 'N/A')})")
                         except json.JSONDecodeError:
-                            st.markdown("_Error loading recommended materials._")
+                            st.markdown("_Error loading recommended materials. Data format may be incorrect._")
                     st.markdown("---")
             else:
                 st.info(f"No past session notes found for {st.session_state['current_user_name']} logged by {st.session_state['logged_in_username']}. Save a session to see history!")
         else:
             st.info("Enter a 'Pair's Name' above to view their session history.")
+�
