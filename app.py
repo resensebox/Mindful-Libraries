@@ -450,37 +450,68 @@ def save_pair_details(volunteer_username, pair_name, jobs, life_experiences, hob
 
         # Add 'College Chapter' to expected headers
         expected_headers = ['Pair Name', 'Jobs', 'Life Experiences', 'Hobbies', 'Decade', 'College Chapter', 'Volunteer Username']
-        header_row = pairs_ws.row_values(1)
-        new_headers_to_add = [h for h in expected_headers if h not in header_row]
-        if new_headers_to_add:
-            pairs_ws.append_row(header_row + new_headers_to_add)
-            st.info(f"Added {', '.join(new_headers_to_add)} column(s) to 'Pairs' worksheet.")
-            # Reload headers to ensure they are up-to-date for indexing
-            header_row = pairs_ws.row_values(1)
-
-        # Find existing row for this pair and volunteer
-        records = pairs_ws.get_all_records(head=1) # Get records with first row as header
-        found_row_idx = -1
-        for i, record in enumerate(records):
-            if record.get('Pair Name', '').lower() == pair_name.lower() and \
-               record.get('Volunteer Username', '').lower() == volunteer_username.lower():
-                found_row_idx = i + 2 # gspread row index is 1-based, plus header row
-                break
         
-        # Create a dictionary for mapping to header positions
+        # Get all raw values to bypass get_all_records() issue with duplicate/empty headers
+        all_values = pairs_ws.get_all_values()
+
+        header_row = []
+        if all_values:
+            header_row = [str(h).strip() for h in all_values[0]]
+        
+        # If no headers found or sheet is empty, create them
+        if not header_row or not any(header_row): # Check if header row is truly empty or all empty strings
+            pairs_ws.append_row(expected_headers)
+            all_values = pairs_ws.get_all_values() # Re-fetch with new header
+            header_row = [str(h).strip() for h in all_values[0]]
+            st.info("Created missing headers in 'Pairs' worksheet.")
+
+
+        # Now, find existing row using raw data
+        data_rows = all_values[1:] # All data rows after the header
+        found_row_idx = -1
+        
+        # We need the column index for 'Pair Name' and 'Volunteer Username' based on header_row
+        pair_name_col_idx = -1
+        volunteer_username_col_idx = -1
+        
+        try:
+            pair_name_col_idx = header_row.index('Pair Name')
+            volunteer_username_col_idx = header_row.index('Volunteer Username')
+        except ValueError as ve:
+            st.error(f"Essential columns 'Pair Name' or 'Volunteer Username' not found in your Google Sheet header. Please ensure they exist. Error: {ve}")
+            return False # Cannot proceed without these.
+
+        for i, row_data in enumerate(data_rows):
+            # Ensure row_data is long enough to access columns by index
+            if len(row_data) > pair_name_col_idx and len(row_data) > volunteer_username_col_idx:
+                current_pair_name = row_data[pair_name_col_idx].strip().lower()
+                current_volunteer_username = row_data[volunteer_username_col_idx].strip().lower()
+
+                if current_pair_name == pair_name.strip().lower() and \
+                   current_volunteer_username == volunteer_username.strip().lower():
+                    found_row_idx = i + 2 # gspread row index is 1-based, plus header row
+                    break
+        
+        # Create a dictionary for mapping to header positions using the *actual* header_row from the sheet
         col_map = {header_name: i for i, header_name in enumerate(header_row)}
         
-        # Prepare values to update, ensuring correct order based on header_row
-        update_values = [''] * len(header_row) # Initialize with empty strings
-        for i, h in enumerate(expected_headers):
-            if h in col_map:
-                if h == 'Pair Name': update_values[col_map[h]] = pair_name
-                elif h == 'Jobs': update_values[col_map[h]] = jobs
-                elif h == 'Life Experiences': update_values[col_map[h]] = life_experiences
-                elif h == 'Hobbies': update_values[col_map[h]] = hobbies
-                elif h == 'Decade': update_values[col_map[h]] = decade
-                elif h == 'College Chapter': update_values[col_map[h]] = college_chapter # Save new field
-                elif h == 'Volunteer Username': update_values[col_map[h]] = volunteer_username
+        # Prepare values to update. Initialize with empty strings.
+        # If found_row_idx exists, pre-fill with existing row data to preserve non-updated fields.
+        update_values = [''] * len(header_row) 
+        if found_row_idx != -1:
+            existing_row_data = all_values[found_row_idx - 1] # gspread uses 1-based index for rows, 0-based for list
+            for h_idx, h_name in enumerate(header_row):
+                if h_idx < len(existing_row_data):
+                    update_values[h_idx] = existing_row_data[h_idx] # Keep existing value if not being updated
+
+        # Overwrite with new values where applicable, checking if the column exists in col_map
+        if 'Pair Name' in col_map: update_values[col_map['Pair Name']] = pair_name
+        if 'Jobs' in col_map: update_values[col_map['Jobs']] = jobs
+        if 'Life Experiences' in col_map: update_values[col_map['Life Experiences']] = life_experiences
+        if 'Hobbies' in col_map: update_values[col_map['Hobbies']] = hobbies
+        if 'Decade' in col_map: update_values[col_map['Decade']] = decade
+        if 'College Chapter' in col_map: update_values[col_map['College Chapter']] = college_chapter
+        if 'Volunteer Username' in col_map: update_values[col_map['Volunteer Username']] = volunteer_username
 
         if found_row_idx != -1:
             pairs_ws.update(f'A{found_row_idx}', [update_values])
@@ -490,13 +521,13 @@ def save_pair_details(volunteer_username, pair_name, jobs, life_experiences, hob
             st.success(f"New pair '{pair_name}' added successfully!")
 
         st.cache_data(load_pairs).clear()
-        PAIRS_DATA = load_pairs(volunteer_username) # This assignment is now valid after global declaration
+        PAIRS_DATA = load_pairs(volunteer_username)
         return True
     except gspread.exceptions.WorksheetNotFound:
         st.error("Cannot save pair: 'Pairs' worksheet not found. Please create a sheet named 'Pairs' in your Google Sheet.")
         return False
     except Exception as e:
-        st.error(f"Failed to save pair details. Error: {e}")
+        st.error(f"Failed to save pair details. An unexpected error occurred: {e}")
         return False
 
 
@@ -1830,7 +1861,7 @@ if st.session_state['is_authenticated']:
             session_mood = st.radio(
                 "Pair's Overall Mood During Session:",
                 ["Happy 😊", "Calm 😌", "Neutral 😐", "Agitated 😠", "Sad 😢"],
-                index=["Happy �", "Calm 😌", "Neutral 😐", "Agitated 😠", "Sad 😢"].index(st.session_state['session_mood']),
+                index=["Happy 😊", "Calm 😌", "Neutral 😐", "Agitated 😠", "Sad 😢"].index(st.session_state['session_mood']),
                 key="session_mood_input"
             )
             st.session_state['session_mood'] = session_mood
@@ -2037,4 +2068,3 @@ if st.session_state['is_authenticated']:
                 )
             else:
                 st.info("Generate the daily history content first to download the full page PDF.")
-
