@@ -172,6 +172,15 @@ st.markdown("""
         transform: none;
     }
 
+    /* Hide the radio buttons from the sidebar navigation */
+    div[data-testid="stSidebarNav"] .stRadio {
+        display: none;
+    }
+    /* Also hide the label for the hidden radio button */
+    div[data-testid="stSidebarNav"] .stRadio > label {
+        display: none;
+    }
+
     /* Content Cards */
     .content-card {
         background-color: #ffffff;
@@ -700,7 +709,7 @@ def get_ai_expanded_search_tags(search_term, content_tags_list, _ai_client):
     try:
         response = _ai_client.chat.completions.create(
             model="gpt-3.5-turbo",
-            messages=[{"role": "user", "content": prompt}]
+            messages=[{"role": "user", "content": search_prompt}] # Corrected from 'prompt' to 'search_prompt'
         )
         ai_tags_output = response.choices[0].message.content.strip()
         ai_tags_from_response = {t.strip().lower() for t in ai_tags_output.split(',') if t.strip()}
@@ -888,6 +897,16 @@ if not st.session_state['is_authenticated']:
 
 # --- Main App Content (visible only if authenticated) ---
 if st.session_state['is_authenticated']:
+    # Define user_info globally within the authenticated block
+    user_info = {
+        'name': st.session_state['current_user_name'],
+        'jobs': st.session_state['current_user_jobs'],
+        'life_experiences': st.session_state['current_user_life_experiences'],
+        'hobbies': st.session_state['current_user_hobbies'],
+        'decade': st.session_state['current_user_decade'],
+        'college_chapter': st.session_state['current_user_college_chapter']
+    }
+
     # Sidebar for navigation
     with st.sidebar:
         st.markdown(f"**Welcome, {st.session_state['logged_in_username']}!**")
@@ -912,14 +931,14 @@ if st.session_state['is_authenticated']:
         st.markdown(f"""
             <div class="sidebar">
                 <div data-testid="stSidebarNav">
-                    <a href="#dashboard" onclick="window.parent.postMessage({{streamlit: {{command: 'setPage', args: ['dashboard']}}}}, '*');" class="{'active' if st.session_state['current_page'] == 'dashboard' else ''}">Dashboard</a>
-                    <a href="#search_section" onclick="window.parent.postMessage({{streamlit: {{command: 'setPage', args: ['search']}}}}, '*');" class="{'active' if st.session_state['current_page'] == 'search' else ''}">Search Content</a>
-                    <a href="#personalized_recommendations" onclick="window.parent.postMessage({{streamlit: {{command: 'setPage', args: ['recommendations']}}}}, '*');" class="{'active' if st.session_state['current_page'] == 'recommendations' else ''}">My Recommendations</a>
-                    <a href="#activities_section" onclick="window.parent.postMessage({{streamlit: {{command: 'setPage', args: ['activities']}}}}, '*');" class="{'active' if st.session_state['current_page'] == 'activities' else ''}">Activities</a>
-                    <a href="#you_might_also_like" onclick="window.parent.postMessage({{streamlit: {{command: 'setPage', args: ['related_books']}}}}, '*');" class="{'active' if st.session_state['current_page'] == 'related_books' else ''}">Related Books</a>
-                    <a href="#session_notes_section" onclick="window.parent.postMessage({{streamlit: {{command: 'setPage', args: ['session_notes']}}}}, '*');" class="{'active' if st.session_state['current_page'] == 'session_notes' else ''}">Session Notes</a>
-                    <a href="#session_history_section" onclick="window.parent.postMessage({{streamlit: {{command: 'setPage', args: ['session_history']}}}}, '*');" class="{'active' if st.session_state['current_page'] == 'session_history' else ''}">Session History</a>
-                    <a href="#decade_summary" onclick="window.parent.postMessage({{streamlit: {{command: 'setPage', args: ['decade_summary']}}}}, '*');" class="{decade_summary_class}">Decade Summary</a>
+                    <a href="#dashboard" onclick="parent.postMessage({{streamlit: {{command: 'setPage', args: ['dashboard']}}}}, '*');" class="{'active' if st.session_state['current_page'] == 'dashboard' else ''}">Dashboard</a>
+                    <a href="#search_section" onclick="parent.postMessage({{streamlit: {{command: 'setPage', args: ['search']}}}}, '*');" class="{'active' if st.session_state['current_page'] == 'search' else ''}">Search Content</a>
+                    <a href="#personalized_recommendations" onclick="parent.postMessage({{streamlit: {{command: 'setPage', args: ['recommendations']}}}}, '*');" class="{'active' if st.session_state['current_page'] == 'recommendations' else ''}">My Recommendations</a>
+                    <a href="#activities_section" onclick="parent.postMessage({{streamlit: {{command: 'setPage', args: ['activities']}}}}, '*');" class="{'active' if st.session_state['current_page'] == 'activities' else ''}">Activities</a>
+                    <a href="#you_might_also_like" onclick="parent.postMessage({{streamlit: {{command: 'setPage', args: ['related_books']}}}}, '*');" class="{'active' if st.session_state['current_page'] == 'related_books' else ''}">Related Books</a>
+                    <a href="#session_notes_section" onclick="parent.postMessage({{streamlit: {{command: 'setPage', args: ['session_notes']}}}}, '*');" class="{'active' if st.session_state['current_page'] == 'session_notes' else ''}">Session Notes</a>
+                    <a href="#session_history_section" onclick="parent.postMessage({{streamlit: {{command: 'setPage', args: ['session_history']}}}}, '*');" class="{'active' if st.session_state['current_page'] == 'session_history' else ''}">Session History</a>
+                    <a href="#decade_summary" onclick="{ "parent.postMessage({{streamlit: {{command: 'setPage', args: ['decade_summary']}}}}, '*');" if not st.session_state['current_user_decade'] else "return false;"}" class="{decade_summary_class}">Decade Summary</a>
                 </div>
             </div>
         """, unsafe_allow_html=True)
@@ -927,6 +946,7 @@ if st.session_state['is_authenticated']:
         # Using a hidden radio button to control the 'current_page' based on clicks
         # This is a workaround for custom Streamlit navigation to tie into session_state
         # and ensure only one "page" is active at a time.
+        # Ensure the radio button is completely hidden
         st.radio(
             "Navigation",
             options=list(page_options.keys()),
@@ -1037,15 +1057,6 @@ if st.session_state['is_authenticated']:
             st.markdown(f"Favorite Decade: {st.session_state['current_user_decade'] if st.session_state['current_user_decade'] else 'N/A'}")
             st.markdown(f"College Chapter: {st.session_state['current_user_college_chapter'] if st.session_state['current_user_college_chapter'] else 'N/A'}")
             st.markdown("---")
-
-            user_info = {
-                'name': st.session_state['current_user_name'],
-                'jobs': st.session_state['current_user_jobs'],
-                'life_experiences': st.session_state['current_user_life_experiences'],
-                'hobbies': st.session_state['current_user_hobbies'],
-                'decade': st.session_state['current_user_decade'],
-                'college_chapter': st.session_state['current_user_college_chapter']
-            }
 
             if st.button("Generate Personalized Tags & Recommendations", key="generate_main_btn_dashboard"):
                 if not (st.session_state['current_user_jobs'] or st.session_state['current_user_hobbies'] or st.session_state['current_user_decade'] or st.session_state['current_user_life_experiences'] or st.session_state['current_user_college_chapter']):
@@ -1331,14 +1342,7 @@ if st.session_state['is_authenticated']:
         st.markdown('<a name="activities_section"></a>', unsafe_allow_html=True)
         st.header("💡 Recommended Activities:")
         
-        user_info = {
-            'name': st.session_state['current_user_name'],
-            'jobs': st.session_state['current_user_jobs'],
-            'life_experiences': st.session_state['current_user_life_experiences'],
-            'hobbies': st.session_state['current_user_hobbies'],
-            'decade': st.session_state['current_user_decade'],
-            'college_chapter': st.session_state['current_user_college_chapter']
-        }
+        # user_info is now defined at a higher scope
         recommended_titles_for_activities = [item.get('Title', 'N/A') for item in st.session_state['recommended_books_current_session'] + st.session_state['recommended_newspapers_current_session']]
 
         with st.spinner("Generating activity suggestions..."):
@@ -1362,14 +1366,7 @@ if st.session_state['is_authenticated']:
         st.markdown('<a name="you_might_also_like"></a>', unsafe_allow_html=True)
         st.header("📖 You Might Also Like:")
         
-        user_info = {
-            'name': st.session_state['current_user_name'],
-            'jobs': st.session_state['current_user_jobs'],
-            'life_experiences': st.session_state['current_user_life_experiences'],
-            'hobbies': st.session_state['current_user_hobbies'],
-            'decade': st.session_state['current_user_decade'],
-            'college_chapter': st.session_state['current_user_college_chapter']
-        }
+        # user_info is now defined at a higher scope
         feedback_tag_scores = load_feedback_tag_scores()
         
         primary_recommended_titles = {item.get('Title') for item in st.session_state['recommended_books_current_session'] + st.session_state['recommended_newspapers_current_session'] if item.get('Title')}
@@ -1402,7 +1399,7 @@ if st.session_state['is_authenticated']:
                         img_url = book['Image']
                     elif 'URL' in book and "amazon." in book['URL'] and "/dp/" in book['URL']:
                         # Safely extract ASIN if URL is from Amazon and contains '/dp/'
-                        parts_dp = book['URL'].split('/dp/')
+                        parts_dp = item['URL'].split('/dp/')
                         if len(parts_dp) > 1:
                             remaining_url = parts_dp[1]
                             parts_slash = remaining_url.split('/')
@@ -1570,4 +1567,3 @@ if st.session_state['is_authenticated']:
                 st.info(historical_context)
         else:
             st.info("Please set a 'Favorite Decade' in the Pair Profile to view a historical summary.")
-
