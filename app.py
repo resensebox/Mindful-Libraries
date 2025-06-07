@@ -505,13 +505,13 @@ def save_pair_details(volunteer_username, pair_name, jobs, life_experiences, hob
                     update_values[h_idx] = existing_row_data[h_idx] # Keep existing value if not being updated
 
         # Overwrite with new values where applicable, checking if the column exists in col_map
-        if 'Pair Name' in col_map: update_values[col_map['Pair Name']] = pair_name
-        if 'Jobs' in col_map: update_values[col_map['Jobs']] = jobs
-        if 'Life Experiences' in col_map: update_values[col_map['Life Experiences']] = life_experiences
-        if 'Hobbies' in col_map: update_values[col_map['Hobbies']] = hobbies
-        if 'Decade' in col_map: update_values[col_map['Decade']] = decade
-        if 'College Chapter' in col_map: update_values[col_map['College Chapter']] = college_chapter
-        if 'Volunteer Username' in col_map: update_values[col_map['Volunteer Username']] = volunteer_username
+        if 'Pair Name' in col_map: update_values[col_map['Pair Name']] = pair_name.strip() # Ensure stripped
+        if 'Jobs' in col_map: update_values[col_map['Jobs']] = jobs.strip() # Ensure stripped
+        if 'Life Experiences' in col_map: update_values[col_map['Life Experiences']] = life_experiences.strip() # Ensure stripped
+        if 'Hobbies' in col_map: update_values[col_map['Hobbies']] = hobbies.strip() # Ensure stripped
+        if 'Decade' in col_map: update_values[col_map['Decade']] = decade.strip() # Ensure stripped
+        if 'College Chapter' in col_map: update_values[col_map['College Chapter']] = college_chapter.strip() # Ensure stripped
+        if 'Volunteer Username' in col_map: update_values[col_map['Volunteer Username']] = volunteer_username.strip() # Ensure stripped
 
         if found_row_idx != -1:
             pairs_ws.update(f'A{found_row_idx}', [update_values])
@@ -554,6 +554,16 @@ def generate_pdf(name, topics, recs):
 def save_user_input(name, jobs, hobbies, decade, selected_topics, volunteer_username, college_chapter, recommended_materials_titles=None):
     """Saves user input and optional recommended materials to the 'Logs' Google Sheet."""
     try:
+        # Explicitly convert all scalar inputs to string to prevent TypeError
+        # This handles cases where Streamlit might, in rare scenarios, pass a non-string type
+        name_str = str(name) if not isinstance(name, (list, dict)) else ""
+        jobs_str = str(jobs) if not isinstance(jobs, (list, dict)) else ""
+        life_experiences_str = str(life_experiences) if not isinstance(life_experiences, (list, dict)) else ""
+        hobbies_str = str(hobbies) if not isinstance(hobbies, (list, dict)) else ""
+        decade_str = str(decade) if not isinstance(decade, (list, dict)) else ""
+        volunteer_username_str = str(volunteer_username) if not isinstance(volunteer_username, (list, dict)) else ""
+        college_chapter_str = str(college_chapter) if not isinstance(college_chapter, (list, dict)) else ""
+
         sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1AmczPlmyc-TR1IZBOExqi1ur_dS7dSXJRXcfmxjoj5s')
         log_ws = sheet.worksheet('Logs')
         
@@ -591,16 +601,23 @@ def save_user_input(name, jobs, hobbies, decade, selected_topics, volunteer_user
         
         # Populate values based on mapped positions for all expected headers
         if 'Timestamp' in log_col_map: log_update_values[log_col_map['Timestamp']] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        if 'Name' in log_col_map: log_update_values[log_col_map['Name']] = name
-        if 'Jobs' in log_col_map: log_update_values[log_col_map['Jobs']] = jobs
-        if 'Life Experiences' in log_col_map: log_update_values[log_col_map['Life Experiences']] = life_experiences
-        if 'Hobbies' in log_col_map: log_update_values[log_col_map['Hobbies']] = hobbies
-        if 'Decade' in log_col_map: log_update_values[log_col_map['Decade']] = decade
-        if 'Selected Topics' in log_col_map: log_update_values[log_col_map['Selected Topics']] = ", ".join(selected_topics)
-        if 'Volunteer Username' in log_col_map: log_update_values[log_col_map['Volunteer Username']] = volunteer_username
-        if 'College Chapter' in log_col_map: log_update_values[log_col_map['College Chapter']] = college_chapter 
+        if 'Name' in log_col_map: log_update_values[log_col_map['Name']] = name_str
+        if 'Jobs' in log_col_map: log_update_values[log_col_map['Jobs']] = jobs_str
+        if 'Life Experiences' in log_col_map: log_update_values[log_col_map['Life Experiences']] = life_experiences_str
+        if 'Hobbies' in log_col_map: log_update_values[log_col_map['Hobbies']] = hobbies_str
+        if 'Decade' in log_col_map: log_update_values[log_col_map['Decade']] = decade_str
+        
+        # Join selected_topics into a single string
+        selected_topics_joined = ", ".join(selected_topics) if selected_topics else ""
+        if 'Selected Topics' in log_col_map: log_update_values[log_col_map['Selected Topics']] = selected_topics_joined
+
+        if 'Volunteer Username' in log_col_map: log_update_values[log_col_map['Volunteer Username']] = volunteer_username_str
+        if 'College Chapter' in log_col_map: log_update_values[log_col_map['College Chapter']] = college_chapter_str 
+        
+        # Join recommended_materials_titles into a single string
+        recommended_materials_titles_joined = ", ".join(recommended_materials_titles) if recommended_materials_titles else ""
         if 'Recommended Books (Titles)' in log_col_map:
-            log_update_values[log_col_map['Recommended Books (Titles)']] = ", ".join(recommended_materials_titles) if recommended_materials_titles else ""
+            log_update_values[log_col_map['Recommended Books (Titles)']] = recommended_materials_titles_joined
 
         # Convert all elements to string before appending to ensure no non-string types
         final_values_to_append = [str(val) for val in log_update_values]
@@ -1897,7 +1914,7 @@ if st.session_state['is_authenticated']:
         with notes_col2:
             session_mood = st.radio(
                 "Pair's Overall Mood During Session:",
-                ["Happy 😊", "Calm 😌", "Neutral 😐", "Agitated 😠", "Sad 😢"],
+                ["Happy �", "Calm 😌", "Neutral 😐", "Agitated 😠", "Sad 😢"],
                 index=["Happy 😊", "Calm 😌", "Neutral 😐", "Agitated 😠", "Sad 😢"].index(st.session_state['session_mood']),
                 key="session_mood_input"
             )
