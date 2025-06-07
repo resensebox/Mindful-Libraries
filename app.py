@@ -1431,7 +1431,7 @@ if st.session_state['is_authenticated']:
                 st.session_state['current_user_name'] = ""
                 st.session_state['current_user_jobs'] = ""
                 st.session_state['current_user_life_experiences'] = ""
-                    st.session_state['current_user_hobbies'] = ""
+                st.session_state['current_user_hobbies'] = ""
                 st.session_state['current_user_decade'] = ""
                 st.session_state['current_user_college_chapter'] = ""
 
