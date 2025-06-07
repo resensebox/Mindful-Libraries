@@ -551,7 +551,7 @@ def generate_pdf(name, topics, recs):
     return pdf
 
 # Function to save user input to Google Sheet (Logs)
-def save_user_input(name, jobs, hobbies, decade, selected_topics, volunteer_username, college_chapter, recommended_materials_titles=None):
+def save_user_input(name, jobs, life_experiences, hobbies, decade, selected_topics, volunteer_username, college_chapter, recommended_materials_titles=None):
     """Saves user input and optional recommended materials to the 'Logs' Google Sheet."""
     try:
         # Explicitly convert all scalar inputs to string to prevent TypeError
@@ -1431,7 +1431,7 @@ if st.session_state['is_authenticated']:
                 st.session_state['current_user_name'] = ""
                 st.session_state['current_user_jobs'] = ""
                 st.session_state['current_user_life_experiences'] = ""
-                st.session_state['current_user_hobbies'] = ""
+                    st.session_state['current_user_hobbies'] = ""
                 st.session_state['current_user_decade'] = ""
                 st.session_state['current_user_college_chapter'] = ""
 
@@ -1543,7 +1543,17 @@ if st.session_state['is_authenticated']:
                             st.session_state['active_tags_for_filter'] = list(st.session_state['selected_tags'])
                             st.success("✨ Tags generated!")
                             # Initial save when tags are generated (no recommended books yet)
-                            save_user_input(st.session_state['current_user_name'], st.session_state['current_user_jobs'], st.session_state['current_user_hobbies'], st.session_state['current_user_decade'], st.session_state['selected_tags'], st.session_state['logged_in_username'], st.session_state['current_user_college_chapter'], [])
+                            save_user_input(
+                                st.session_state['current_user_name'],
+                                st.session_state['current_user_jobs'],
+                                st.session_state['current_user_life_experiences'], # Pass the life_experiences
+                                st.session_state['current_user_hobbies'],
+                                st.session_state['current_user_decade'],
+                                st.session_state['selected_tags'],
+                                st.session_state['logged_in_username'],
+                                st.session_state['current_user_college_chapter'],
+                                []
+                            )
                             # Automatically navigate to Session Plan after generating tags
                             st.session_state['current_page'] = 'session_plan'
                             st.rerun()
@@ -1734,6 +1744,7 @@ if st.session_state['is_authenticated']:
             save_user_input(
                 st.session_state['current_user_name'],
                 st.session_state['current_user_jobs'],
+                st.session_state['current_user_life_experiences'], # Pass the life_experiences
                 st.session_state['current_user_hobbies'],
                 st.session_state['current_user_decade'],
                 st.session_state['active_tags_for_filter'], # Current active tags
@@ -1914,7 +1925,7 @@ if st.session_state['is_authenticated']:
         with notes_col2:
             session_mood = st.radio(
                 "Pair's Overall Mood During Session:",
-                ["Happy �", "Calm 😌", "Neutral 😐", "Agitated 😠", "Sad 😢"],
+                ["Happy 😊", "Calm 😌", "Neutral �", "Agitated 😠", "Sad 😢"],
                 index=["Happy 😊", "Calm 😌", "Neutral 😐", "Agitated 😠", "Sad 😢"].index(st.session_state['session_mood']),
                 key="session_mood_input"
             )
