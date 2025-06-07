@@ -401,11 +401,11 @@ def load_pairs(volunteer_username):
                 pair_name = record.get('Pair Name')
                 if pair_name:
                     pairs_dict[pair_name] = {
-                        'jobs': record.get('Jobs', ''),
-                        'life_experiences': record.get('Life Experiences', ''),
-                        'hobbies': record.get('Hobbies', ''),
-                        'decade': record.get('Decade', ''),
-                        'college_chapter': record.get('College Chapter', '')
+                        'jobs': str(record.get('Jobs', '')),
+                        'life_experiences': str(record.get('Life Experiences', '')),
+                        'hobbies': str(record.get('Hobbies', '')),
+                        'decade': str(record.get('Decade', '')),
+                        'college_chapter': str(record.get('College Chapter', ''))
                     }
     except gspread.exceptions.WorksheetNotFound:
         st.warning("The 'Pairs' worksheet was not found. Please create a sheet named 'Pairs' with 'Pair Name', 'Jobs', 'Life Experiences', 'Hobbies', 'Decade', 'College Chapter', and 'Volunteer Username' columns.")
@@ -1925,7 +1925,7 @@ if st.session_state['is_authenticated']:
         with notes_col2:
             session_mood = st.radio(
                 "Pair's Overall Mood During Session:",
-                ["Happy 😊", "Calm 😌", "Neutral �", "Agitated 😠", "Sad 😢"],
+                ["Happy 😊", "Calm 😌", "Neutral 😐", "Agitated 😠", "Sad 😢"],
                 index=["Happy 😊", "Calm 😌", "Neutral 😐", "Agitated 😠", "Sad 😢"].index(st.session_state['session_mood']),
                 key="session_mood_input"
             )
